@@ -1,27 +1,29 @@
-"use client"; // Required for usePathname
-
+"use client"; 
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { IconType } from "react-icons";
+import { motion } from "framer-motion"; 
 import {
-  FiDollarSign,
   FiHome,
-  FiLink,
-  FiPaperclip,
   FiUsers,
+  FiFileText,
+  FiImage,
+  FiUserCheck,
+  FiBox,
 } from "react-icons/fi";
 
 export const RouteSelect = () => {
   const pathname = usePathname();
 
   // Define routes in an array for cleaner rendering and easy updating
-  const routes = [
+ const routes = [
     { title: "Dashboard", href: "/dashboard", Icon: FiHome },
     { title: "Team", href: "/dashboard/team", Icon: FiUsers },
-    { title: "Invoices", href: "/dashboard/invoices", Icon: FiPaperclip },
-    { title: "Integrations", href: "/dashboard/integrations", Icon: FiLink },
-    { title: "Finance", href: "/dashboard/finance", Icon: FiDollarSign },
+    { title: "BOQ", href: "/dashboard/boq", Icon: FiFileText },
+    { title: "Drawing", href: "/dashboard/drawing", Icon: FiImage },
+    { title: "Labour", href: "/dashboard/labour", Icon: FiUserCheck },
+    { title: "Inventory", href: "/dashboard/inventory", Icon: FiBox },
   ];
 
   return (
@@ -33,7 +35,7 @@ export const RouteSelect = () => {
           title={route.title}
           href={route.href}
           // The route is selected if the current URL matches the href
-          selected={pathname === route.href} 
+          selected={pathname === route.href}
         />
       ))}
     </div>
@@ -54,14 +56,28 @@ const Route = ({
   return (
     <Link
       href={href}
-      className={`flex items-center justify-start gap-2 w-full rounded px-2 py-1.5 text-sm transition-[box-shadow,background-color,color] ${
+      className={`relative flex items-center justify-start gap-2 w-full rounded px-2 py-1.5 text-sm transition-colors ${
         selected
-          ? "bg-white text-stone-950 shadow"
-          : "hover:bg-stone-200 bg-transparent text-stone-500 shadow-none"
+          ? "text-stone-950"
+          : "hover:bg-stone-200 bg-transparent text-stone-500"
       }`}
     >
-      <Icon className={selected ? "text-violet-500" : ""} />
-      <span>{title}</span>
+      {selected && (
+        <motion.div
+          layoutId="active-bg" 
+          className="absolute inset-0 bg-white rounded shadow"
+          initial={false}
+          transition={{
+            type: "spring",
+            stiffness: 350,
+            damping: 30,
+          }}
+        />
+      )}
+      
+      {/* Added relative and z-10 so the content sits above the animated background */}
+      <Icon className={`relative z-10 transition-colors ${selected ? "text-violet-500" : ""}`} />
+      <span className="relative z-10">{title}</span>
     </Link>
   );
 };
