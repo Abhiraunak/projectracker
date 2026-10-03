@@ -1,19 +1,34 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Group, Heading, Input, Label, SubHeading } from "@/components/utilites/Label";
+// Import the custom auth hook
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Page() {
     const router = useRouter();
+    const { register } = useAuth(); // Destructure the register mutation
+
+    // Add state for form inputs
+    const [name, setName] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         
-        // Add your authentication / sign-up logic here...
-
-        // Redirect to the main page (or dashboard)
-        router.push("/");
+        // Trigger the TanStack Query register mutation
+        register.mutate(
+            { name, email, password },
+            {
+                onSuccess: () => {
+                    // Redirect to sign in (or dashboard) upon successful registration
+                    router.push("/signin");
+                }
+            }
+        );
     };
 
     return (
@@ -40,6 +55,8 @@ export default function Page() {
                             type='text'
                             name='name'
                             placeholder='Enter your name'
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
                             className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50/50 text-stone-900 placeholder:text-stone-400 focus:bg-white focus:border-stone-800 focus:ring-1 focus:ring-stone-800 transition-all outline-none text-sm"
                             required
                         />
@@ -53,6 +70,8 @@ export default function Page() {
                             type='email'
                             name='email'
                             placeholder='name@company.com'
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50/50 text-stone-900 placeholder:text-stone-400 focus:bg-white focus:border-stone-800 focus:ring-1 focus:ring-stone-800 transition-all outline-none text-sm"
                             required
                         />
@@ -66,16 +85,26 @@ export default function Page() {
                             type='password'
                             name='password'
                             placeholder='••••••••'
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50/50 text-stone-900 placeholder:text-stone-400 focus:bg-white focus:border-stone-800 focus:ring-1 focus:ring-stone-800 transition-all outline-none text-sm"
                             required
                         />
                     </Group>
 
+                    {/* Display error message if the registration fails */}
+                    {register.isError && (
+                        <div className="text-sm font-medium text-red-500 text-center">
+                            {register.error?.message || "Failed to create account. Please try again."}
+                        </div>
+                    )}
+
                     <button
                         type="submit"
-                        className="mt-6 w-full flex justify-center items-center py-3 px-6 rounded-xl text-sm font-semibold text-stone-50 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-stone-900 active:scale-[0.99] transition-all duration-150 cursor-pointer"
+                        disabled={register.isPending} // Disable button while request is in flight
+                        className="mt-6 w-full flex justify-center items-center py-3 px-6 rounded-xl text-sm font-semibold text-stone-50 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-stone-900 active:scale-[0.99] transition-all duration-150 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
                     >
-                        Sign Up
+                        {register.isPending ? "Signing up..." : "Sign Up"}
                     </button>
 
                 </form>

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./providers";
 
-const outfit = Outfit({ 
-  subsets: ['latin'], 
-  variable: '--font-outfit' 
+const outfit = Outfit({
+  subsets: ['latin'],
+  variable: '--font-outfit'
 })
 
 export const metadata: Metadata = {
@@ -18,7 +19,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${outfit.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <Providers>
+          {children}
+        </Providers>
+      </body>
     </html>
   );
 }
