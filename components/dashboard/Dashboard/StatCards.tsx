@@ -132,16 +132,19 @@ const Card = ({
     period: string;
 }) => {
     return (
-        <div className="col-span-4 p-4 rounded border border-stone-300">
-            <div className="flex mb-8 items-start justify-between gap-2">
-                <div>
-                    <h3 className="text-stone-500 mb-2 text-sm">{title}</h3>
-                    <p className="text-3xl font-semibold tabular-nums">{value}</p>
+        // Each card sits in the parent's 12-column grid:
+        // phones 1 per row (12), sm 2 per row (6), lg 3 per row (4, as before)
+        <div className="col-span-12 min-w-0 rounded border border-stone-300 p-3 sm:col-span-6 sm:p-4 lg:col-span-4">
+            {/* flex-wrap: if the pill doesn't fit beside a long value, it drops underneath instead of overflowing */}
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-2 sm:mb-8">
+                <div className="min-w-0">
+                    <h3 className="mb-1 text-sm text-stone-500 sm:mb-2">{title}</h3>
+                    <p className="wrap-break-word text-2xl font-semibold tabular-nums sm:text-3xl">{value}</p>
                 </div>
 
                 {pillText && (
                     <span
-                        className={`text-xs flex items-center gap-1 font-medium px-2 py-1 rounded whitespace-nowrap ${
+                        className={`flex items-center gap-1 whitespace-nowrap rounded px-2 py-1 text-xs font-medium ${
                             trend === "up" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
                         }`}
                     >

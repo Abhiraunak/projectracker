@@ -138,7 +138,8 @@ const NAV: { view: PageView; label: string }[] = [
 ];
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500";
-const buttonSecondary = `rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50 ${focusRing}`;
+// Mobile: 44px tall tap target. sm+: the original compact size.
+const buttonSecondary = `min-h-11 rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50 active:bg-stone-100 sm:min-h-0 ${focusRing}`;
 
 const Ledger = memo(function Ledger({ s }: { s: ReturnType<typeof summarise> }) {
   const over = s.balance < 0;
@@ -153,14 +154,17 @@ const Ledger = memo(function Ledger({ s }: { s: ReturnType<typeof summarise> }) 
     { label: `Average progress across ${s.count} ${s.count === 1 ? "task" : "tasks"}`, value: `${Math.round(s.progress)}%` },
   ];
   return (
+    // Mobile: 2x2. sm+: one row of four
     <dl className="grid grid-cols-2 divide-stone-200 overflow-hidden rounded-xl border border-stone-200 sm:grid-cols-4 sm:divide-x">
       {cells.map((c, i) => (
         <div
           key={c.label}
-          className={`px-5 py-4 ${i > 1 ? "border-t border-stone-200 sm:border-t-0" : ""} ${i % 2 === 1 ? "border-l border-stone-200 sm:border-l-0" : ""}`}
+          className={`min-w-0 px-3 py-3 sm:px-5 sm:py-4 ${i > 1 ? "border-t border-stone-200 sm:border-t-0" : ""} ${i % 2 === 1 ? "border-l border-stone-200 sm:border-l-0" : ""}`}
         >
           <dt className="text-xs text-stone-500">{c.label}</dt>
-          <dd className={`mt-1 text-2xl font-semibold tabular-nums tracking-tight ${c.tone ?? "text-stone-900"}`}>{c.value}</dd>
+          <dd className={`mt-1 wrap-break-word text-xl font-semibold tabular-nums tracking-tight sm:text-2xl ${c.tone ?? "text-stone-900"}`}>
+            {c.value}
+          </dd>
         </div>
       ))}
     </dl>
@@ -174,10 +178,10 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 );
 
 const ErrorNotice = ({ error, onRetry }: { error: unknown; onRetry?: () => void }) => (
-  <div role="alert" className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+  <div role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700 sm:p-4">
     <p>{describeError(error)}</p>
     {onRetry && !(error instanceof ApiError && error.status === 401) && (
-      <button type="button" onClick={onRetry} className="mt-2 font-medium underline">
+      <button type="button" onClick={onRetry} className="mt-2 min-h-11 font-medium underline sm:min-h-0">
         Try again
       </button>
     )}
@@ -277,7 +281,8 @@ export default function TeamPage() {
         : (project?.title ?? "Loading project");
 
   return (
-    <div className="min-h-screen text-stone-900">
+    // dvh: on phones, 100vh is taller than the visible area while the browser bar is showing
+    <div className="min-h-dvh min-w-0 text-stone-900">
       <a
         href="#content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2"
@@ -287,8 +292,8 @@ export default function TeamPage() {
 
       <header className="border-b border-stone-200">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-4 pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0 space-y-0.5 mb-4">
+          <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:pt-5">
+            <div className="mb-3 min-w-0 space-y-0.5 sm:mb-4">
               <Heading>Project Management</Heading>
               <p className="truncate text-sm text-stone-500">{subtitle}</p>
             </div>
@@ -298,7 +303,12 @@ export default function TeamPage() {
           </div>
 
           {activeId && (
-            <nav aria-label="Labour sections" className="-mb-px mt-4 flex gap-1 overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden">
+            // Mobile: tabs scroll sideways and run edge to edge (negative margin cancels the page padding).
+            // sm+: back inside the page padding.
+            <nav
+              aria-label="Labour sections"
+              className="-mx-4 -mb-px flex gap-1 overflow-x-auto px-4 scrollbar-none sm:mx-0 sm:mt-4 sm:px-0 [&::-webkit-scrollbar]:hidden"
+            >
               {NAV.map(({ view: v, label }) => {
                 const active =
                   view === v ||
@@ -310,7 +320,7 @@ export default function TeamPage() {
                     type="button"
                     onClick={() => setView(v)}
                     aria-current={active ? "page" : undefined}
-                    className={`whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition-colors sm:py-2.5 ${focusRing} ${active
+                    className={`shrink-0 whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition-colors sm:py-2.5 ${focusRing} ${active
                         ? "border-amber-500 text-stone-900"
                         : "border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-800"
                       }`}
@@ -325,11 +335,14 @@ export default function TeamPage() {
       </header>
 
       <TasksProvider tasks={tasks}>
-        <main id="content" className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <main id="content" className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
           {banner && (
-            <div role="alert" className="mb-6 flex items-start justify-between gap-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              <p>{banner}</p>
-              <button type="button" onClick={() => setBanner(null)} className="font-medium underline">
+            <div
+              role="alert"
+              className="mb-4 flex items-start justify-between gap-3 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700 sm:mb-6"
+            >
+              <p className="min-w-0">{banner}</p>
+              <button type="button" onClick={() => setBanner(null)} className="shrink-0 font-medium underline">
                 Dismiss
               </button>
             </div>
@@ -337,16 +350,17 @@ export default function TeamPage() {
 
           {/* ------------------------------ Projects ----------------------------- */}
           {view === "menu" && (
-            <div className="space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div role="group" aria-label="Filter projects" className="flex rounded border border-stone-300 p-0.5 text-sm">
+            <div className="space-y-5 sm:space-y-6">
+              {/* Mobile: filter on top, "New project" under it, both full width. sm+: one row */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div role="group" aria-label="Filter projects" className="flex rounded border border-stone-300 p-0.5 text-sm sm:inline-flex">
                   {(["ONGOING", "COMPLETED"] as const).map((s) => (
                     <button
                       key={s}
                       type="button"
                       aria-pressed={filter === s}
                       onClick={() => setFilter(s)}
-                      className={`rounded px-3 py-1.5 font-medium transition-colors ${focusRing} ${filter === s ? "bg-stone-900 text-white" : "text-stone-600 hover:text-stone-900"
+                      className={`min-h-10 flex-1 rounded px-3 py-1.5 font-medium transition-colors sm:min-h-0 sm:flex-none ${focusRing} ${filter === s ? "bg-stone-900 text-white" : "text-stone-600 hover:text-stone-900"
                         }`}
                     >
                       {s === "ONGOING" ? "Ongoing" : "Completed"}
@@ -356,14 +370,14 @@ export default function TeamPage() {
                 <button
                   type="button"
                   onClick={startNew}
-                  className={`rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-stone-700 ${focusRing}`}
+                  className={`min-h-11 w-full rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-stone-700 sm:min-h-0 sm:w-auto ${focusRing}`}
                 >
                   New project
                 </button>
               </div>
 
               {projects.isPending ? (
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true">
+                <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3" aria-busy="true">
                   {[0, 1, 2].map((i) => (
                     <div key={i} className="h-72 animate-pulse rounded bg-stone-200/60 motion-reduce:animate-none" />
                   ))}
@@ -371,7 +385,7 @@ export default function TeamPage() {
               ) : projects.isError ? (
                 <ErrorNotice error={projects.error} onRetry={() => projects.refetch()} />
               ) : projects.data.length === 0 ? (
-                <div className="rounded border border-dashed border-stone-300 px-8 py-14 text-center">
+                <div className="rounded border border-dashed border-stone-300 px-4 py-10 text-center sm:px-8 sm:py-14">
                   <p className="font-semibold">
                     {filter === "ONGOING" ? "No ongoing projects" : "No completed projects yet"}
                   </p>
@@ -382,18 +396,17 @@ export default function TeamPage() {
                   </p>
                 </div>
               ) : (
-                <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                // 1 column on phones, 2 from sm, 3 from xl. Grid items stretch, so cards in a row match height.
+                <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
                   {projects.data.map((p) => (
-                    <li key={p.id} className="flex">
-                      <div className="w-full">
-                        <ProjectCard project={p} onOpen={openProject} onToggleStatus={toggleStatus} onDelete={removeProject} />
-                      </div>
+                    <li key={p.id} className="min-w-0">
+                      <ProjectCard project={p} onOpen={openProject} onToggleStatus={toggleStatus} onDelete={removeProject} />
                     </li>
                   ))}
                 </ul>
               )}
 
-              <section aria-label="Recent attendance" className="space-y-3 pt-4">
+              <section aria-label="Recent attendance" className="min-w-0 space-y-3 pt-2 sm:pt-4">
                 <h2 className="text-lg font-semibold">Recent attendance</h2>
                 <RecentAttendance
                   onSelect={(id) => {
@@ -411,7 +424,7 @@ export default function TeamPage() {
               <button
                 type="button"
                 onClick={() => setView(editing ? "dashboard" : "menu")}
-                className="mb-4 text-sm font-medium text-stone-500 transition-colors hover:text-stone-900"
+                className={`mb-2 inline-flex min-h-11 items-center text-sm font-medium text-stone-500 transition-colors hover:text-stone-900 sm:mb-4 sm:min-h-0 ${focusRing}`}
               >
                 &larr; {editing ? "Back to dashboard" : "Back to projects"}
               </button>
@@ -447,14 +460,14 @@ export default function TeamPage() {
               {view === "attendance" && <AttendanceManager projectId={project.id} />}
 
               {view === "payments" && (
-                <div className="mx-auto max-w-6xl space-y-6">
+                <div className="mx-auto min-w-0 max-w-6xl space-y-5 sm:space-y-6">
                   <Ledger s={totals} />
                   <PaymentSchedule tasks={tasks} />
                 </div>
               )}
 
               {view === "progress" && (
-                <div className="mx-auto max-w-4xl space-y-6">
+                <div className="mx-auto min-w-0 max-w-4xl space-y-5 sm:space-y-6">
                   <Ledger s={totals} />
                   <p aria-live="polite" className={`text-sm ${saveState === "error" ? "text-red-700" : "text-stone-500"}`}>
                     {saveState === "saving" && "Saving…"}
@@ -466,10 +479,11 @@ export default function TeamPage() {
               )}
 
               {view === "dashboard" && (
-                <div className="space-y-8">
-                  <div className="flex flex-wrap items-end justify-between gap-3">
-                    <h2 className="text-lg font-semibold">{project.title}</h2>
-                    <button type="button" onClick={startEdit} className={buttonSecondary}>
+                <div className="min-w-0 space-y-6 sm:space-y-8">
+                  {/* Mobile: title, then a full-width edit button. sm+: title left, button right */}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <h2 className="min-w-0 wrap-break-word text-lg font-semibold">{project.title}</h2>
+                    <button type="button" onClick={startEdit} className={`${buttonSecondary} w-full sm:w-auto`}>
                       Edit project data
                     </button>
                   </div>

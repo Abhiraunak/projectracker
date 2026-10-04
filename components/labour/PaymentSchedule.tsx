@@ -80,7 +80,11 @@ const STATUS = {
   ok: { label: "On budget", pill: "bg-green-100 text-green-700", text: "text-green-700", Icon: FiCheckCircle },
 } as const;
 
-const StatusPill = ({ result }: { result: BudgetResult }) => {
+/**
+ * `reasonVisible`: the mobile cards print the reason on screen (touch devices
+ * have no hover tooltip), so the pill must not repeat it for screen readers.
+ */
+const StatusPill = ({ result, reasonVisible = false }: { result: BudgetResult; reasonVisible?: boolean }) => {
   const { label, pill, Icon } = STATUS[result.status];
   return (
     <span
@@ -88,24 +92,50 @@ const StatusPill = ({ result }: { result: BudgetResult }) => {
       className={`inline-flex items-center gap-1 whitespace-nowrap rounded px-2 py-1 text-xs font-medium ${pill}`}
     >
       <Icon aria-hidden /> {label}
-      <span className="sr-only">. {result.reason}</span>
+      {!reasonVisible && <span className="sr-only">. {result.reason}</span>}
     </span>
   );
 };
+
+const ProgressBar = ({ work, progress, className }: { work: string; progress: number; className: string }) => (
+  <div
+    role="progressbar"
+    aria-label={`${work} progress`}
+    aria-valuemin={0}
+    aria-valuemax={100}
+    aria-valuenow={Math.round(progress)}
+    className={`h-1.5 overflow-hidden rounded bg-stone-200 ${className}`}
+  >
+    <div className="h-full bg-stone-900" style={{ width: `${progress}%` }} />
+  </div>
+);
 
 interface PaymentScheduleProps {
   tasks?: PaymentTask[];
 }
 
 export const PaymentSchedule = memo(function PaymentSchedule({ tasks = [] }: PaymentScheduleProps) {
+  // Everything both layouts need is worked out once, so mobile and desktop can't disagree
   const rows = useMemo(
     () =>
-      tasks.map((task) => ({
-        task,
-        result: budgetStatus(task),
-        variance: task.stipulated - task.paid,
-        progress: clamp(task.progress, 0, 100),
-      })),
+      tasks.map((task) => {
+        const result = budgetStatus(task);
+        const variance = task.stipulated - task.paid;
+        return {
+          task,
+          result,
+          progress: clamp(task.progress, 0, 100),
+          varianceText: variance < 0 ? `-${formatINR(Math.abs(variance))}` : formatINR(variance),
+          varianceCls: variance < 0 ? "font-medium text-red-700" : "text-stone-500",
+          projectedText: result.projected === null ? "-" : formatINR(Math.round(result.projected)),
+          projectedCls:
+            result.projected === null
+              ? "text-stone-400"
+              : result.status === "ok"
+                ? "text-stone-500"
+                : `${STATUS[result.status].text} font-medium`,
+        };
+      }),
     [tasks]
   );
 
@@ -114,9 +144,9 @@ export const PaymentSchedule = memo(function PaymentSchedule({ tasks = [] }: Pay
 
   if (tasks.length === 0) {
     return (
-      <div>
-        <Heading className="mb-4">Payment schedule</Heading>
-        <div className="rounded border border-dashed border-stone-300 p-8 text-center text-sm text-stone-500">
+      <div className="min-w-0">
+        <Heading className="mb-3 sm:mb-4">Payment schedule</Heading>
+        <div className="rounded border border-dashed border-stone-300 p-6 text-center text-sm text-stone-500 sm:p-8">
           No payment schedule data available.
         </div>
       </div>
@@ -124,10 +154,10 @@ export const PaymentSchedule = memo(function PaymentSchedule({ tasks = [] }: Pay
   }
 
   return (
-    <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <div className="min-w-0">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 sm:mb-4 sm:gap-3">
         <Heading>Payment schedule</Heading>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {over > 0 && (
             <span className="rounded bg-red-100 px-2 py-1 text-xs font-medium text-red-700">{over} over budget</span>
           )}
@@ -141,51 +171,76 @@ export const PaymentSchedule = memo(function PaymentSchedule({ tasks = [] }: Pay
       </div>
 
       <div className="rounded border border-stone-300">
-        <div className="overflow-x-auto">
+        {/* ───────── Mobile: one stacked entry per task (no sideways scrolling) ───────── */}
+        <ul className="divide-y divide-stone-200 md:hidden">
+          {rows.map(({ task, result, progress, varianceText, varianceCls, projectedText, projectedCls }) => (
+            <li key={task.id} className="p-3 sm:p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <p className="min-w-0 wrap-break-word font-medium text-stone-900">{task.work}</p>
+                <StatusPill result={result} reasonVisible />
+              </div>
+
+              <div className="mt-3 flex items-center gap-2">
+                <ProgressBar work={task.work} progress={progress} className="flex-1" />
+                <span className="text-sm tabular-nums">{Math.round(progress)}%</span>
+              </div>
+
+              <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                <div className="min-w-0">
+                  <dt className="text-xs text-stone-500">Stipulated</dt>
+                  <dd className="wrap-break-word tabular-nums">{formatINR(task.stipulated)}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs text-stone-500">Paid</dt>
+                  <dd className="wrap-break-word tabular-nums">{formatINR(task.paid)}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs text-stone-500">Variance</dt>
+                  <dd className={`wrap-break-word tabular-nums ${varianceCls}`}>{varianceText}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs text-stone-500">Projected cost</dt>
+                  <dd className={`wrap-break-word tabular-nums ${projectedCls}`}>{projectedText}</dd>
+                </div>
+              </dl>
+
+              {/* No hover on touch screens, so show why a task is flagged */}
+              {result.status !== "ok" && (
+                <p className={`mt-3 text-xs ${STATUS[result.status].text}`}>{result.reason}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+
+        {/* ───────── md+: the full table ───────── */}
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-stone-200 text-stone-500">
               <tr>
-                <th scope="col" className="w-1/4 px-4 py-3 font-medium">Work</th>
-                <th scope="col" className="px-4 py-3 font-medium">Stipulated</th>
-                <th scope="col" className="px-4 py-3 font-medium">Paid</th>
-                <th scope="col" className="px-4 py-3 font-medium">Progress</th>
-                <th scope="col" className="px-4 py-3 font-medium">Variance</th>
-                <th scope="col" className="px-4 py-3 font-medium">Projected cost</th>
-                <th scope="col" className="px-4 py-3 text-right font-medium">Status</th>
+                <th scope="col" className="w-1/4 px-3 py-3 font-medium lg:px-4">Work</th>
+                <th scope="col" className="px-3 py-3 font-medium lg:px-4">Stipulated</th>
+                <th scope="col" className="px-3 py-3 font-medium lg:px-4">Paid</th>
+                <th scope="col" className="px-3 py-3 font-medium lg:px-4">Progress</th>
+                <th scope="col" className="px-3 py-3 font-medium lg:px-4">Variance</th>
+                <th scope="col" className="px-3 py-3 font-medium lg:px-4">Projected cost</th>
+                <th scope="col" className="px-3 py-3 text-right font-medium lg:px-4">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-200">
-              {rows.map(({ task, result, variance, progress }) => (
+              {rows.map(({ task, result, progress, varianceText, varianceCls, projectedText, projectedCls }) => (
                 <tr key={task.id} className="hover:bg-stone-50">
-                  <td className="px-4 py-3 font-medium text-stone-900">{task.work}</td>
-                  <td className="px-4 py-3 tabular-nums">{formatINR(task.stipulated)}</td>
-                  <td className="px-4 py-3 tabular-nums">{formatINR(task.paid)}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3 font-medium text-stone-900 lg:px-4">{task.work}</td>
+                  <td className="whitespace-nowrap px-3 py-3 tabular-nums lg:px-4">{formatINR(task.stipulated)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 tabular-nums lg:px-4">{formatINR(task.paid)}</td>
+                  <td className="px-3 py-3 lg:px-4">
                     <div className="flex items-center gap-2">
-                      <div
-                        role="progressbar"
-                        aria-label={`${task.work} progress`}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-valuenow={Math.round(progress)}
-                        className="h-1.5 w-16 overflow-hidden rounded bg-stone-200"
-                      >
-                        <div className="h-full bg-stone-900" style={{ width: `${progress}%` }} />
-                      </div>
+                      <ProgressBar work={task.work} progress={progress} className="w-16" />
                       <span className="tabular-nums">{Math.round(progress)}%</span>
                     </div>
                   </td>
-                  <td className={`px-4 py-3 tabular-nums ${variance < 0 ? "font-medium text-red-700" : "text-stone-500"}`}>
-                    {variance < 0 ? `-${formatINR(Math.abs(variance))}` : formatINR(variance)}
-                  </td>
-                  <td
-                    className={`px-4 py-3 tabular-nums ${
-                      result.projected === null ? "text-stone-400" : result.status === "ok" ? "text-stone-500" : STATUS[result.status].text + " font-medium"
-                    }`}
-                  >
-                    {result.projected === null ? "-" : formatINR(Math.round(result.projected))}
-                  </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className={`whitespace-nowrap px-3 py-3 tabular-nums lg:px-4 ${varianceCls}`}>{varianceText}</td>
+                  <td className={`whitespace-nowrap px-3 py-3 tabular-nums lg:px-4 ${projectedCls}`}>{projectedText}</td>
+                  <td className="px-3 py-3 text-right lg:px-4">
                     <StatusPill result={result} />
                   </td>
                 </tr>
@@ -194,7 +249,7 @@ export const PaymentSchedule = memo(function PaymentSchedule({ tasks = [] }: Pay
           </table>
         </div>
 
-        <p className="border-t border-stone-200 px-4 py-3 text-xs text-stone-500">
+        <p className="border-t border-stone-200 px-3 py-3 text-xs text-stone-500 sm:px-4">
           <span className="font-medium text-yellow-800">At risk</span> means a task is within budget today, but at its
           current pace (paid so far divided by progress) the final cost is projected to go over. Variance is stipulated
           minus paid.

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Group, Heading, Input, Label, SubHeading } from "@/components/utilites/Label";
 // Import the custom auth hook
 import { useAuth } from "@/hooks/useAuth";
+import Image from "next/image";
 
 export default function Page() {
     const router = useRouter();
@@ -18,7 +19,7 @@ export default function Page() {
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        
+
         // Trigger the TanStack Query register mutation
         register.mutate(
             { name, email, password },
@@ -33,8 +34,16 @@ export default function Page() {
 
     return (
         <div className='w-full min-h-screen flex flex-col justify-between bg-stone-100/70 p-4 sm:p-6 font-sans antialiased'>
-            
-            <div className='w-full max-w-md mx-auto bg-white rounded-2xl shadow-xl shadow-stone-200/50 border border-stone-200/80 p-8 sm:p-10 my-auto'>
+            <Image
+                src="/background.jpeg" // REPLACE WITH YOUR IMAGE PATH
+                alt="Modern collaborative office space background"
+                fill
+                priority // Load this image with high priority
+                quality={100}
+                className="object-cover z-0" // cover the container, send to back
+            />
+
+            <div className='w-full max-w-md mx-auto bg-white rounded-2xl shadow-xl shadow-stone-200/50 border border-stone-200/80 p-8 sm:p-10 my-auto z-10'>
 
                 <div className='mb-8 flex flex-col items-center text-center space-y-1.5'>
                     <Heading className="text-2xl sm:text-3xl font-bold tracking-tight text-stone-900">

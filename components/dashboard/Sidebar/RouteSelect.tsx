@@ -6,11 +6,11 @@ import { IconType } from "react-icons";
 import { motion } from "framer-motion"; 
 import {
   FiHome,
-  FiUsers,
-  FiFileText,
-  FiImage,
+  // FiUsers,
+  // FiFileText,
+  // FiImage,
   FiUserCheck,
-  FiBox,
+  // FiBox,
 } from "react-icons/fi";
 
 export const RouteSelect = () => {
@@ -19,11 +19,11 @@ export const RouteSelect = () => {
   // Define routes in an array for cleaner rendering and easy updating
  const routes = [
     { title: "Dashboard", href: "/dashboard", Icon: FiHome },
-    { title: "Team", href: "/dashboard/team", Icon: FiUsers },
-    { title: "BOQ", href: "/dashboard/boq", Icon: FiFileText },
-    { title: "Drawing", href: "/dashboard/drawing", Icon: FiImage },
-    { title: "Labour", href: "/dashboard/labour", Icon: FiUserCheck },
-    { title: "Inventory", href: "/dashboard/inventory", Icon: FiBox },
+    // { title: "Team", href: "/dashboard/team", Icon: FiUsers },
+    // { title: "BOQ", href: "/dashboard/boq", Icon: FiFileText },
+    // { title: "Drawing", href: "/dashboard/drawing", Icon: FiImage },
+    { title: "Project", href: "/dashboard/labour", Icon: FiUserCheck },
+    // { title: "Inventory", href: "/dashboard/inventory", Icon: FiBox },
   ];
 
   return (

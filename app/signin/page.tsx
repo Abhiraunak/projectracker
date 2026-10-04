@@ -1,6 +1,7 @@
 "use client"
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image"; // Import the Next.js Image component
 import { Group, Heading, Input, Label, SubHeading } from "@/components/utilites/Label";
 // Import the custom hook we created earlier
 import { useAuth } from "@/hooks/useAuth";
@@ -30,8 +31,19 @@ export default function Page() {
     };
 
     return (
-        <div className='w-full min-h-screen flex items-center justify-center bg-slate-50 p-4 sm:p-6'>
-            <div className='w-full max-w-md bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-8 sm:p-10'>
+        // Changed to 'relative' to position the background image
+        <div className='relative w-full min-h-screen flex items-center justify-center p-4 sm:p-6 overflow-hidden'>
+            <Image
+                src="/background.jpeg" // REPLACE WITH YOUR IMAGE PATH
+                alt="Modern collaborative office space background"
+                fill
+                priority // Load this image with high priority
+                quality={100}
+                className="object-cover z-0" // cover the container, send to back
+            />
+
+            {/* Added relative z-10 to keep form above image */}
+            <div className='relative z-10 w-full max-w-md bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl shadow-stone-900/10 border border-stone-100 p-8 sm:p-10'>
 
                 <div className='mb-8 flex flex-col items-center text-center space-y-2'>
                     <Heading className="text-3xl font-extrabold tracking-tight text-slate-900">

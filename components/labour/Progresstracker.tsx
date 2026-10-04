@@ -59,9 +59,12 @@ const Pill = ({ good, children }: { good: boolean; children: React.ReactNode }) 
   </span>
 );
 
+// Mobile: 44px tall and 16px text (stops iOS Safari zooming in on focus).
+// sm+: the original compact size.
 const inputBase =
-  "w-full rounded border border-stone-300 bg-white px-3 py-2 text-sm tabular-nums text-stone-900 " +
-  "focus:border-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900/20";
+  "min-h-11 w-full rounded border border-stone-300 bg-white px-3 py-2 text-base tabular-nums text-stone-900 " +
+  "focus:border-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900/20 " +
+  "sm:min-h-0 sm:text-sm";
 
 /* -------------------------------------------------------------------------- */
 /*  One task row (memoised: moving one slider doesn't re-render the others)   */
@@ -82,10 +85,10 @@ const Row = memo(function Row({
   const overpaid = task.paid > task.stipulated;
 
   return (
-    <li className="rounded border border-stone-300 bg-white p-4">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+    <li className="min-w-0 rounded border border-stone-300 bg-white p-3 sm:p-4">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-2 sm:mb-4">
         <div className="min-w-0">
-          <p className="break-words text-base font-semibold">{task.work}</p>
+          <p className="wrap-break-word text-base font-semibold">{task.work}</p>
           <p className="text-sm text-stone-500">Budget {rupees(task.stipulated)}</p>
         </div>
         {progress >= 100 ? (
@@ -99,13 +102,16 @@ const Row = memo(function Row({
         )}
       </div>
 
+      {/* Mobile: progress block, then amount, stacked. md+: side by side */}
       <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_14rem]">
-        <div>
-          <div className="mb-1.5 flex items-center justify-between text-sm text-stone-500">
+        <div className="min-w-0">
+          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-sm text-stone-500">
             <label htmlFor={`p-${task.id}`}>Progress</label>
             {expected !== null && progress < 100 && <span className="text-xs">Should be about {expected}% by today</span>}
           </div>
-          <div className="flex items-center gap-3">
+
+          {/* Mobile: slider gets its own full-width line. sm+: everything on one line */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <input
               id={`p-${task.id}`}
               type="range"
@@ -115,35 +121,37 @@ const Row = memo(function Row({
               value={progress}
               onChange={(e) => onUpdate(task.id, { progress: Number(e.target.value) })}
               aria-valuetext={`${progress} percent`}
-              className="h-2 w-full cursor-pointer accent-stone-900"
+              className="h-6 w-full cursor-pointer accent-stone-900 sm:h-2 sm:min-w-0 sm:flex-1"
             />
-            <div className="relative w-20 shrink-0">
-              <input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={100}
-                aria-label={`${task.work} progress percent`}
-                value={progress}
-                onChange={(e) => onUpdate(task.id, { progress: clamp(Number(e.target.value)) })}
-                className={`${inputBase} pr-7`}
-              />
-              <span aria-hidden className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-stone-400">
-                %
-              </span>
+            <div className="flex items-center gap-3">
+              <div className="relative w-24 shrink-0 sm:w-20">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={100}
+                  aria-label={`${task.work} progress percent`}
+                  value={progress}
+                  onChange={(e) => onUpdate(task.id, { progress: clamp(Number(e.target.value)) })}
+                  className={`${inputBase} pr-7`}
+                />
+                <span aria-hidden className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-stone-400">
+                  %
+                </span>
+              </div>
+              <button
+                type="button"
+                disabled={progress >= 100}
+                onClick={() => onUpdate(task.id, { progress: 100 })}
+                className="flex min-h-11 flex-1 items-center justify-center gap-1 rounded border border-stone-300 px-2.5 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 active:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-0 sm:flex-none sm:shrink-0 sm:text-xs"
+              >
+                <FiCheck aria-hidden /> Done
+              </button>
             </div>
-            <button
-              type="button"
-              disabled={progress >= 100}
-              onClick={() => onUpdate(task.id, { progress: 100 })}
-              className="flex shrink-0 items-center gap-1 rounded border border-stone-300 px-2.5 py-2 text-xs font-medium text-stone-700 transition-colors hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <FiCheck aria-hidden /> Done
-            </button>
           </div>
         </div>
 
-        <div>
+        <div className="min-w-0">
           <label htmlFor={`a-${task.id}`} className="mb-1.5 block text-sm text-stone-500">
             Amount paid
           </label>
@@ -189,23 +197,23 @@ export const ProgressTracker = memo(function ProgressTracker({ tasks, onUpdate }
 
   if (tasks.length === 0) {
     return (
-      <div className="rounded border border-dashed border-stone-300 p-8 text-center text-sm text-stone-500">
+      <div className="rounded border border-dashed border-stone-300 p-6 text-center text-sm text-stone-500 sm:p-8">
         No work items yet. Add them in the project form, then track progress here.
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-3 sm:space-y-4">
       <div>
         <Heading>Track progress</Heading>
         <p className="mt-1 text-sm text-stone-500">Changes save automatically and update every chart and total.</p>
       </div>
 
-      <div className="rounded border border-stone-300 bg-white p-4">
-        <div className="mb-3 flex items-end justify-between">
+      <div className="rounded border border-stone-300 bg-white p-3 sm:p-4">
+        <div className="mb-3 flex items-end justify-between gap-3">
           <h3 className="text-sm text-stone-500">Overall progress</h3>
-          <p className="text-3xl font-semibold tabular-nums">{overall}%</p>
+          <p className="text-2xl font-semibold tabular-nums sm:text-3xl">{overall}%</p>
         </div>
         <div
           role="progressbar"
@@ -219,7 +227,7 @@ export const ProgressTracker = memo(function ProgressTracker({ tasks, onUpdate }
         </div>
       </div>
 
-      <ul className="space-y-4">
+      <ul className="space-y-3 sm:space-y-4">
         {tasks.map((t) => (
           <Row key={t.id} task={t} today={today} onUpdate={onUpdate} />
         ))}
