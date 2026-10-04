@@ -1,5 +1,5 @@
 // Update this line in lib/auth-api.ts
-const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_ORIGIN= process.env.NEXT_PUBLIC_API_URL ?? (process.env.NODE_ENV === "production" ? "" : "http://localhost:4000");
 const API_BASE = `${API_ORIGIN}/api/v1/auth`;
 
 const fetchOptions = (method: string, body?: any) => ({
