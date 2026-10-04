@@ -3,19 +3,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Group, Heading, Input, Label, SubHeading } from "@/components/utilites/Label";
 // Import the custom hook we created earlier
-import { useAuth } from "@/hooks/useAuth"; 
+import { useAuth } from "@/hooks/useAuth";
+import Link from "next/link";
 
 export default function Page() {
     const router = useRouter();
     const { login } = useAuth(); // Destructure the login mutation
-    
+
     // Add state for form inputs
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
 
     const handleSignIn = (e: React.FormEvent) => {
         e.preventDefault(); // Prevent page reload
-        
+
         // Trigger the TanStack Query mutation
         login.mutate(
             { email, password },
@@ -88,7 +89,14 @@ export default function Page() {
                         {login.isPending ? "Signing in..." : "Sign In"}
                     </button>
                 </form>
+                <div className="mt-6 text-center text-xs text-stone-500">
+                    Don&apos;t have an account?{" "}
+                    <Link href="/signup" className="font-semibold text-stone-900 underline hover:text-stone-700">
+                        Sign up
+                    </Link>
+                </div>
             </div>
+            <div className="py-2" />
         </div>
     );
 }

@@ -29,8 +29,8 @@ export interface ProjectData {
 
 interface LabourManagementFormProps {
   onSubmit: (data: ProjectData) => void;
-  /** Pass the saved project to edit it instead of starting from a blank form. */
   initialData?: ProjectData | null;
+  submitting?: boolean;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -69,9 +69,8 @@ const inputBase =
 
 const Pill = ({ trend, children }: { trend: "up" | "down"; children: React.ReactNode }) => (
   <span
-    className={`flex items-center gap-1 rounded px-2 py-1 text-xs font-medium ${
-      trend === "up" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-    }`}
+    className={`flex items-center gap-1 rounded px-2 py-1 text-xs font-medium ${trend === "up" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+      }`}
   >
     {trend === "up" ? <FiTrendingUp aria-hidden /> : <FiTrendingDown aria-hidden />}
     {children}
@@ -169,8 +168,8 @@ const TaskRow = memo(function TaskRow({ task, index, canRemove, autoFocus, onCha
 
   const set =
     (field: "area" | "contractorRate" | "inHouseRate" | "progress" | "stipulated" | "paid") =>
-    (value: number | "") =>
-    onChange(task.id, { [field]: value });
+      (value: number | "") =>
+        onChange(task.id, { [field]: value });
 
   const hasRates = task.area !== "" && task.contractorRate !== "" && task.inHouseRate !== "";
   const saving = n(task.area) * (n(task.contractorRate) - n(task.inHouseRate));
@@ -274,7 +273,7 @@ const TaskRow = memo(function TaskRow({ task, index, canRemove, autoFocus, onCha
 /*  Form                                                                      */
 /* -------------------------------------------------------------------------- */
 
-export function LabourManagementForm({ onSubmit, initialData }: LabourManagementFormProps) {
+export function LabourManagementForm({ onSubmit, initialData, submitting = false }: LabourManagementFormProps) {
   const titleId = useId();
   const [title, setTitle] = useState(initialData?.title ?? "");
   const [tasks, setTasks] = useState<TaskInput[]>(() =>
@@ -399,10 +398,11 @@ export function LabourManagementForm({ onSubmit, initialData }: LabourManagement
         <div className="flex justify-end border-t border-stone-200 pt-4">
           <button
             type="submit"
-            className="flex items-center gap-2 rounded bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-stone-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2"
+            disabled={submitting}
+            className="flex items-center gap-2 rounded bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-stone-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {initialData ? "Save changes" : "Generate dashboard"}
-            <FiArrowRight aria-hidden />
+            {submitting ? "Saving..." : initialData ? "Save changes" : "Generate dashboard"}
+            {!submitting && <FiArrowRight aria-hidden />}
           </button>
         </div>
       </form>

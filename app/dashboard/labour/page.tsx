@@ -2,9 +2,10 @@
 
 import dynamic from "next/dynamic";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { Search } from "@/components/dashboard/Sidebar/Search";
+// import { Search } from "@/components/dashboard/Sidebar/Search";
 import { Heading } from "@/components/utilites/Label";
 import { TasksProvider } from "@/components/labour/Taskscontext";
+
 import { ApiError, toFormData, type ApiProject, type ProjectStatus, type ProjectSummary } from "@/lib/api";
 import {
   useCreateProject,
@@ -17,8 +18,6 @@ import {
 } from "@/hooks/useLabourProjects";
 import type { ProjectData } from "@/components/labour/LabourManagementForm";
 import { ProjectCard } from "@/components/labour/Projectcard";
-import { AttendanceManager } from "@/components/labour/Attendancemanager";
-import { ProgressTracker } from "@/components/labour/Progresstracker";
 
 /* -------------------------------------------------------------------------- */
 /*  Code-split the heavy views                                                */
@@ -44,12 +43,12 @@ const LabourGantt = dynamic(() => import("@/components/labour/LabourGantt").then
 const PaymentSchedule = dynamic(() => import("@/components/labour/PaymentSchedule").then((m) => m.PaymentSchedule), {
   loading: SectionSkeleton,
 });
-// const ProgressTracker = dynamic(() => import("@/components/labour/ProgressTracker").then((m) => m.ProgressTracker), {
-//   loading: SectionSkeleton,
-// });
-// const AttendanceManager = dynamic(() => import("@/components/labour/AttendanceManager").then((m) => m.AttendanceManager), {
-//   loading: SectionSkeleton,
-// });
+const ProgressTracker = dynamic(() => import("@/components/labour/Progresstracker").then((m) => m.ProgressTracker), {
+  loading: SectionSkeleton,
+});
+const AttendanceManager = dynamic(() => import("@/components/labour/Attendancemanager").then((m) => m.AttendanceManager), {
+  loading: SectionSkeleton,
+});
 const RecentAttendance = dynamic(() => import("@/components/labour/RecentAttendance").then((m) => m.RecentAttendance), {
   loading: SectionSkeleton,
 });
@@ -235,14 +234,11 @@ export default function TeamPage() {
     [setStatus]
   );
 
+  // The card's dialog does the confirming and shows any error, so this just throws on failure
   const removeProject = useCallback(
-    (p: ProjectSummary) => {
-      if (!window.confirm(`Delete "${p.title}" and all its work items? This cannot be undone.`)) return;
-      setBanner(null);
-      deleteProject.mutate(p.id, {
-        onSuccess: () => setActiveId((cur) => (cur === p.id ? null : cur)),
-        onError: (e) => setBanner(describeError(e)),
-      });
+    async (p: ProjectSummary) => {
+      await deleteProject.mutateAsync(p.id);
+      setActiveId((cur) => (cur === p.id ? null : cur));
     },
     [deleteProject]
   );
@@ -273,7 +269,7 @@ export default function TeamPage() {
   const isProjectView = PROJECT_VIEWS.includes(view);
   const subtitle =
     view === "menu"
-      ? "All your labour projects"
+      ? "All your projects at one place"
       : view === "form"
         ? editing
           ? (project?.title ?? "Edit project")
@@ -292,17 +288,17 @@ export default function TeamPage() {
       <header className="border-b border-stone-200">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4 pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0 space-y-0.5">
-              <Heading>Labour management</Heading>
+            <div className="min-w-0 space-y-0.5 mb-4">
+              <Heading>Project Management</Heading>
               <p className="truncate text-sm text-stone-500">{subtitle}</p>
             </div>
-            <div className="w-full sm:w-72">
+            {/* <div className="w-full sm:w-72">
               <Search className="w-full" />
-            </div>
+            </div> */}
           </div>
 
           {activeId && (
-            <nav aria-label="Labour sections" className="-mb-px mt-4 flex gap-1 overflow-x-auto">
+            <nav aria-label="Labour sections" className="-mb-px mt-4 flex gap-1 overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden">
               {NAV.map(({ view: v, label }) => {
                 const active =
                   view === v ||
@@ -314,11 +310,10 @@ export default function TeamPage() {
                     type="button"
                     onClick={() => setView(v)}
                     aria-current={active ? "page" : undefined}
-                    className={`whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors ${focusRing} ${
-                      active
+                    className={`whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition-colors sm:py-2.5 ${focusRing} ${active
                         ? "border-amber-500 text-stone-900"
                         : "border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-800"
-                    }`}
+                      }`}
                   >
                     {label}
                   </button>
@@ -351,9 +346,8 @@ export default function TeamPage() {
                       type="button"
                       aria-pressed={filter === s}
                       onClick={() => setFilter(s)}
-                      className={`rounded px-3 py-1.5 font-medium transition-colors ${focusRing} ${
-                        filter === s ? "bg-stone-900 text-white" : "text-stone-600 hover:text-stone-900"
-                      }`}
+                      className={`rounded px-3 py-1.5 font-medium transition-colors ${focusRing} ${filter === s ? "bg-stone-900 text-white" : "text-stone-600 hover:text-stone-900"
+                        }`}
                     >
                       {s === "ONGOING" ? "Ongoing" : "Completed"}
                     </button>

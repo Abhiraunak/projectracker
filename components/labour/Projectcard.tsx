@@ -1,8 +1,10 @@
 "use client";
 
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
 import { FiCalendar, FiClock, FiTrendingDown, FiTrendingUp } from "react-icons/fi";
-import type { ProjectSummary } from "@/lib/api";
+import { describeError, type ProjectSummary } from "@/lib/api";
+import { ConfirmDeleteDialog } from "../utilites/Confirmdeletedialog";
+
 
 const DAY = 86_400_000;
 const rupees = (v: number) => `₹${Math.abs(v).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -13,6 +15,7 @@ function parse(s: string | null): Date | null {
   return new Date(y!, m! - 1, d!);
 }
 const fmt = (d: Date) => d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 type Tone = "good" | "bad" | "neutral";
 
@@ -39,7 +42,8 @@ interface ProjectCardProps {
   project: ProjectSummary;
   onOpen: (id: string) => void;
   onToggleStatus: (project: ProjectSummary) => void;
-  onDelete: (project: ProjectSummary) => void;
+  /** Return the promise so the dialog can show "Deleting…" and any error */
+  onDelete: (project: ProjectSummary) => Promise<void> | void;
 }
 
 export const ProjectCard = memo(function ProjectCard({ project: p, onOpen, onToggleStatus, onDelete }: ProjectCardProps) {
@@ -49,44 +53,77 @@ export const ProjectCard = memo(function ProjectCard({ project: p, onOpen, onTog
   const end = parse(p.endDate);
   const balance = p.budget - p.paid;
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const askToDelete = () => {
+    setDeleteError(null);
+    setConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await onDelete(p);
+      setConfirmOpen(false); // usually the card disappears when the list refreshes
+    } catch (e) {
+      setDeleteError(describeError(e)); // stays open so the user can retry
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Everything that goes with the project, so nobody is surprised
+  const connected = [
+    plural(p.taskCount, "work item", "work items"),
+    ...(p.attendanceCount > 0 ? [plural(p.attendanceCount, "attendance entry", "attendance entries")] : []),
+  ].join(" and ");
+
   return (
-    <article className="flex flex-col rounded border border-stone-300">
+    <article className="flex min-w-0 flex-col rounded border border-stone-300">
       <button
         type="button"
         onClick={() => onOpen(p.id)}
-        className="flex-1 rounded-t p-4 text-left transition-colors hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+        className="flex-1 rounded-t p-3 text-left transition-colors hover:bg-stone-50 active:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 sm:p-4 lg:p-5"
       >
-        <div className="mb-6 flex items-start justify-between gap-2">
+        {/* Mobile: badge stacks under the title. sm+: sits beside it */}
+        <div className="mb-4 flex flex-col gap-2 sm:mb-6 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
           <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold">{p.title}</h3>
-            <p className="mt-1 flex items-center gap-1 text-xs text-stone-500">
-              <FiCalendar aria-hidden />
-              {start && end ? `${fmt(start)} to ${fmt(end)}` : "No dates set"}
+            <h3 className="line-clamp-2 wrap-break-word text-base font-semibold sm:text-lg">{p.title}</h3>
+            <p className="mt-1 flex items-start gap-1 text-xs text-stone-500">
+              <FiCalendar aria-hidden className="mt-0.5 shrink-0" />
+              <span>{start && end ? `${fmt(start)} to ${fmt(end)}` : "No dates set"}</span>
             </p>
           </div>
-          <span className={`flex items-center gap-1 whitespace-nowrap rounded px-2 py-1 text-xs font-medium ${cls}`}>
+          <span
+            className={`flex items-center gap-1 self-start whitespace-nowrap rounded px-2 py-1 text-xs font-medium ${cls}`}
+          >
             <Icon aria-hidden /> {s.label}
           </span>
         </div>
 
-        <p className="mb-2 text-sm text-stone-500">Labour budget</p>
-        <p className="text-3xl font-semibold tabular-nums">{rupees(p.budget)}</p>
+        <p className="mb-1 text-xs text-stone-500 sm:mb-2 sm:text-sm">Labour budget</p>
+        <p className="truncate text-2xl font-semibold tabular-nums sm:text-3xl">{rupees(p.budget)}</p>
 
-        <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <dt className="text-stone-500">Paid</dt>
-            <dd className="font-medium tabular-nums">{rupees(p.paid)}</dd>
+        <dl className="mt-3 grid grid-cols-2 gap-3 text-sm sm:mt-4">
+          <div className="min-w-0">
+            <dt className="text-xs text-stone-500 sm:text-sm">Paid</dt>
+            <dd className="truncate font-medium tabular-nums">{rupees(p.paid)}</dd>
           </div>
-          <div>
-            <dt className="text-stone-500">{balance < 0 ? "Overpaid" : "Remaining"}</dt>
-            <dd className={`font-medium tabular-nums ${balance < 0 ? "text-red-700" : ""}`}>{rupees(balance)}</dd>
+          <div className="min-w-0">
+            <dt className="text-xs text-stone-500 sm:text-sm">{balance < 0 ? "Overpaid" : "Remaining"}</dt>
+            <dd className={`truncate font-medium tabular-nums ${balance < 0 ? "text-red-700" : ""}`}>
+              {rupees(balance)}
+            </dd>
           </div>
         </dl>
 
-        <div className="mt-4">
-          <div className="mb-1.5 flex justify-between text-xs text-stone-500">
-            <span>{p.taskCount} work {p.taskCount === 1 ? "item" : "items"}</span>
-            <span className="tabular-nums">{p.progress}% complete</span>
+        <div className="mt-3 sm:mt-4">
+          <div className="mb-1.5 flex justify-between gap-2 text-xs text-stone-500">
+            <span>{plural(p.taskCount, "work item", "work items")}</span>
+            <span className="whitespace-nowrap tabular-nums">{p.progress}% complete</span>
           </div>
           <div
             role="progressbar"
@@ -101,22 +138,40 @@ export const ProjectCard = memo(function ProjectCard({ project: p, onOpen, onTog
         </div>
       </button>
 
-      <div className="flex items-center justify-between border-t border-stone-200 px-4 py-2 text-sm">
+      {/* Mobile: two equal, full-height tap targets. sm+: compact links at each edge */}
+      <div className="grid grid-cols-2 divide-x divide-stone-200 border-t border-stone-200 text-sm sm:flex sm:items-center sm:justify-between sm:divide-x-0 sm:px-4 sm:py-2">
         <button
           type="button"
           onClick={() => onToggleStatus(p)}
-          className="rounded px-1 text-stone-600 hover:text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+          className="min-h-11 rounded-bl px-3 text-stone-600 hover:text-stone-900 active:bg-stone-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 sm:min-h-0 sm:rounded sm:px-1 sm:active:bg-transparent"
         >
           {p.status === "COMPLETED" ? "Reopen" : "Mark completed"}
         </button>
         <button
           type="button"
-          onClick={() => onDelete(p)}
-          className="rounded px-1 text-red-700 hover:text-red-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
+          onClick={askToDelete}
+          className="min-h-11 rounded-br px-3 text-red-700 hover:text-red-800 active:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-700 sm:min-h-0 sm:rounded sm:px-1 sm:active:bg-transparent"
         >
           Delete
         </button>
       </div>
+
+      <ConfirmDeleteDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete project?"
+        itemName={p.title}
+        warning={
+          <>
+            By deleting this project, <strong>{connected}</strong> will also be permanently deleted.
+          </>
+        }
+        confirmPhrase="delete my project"
+        confirmLabel="Delete project"
+        pending={deleting}
+        error={deleteError}
+      />
     </article>
   );
 });

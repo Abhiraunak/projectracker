@@ -34,6 +34,7 @@ export interface ProjectSummary {
   title: string;
   status: ProjectStatus;
   taskCount: number;
+  attendanceCount: number;
   budget: number;
   paid: number;
   progress: number;
@@ -58,12 +59,68 @@ export class ApiError extends Error {
   }
 }
 
-export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+/* ----------------------- Silent session renewal ---------------------------
+ * The access cookie lasts minutes. When a request gets a 401, the browser asks
+ * /auth/refresh for a new one (the refresh cookie travels automatically) and
+ * repeats the request once, so the user never notices.
+ */
+
+let refreshing: Promise<boolean> | null = null;
+let sessionExpiredHandler: (() => void) | null = null;
+let lastExpiredNotice = 0;
+
+/** Called once when the session truly cannot be renewed (e.g. to send the user to the login page) */
+export function setSessionExpiredHandler(fn: (() => void) | null) {
+  sessionExpiredHandler = fn;
+}
+
+function notifySessionExpired() {
+  const now = Date.now();
+  if (now - lastExpiredNotice < 3000) return; // many parallel requests fail together: notify once
+  lastExpiredNotice = now;
+  sessionExpiredHandler?.();
+}
+
+/**
+ * true  = renewed, retry the request
+ * false = the server refused (session really over)
+ * throws = network or server trouble: not the same as "logged out", so don't sign the user out
+ * Parallel callers share ONE refresh request (the server rotates the token, so only one should be sent).
+ */
+function renewSession(): Promise<boolean> {
+  refreshing ??= fetch(`${BASE}/api/v1/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "X-Requested-With": "fetch" },
+  })
+    .then((res) => {
+      if (res.ok) return true;
+      if (res.status === 401 || res.status === 403) return false;
+      throw new ApiError(res.status, "Could not renew the session");
+    })
+    .finally(() => {
+      refreshing = null;
+    });
+  return refreshing;
+}
+
+export async function request<T>(path: string, init: RequestInit = {}, isRetry = false): Promise<T> {
   const res = await fetch(`${BASE}/api/v1${path}`, {
     ...init,
-    credentials: "include", // sends the httpOnly auth cookie
-    headers: { ...(init.body ? { "Content-Type": "application/json" } : {}), ...init.headers },
+    credentials: "include", // sends the httpOnly auth cookies
+    headers: {
+      "X-Requested-With": "fetch", // CSRF guard: forged cross-site requests can't add this header
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      ...init.headers,
+    },
   });
+
+  // Expired access token: renew once and retry. Auth routes themselves are excluded to avoid loops.
+  if (res.status === 401 && !isRetry && !path.startsWith("/auth/")) {
+    if (await renewSession()) return request<T>(path, init, true);
+    notifySessionExpired();
+  }
+
   if (res.status === 204) return undefined as T;
 
   const body = await res.json().catch(() => null);
