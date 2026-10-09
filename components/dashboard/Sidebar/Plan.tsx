@@ -1,79 +1,61 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { FiSun, FiMoon, FiLogOut } from "react-icons/fi";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+// import { authApi } from "@/lib/api";
 // If using NextAuth, uncomment the import below:
 // import { signOut } from "next-auth/react";
 
 export const SidebarFooter = () => {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
-  // Initialize theme from document or system preferences
-  useEffect(() => {
-    const isDark = document.documentElement.classList.contains("dark");
-    setTheme(isDark ? "dark" : "light");
-  }, []);
-
-  // Toggle Theme Switcher Logic
-  const toggleTheme = () => {
-    const nextTheme = theme === "light" ? "dark" : "light";
-    setTheme(nextTheme);
-
-    if (nextTheme === "dark") {
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-    }
-  };
-
-  // Functional Sign-Out Action
+  
+  // Sign out: POST /auth/logout revokes the session on the server and clears the cookies
   const handleSignOut = async () => {
-    try {
-      setIsSigningOut(true);
+    if (isSigningOut) return; // ignore double taps
+    setIsSigningOut(true);
+    setError(null);
 
-      router.push("/login");
-    } catch (error) {
-      console.error("Failed to sign out:", error);
+    try {
+      // await authApi.logout();
+
+      // Drop everything cached for this user (name, projects, attendance...) so the next
+      // person to sign in on this browser can't see it
+      queryClient.clear();
+
+      router.replace("/signin");
+    } catch (e) {
+      console.error("Failed to sign out:", e);
+      setError("Couldn't sign out. Try again.");
       setIsSigningOut(false);
     }
   };
 
   return (
-    <div className="mt-auto flex items-center justify-between border-t border-stone-300 dark:border-stone-800 p-2 text-xs transition-colors">
-      {/* Theme Toggle Button */}
-      <button
-        type="button"
-        onClick={toggleTheme}
-        className="flex items-center gap-2 px-2 py-1.5 rounded text-stone-700 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-800 transition-colors font-medium outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
-        title={`Switch to ${theme === "light" ? "Dark" : "Light"} Mode`}
-      >
-        {theme === "light" ? (
-          <>
-            <FiSun className="size-4 text-amber-500" />
-            <span>Light</span>
-          </>
-        ) : (
-          <>
-            <FiMoon className="size-4 text-indigo-400" />
-            <span>Dark</span>
-          </>
-        )}
-      </button>
+    <div className="mt-auto border-t border-stone-300 dark:border-stone-800 p-2 text-xs transition-colors">
+      <div className="flex items-center justify-between">
+    
+        <button
+          type="button"
+          disabled={isSigningOut}
+          onClick={handleSignOut}
+          className="flex min-h-9 items-center gap-1.5 px-2.5 py-1.5 font-medium text-stone-700 dark:text-stone-200 bg-stone-200 dark:bg-stone-800 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 transition-colors rounded disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
+        >
+          <FiLogOut className="size-3.5" aria-hidden />
+          <span>{isSigningOut ? "Signing Out..." : "Sign Out"}</span>
+        </button>
+      </div>
 
-      <button
-        type="button"
-        disabled={isSigningOut}
-        onClick={handleSignOut}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 font-medium text-stone-700 dark:text-stone-200 bg-stone-200 dark:bg-stone-800 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 transition-colors rounded disabled:opacity-50 outline-none focus-visible:ring-2 focus-visible:ring-violet-500"
-      >
-        <FiLogOut className="size-3.5" />
-        <span>{isSigningOut ? "Signing Out..." : "Sign Out"}</span>
-      </button>
+      {error && (
+        <p role="alert" className="mt-2 px-1 font-medium text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 };

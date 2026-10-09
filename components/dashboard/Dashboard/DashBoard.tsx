@@ -5,8 +5,6 @@ export const DashBoard = () => {
         <>
         <div>
             <TopBar/>
-            
-
         </div>
         </>
     )

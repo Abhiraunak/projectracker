@@ -8,7 +8,7 @@ import {
   FiHome,
   // FiUsers,
   // FiFileText,
-  // FiImage,
+  FiImage,
   FiUserCheck,
   // FiBox,
 } from "react-icons/fi";
@@ -21,7 +21,7 @@ export const RouteSelect = () => {
     { title: "Dashboard", href: "/dashboard", Icon: FiHome },
     // { title: "Team", href: "/dashboard/team", Icon: FiUsers },
     // { title: "BOQ", href: "/dashboard/boq", Icon: FiFileText },
-    // { title: "Drawing", href: "/dashboard/drawing", Icon: FiImage },
+    { title: "Drawing", href: "/dashboard/drawing", Icon: FiImage },
     { title: "Project", href: "/dashboard/labour", Icon: FiUserCheck },
     // { title: "Inventory", href: "/dashboard/inventory", Icon: FiBox },
   ];
