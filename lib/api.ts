@@ -1,6 +1,6 @@
 import type { ProjectData } from "@/components/labour/LabourManagementForm";
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? (process.env.NODE_ENV === "production" ? "" : "http://localhost:4000");
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 /* -------------------------------- Types ----------------------------------- */
 
@@ -87,7 +87,7 @@ function notifySessionExpired() {
  * throws = network or server trouble: not the same as "logged out", so don't sign the user out
  * Parallel callers share ONE refresh request (the server rotates the token, so only one should be sent).
  */
-function renewSession(): Promise<boolean> {
+export function renewSession(): Promise<boolean> {
   refreshing ??= fetch(`${BASE}/api/v1/auth/refresh`, {
     method: "POST",
     credentials: "include",
@@ -181,3 +181,6 @@ export function describeError(e: unknown): string {
   }
   return "Something went wrong. Check your connection and try again.";
 }
+
+/** Full URL for an API path. Used by code that cannot go through request() (e.g. uploads with progress). */
+export const apiUrl = (path: string) => `${BASE}/api/v1${path}`;
