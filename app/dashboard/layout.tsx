@@ -58,7 +58,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         id="dashboard-sidebar"
         className={`fixed inset-y-0 left-0 z-50 w-65 max-w-[85vw] overflow-y-auto bg-stone-100 p-4 transition-transform duration-200
           ${open ? "translate-x-0" : "-translate-x-full invisible"}
-          lg:visible lg:static lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0 lg:overflow-visible lg:bg-transparent lg:p-0 lg:transition-none`}
+          lg:visible lg:sticky lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0 lg:overflow-hidden lg:bg-transparent lg:p-0 lg:transition-none`}
       >
         <button
           type="button"
