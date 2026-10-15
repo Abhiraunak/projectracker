@@ -1,11 +1,10 @@
-import { Heading } from "@/components/utilites/Label";
+import { DrawingsPage } from "@/components/drawing/Drawingspage";
+
 
 export default function Page() {
   return (
     <div>
-      <Heading>Drawing</Heading>
-      <p className="text-stone-500 mt-1">Manage team permissions and invitations here.</p>
-      
+      <DrawingsPage />
     </div>
   );
 }
