@@ -1,4 +1,4 @@
-import { DrawingsPage } from "@/components/drawing/Drawingspage";
+import { DrawingsPage } from "@/components/drawing/DrawingsPage";
 
 
 export default function Page() {
