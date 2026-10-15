@@ -12,6 +12,7 @@ export interface Drawing {
   mimeType: string;
   sizeBytes: number;
   owner: AppUser;
+  downloadUrl: string;
   isOwner: boolean; // is the signed-in user the uploader?
   sharedWith: AppUser[]; // only filled for the owner
   createdAt: string;
@@ -38,7 +39,7 @@ export interface UploadInput {
   file: File;
   title: string;
   description: string;
-  sharedWith: string[]; 
+  sharedWith: string[];
 }
 
 /** fraction between 0 and 1 */
