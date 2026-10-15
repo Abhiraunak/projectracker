@@ -30,7 +30,7 @@ function ShareBadge({ drawing }: { drawing: Drawing }) {
 export const DrawingCard = memo(function DrawingCard({ drawing, onOpen, onShare, onDelete }: DrawingCardProps) {
   return (
     <article className="flex h-full flex-col overflow-hidden rounded border border-stone-300">
-      <button type="button" onClick={() => onOpen(drawing.id)} aria-label={`Open ${drawing.title}`} className={`block aspect-[4/3] w-full bg-stone-100 ${focusRing}`}>
+      <button type="button" onClick={() => onOpen(drawing.id)} aria-label={`Open ${drawing.title}`} className={`block aspect-4/3 w-full bg-stone-100 ${focusRing}`}>
         <ImageWithFallback src={drawing.thumbnailUrl} alt={drawing.title} className="h-full w-full object-cover" />
       </button>
 
