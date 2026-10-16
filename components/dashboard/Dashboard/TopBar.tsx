@@ -1,51 +1,53 @@
-"use client"
-import React, { useEffect, useState } from "react";
-import { FiCalendar } from "react-icons/fi";
+"use client";
+import React, { useSyncExternalStore } from "react";
+import { useAuth } from "@/hooks/useAuth";
 
 interface TopBarProps {
-  userName?: string;
   onCalendarClick?: () => void;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({
-  userName = "Guest",
-  onCalendarClick,
-}) => {
-  const [currentDate, setCurrentDate] = useState<Date | null>(null);
+const subscribe = () => () => {};
 
-  useEffect(() => {
-    setCurrentDate(new Date());
-  }, []);
+// false on the server and during hydration, true afterwards on the client
+const useIsClient = () =>
+  useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false
+  );
 
-  if (!currentDate) {
-    // Return placeholder/skeleton during hydration to prevent server/client mismatches in Next.js
+const getGreeting = (date: Date) => {
+  const hour = date.getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  return "Good evening";
+};
+
+const getOrdinalSuffix = (day: number) => {
+  if (day > 3 && day < 21) return "th";
+  switch (day % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
+};
+
+export const TopBar: React.FC<TopBarProps> = () => {
+  const isClient = useIsClient();
+  const { user } = useAuth();
+
+  if (!isClient) {
     return <div className="border-b px-4 mb-4 mt-2 pb-4 border-stone-200 h-16.25" />;
   }
 
-  // Dynamic greeting based on current hour
-  const getGreeting = (date: Date) => {
-    const hour = date.getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 18) return "Good afternoon";
-    return "Good evening";
-  };
+  const userName = user?.name ?? user?.email?.split("@")[0] ?? "Guest";
 
-  // Helper function to append ordinal suffixes (1st, 2nd, 3rd, 4th...)
-  const getOrdinalSuffix = (day: number) => {
-    if (day > 3 && day < 21) return "th";
-    switch (day % 10) {
-      case 1:
-        return "st";
-      case 2:
-        return "nd";
-      case 3:
-        return "rd";
-      default:
-        return "th";
-    }
-  };
-
-  // Format date parts
+  const currentDate = new Date();
   const weekday = currentDate.toLocaleDateString("en-US", { weekday: "long" });
   const month = currentDate.toLocaleDateString("en-US", { month: "short" });
   const dayNum = currentDate.getDate();
@@ -59,18 +61,8 @@ export const TopBar: React.FC<TopBarProps> = ({
           <span className="text-sm font-bold block">
             {getGreeting(currentDate)}, {userName}!
           </span>
-          <span className="text-xs block text-stone-500">
-            {formattedDate}
-          </span>
+          <span className="text-xs block text-stone-500">{formattedDate}</span>
         </div>
-
-        <button
-          onClick={onCalendarClick}
-          className="flex text-sm items-center gap-2 bg-stone-100 transition-colors hover:bg-violet-100 hover:text-violet-700 px-3 py-1.5 rounded"
-        >
-          <FiCalendar />
-          <span>Prev 6 Months</span>
-        </button>
       </div>
     </div>
   );

@@ -67,7 +67,7 @@ export function DrawingsPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
-      <header>
+      <header className="border-b mb-4 mt-2 pb-4 border-stone-300">
         <Heading>Drawings</Heading>
         <p className="mt-1 text-sm text-stone-500">Upload drawings and share them with the people on your project.</p>
       </header>
