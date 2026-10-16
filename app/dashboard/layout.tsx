@@ -8,14 +8,12 @@ import { SideBar } from "@/components/dashboard/Sidebar/SideBar";
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // Remember which page the drawer was opened on. If the path changes, it's no longer "open".
   const [openedOn, setOpenedOn] = useState<string | null>(null);
   const open = openedOn === pathname;
 
   const openMenu = () => setOpenedOn(pathname);
   const closeMenu = () => setOpenedOn(null);
 
-  // Escape closes it, and the page behind doesn't scroll while it's open
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpenedOn(null);
@@ -28,7 +26,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [open]);
 
   return (
-    <main className="min-h-dvh bg-stone-100 text-stone-950 lg:grid lg:grid-cols-[220px_1fr] lg:gap-4 lg:p-4">
+    <main className="min-h-dvh bg-[#f4f1ec] text-stone-950 lg:grid lg:h-dvh lg:grid-cols-[220px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-4 lg:overflow-hidden lg:p-4">
       {/* Mobile top bar (hidden on lg+) */}
       <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-stone-200 bg-white px-4 py-2 lg:hidden">
         <button
@@ -53,12 +51,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         />
       )}
 
-      {/* Sidebar: off-canvas drawer on mobile, normal grid column on lg+ */}
+      {/* Sidebar: off-canvas drawer on mobile, fixed (non-scrolling) column on lg+ */}
       <aside
         id="dashboard-sidebar"
         className={`fixed inset-y-0 left-0 z-50 w-65 max-w-[85vw] overflow-y-auto bg-stone-100 p-4 transition-transform duration-200
           ${open ? "translate-x-0" : "-translate-x-full invisible"}
-          lg:visible lg:sticky lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0 lg:overflow-hidden lg:bg-transparent lg:p-0 lg:transition-none`}
+          lg:visible lg:static lg:z-auto lg:h-full lg:min-h-0 lg:w-auto lg:max-w-none lg:translate-x-0 lg:overflow-hidden lg:bg-transparent lg:p-0 lg:transition-none`}
       >
         <button
           type="button"
@@ -71,8 +69,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <SideBar />
       </aside>
 
-      {/* Main content: edge-to-edge on mobile, card on lg+ */}
-      <div className="min-w-0 bg-white p-4 sm:p-6 lg:min-h-[calc(100dvh-2rem)] lg:rounded-lg lg:border lg:border-stone-200 lg:shadow-sm">
+      {/* Main content: page scroll on mobile, its own scroll area inside the card on lg+ */}
+      <div className="min-w-0 bg-white p-4 sm:p-6 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:rounded-lg lg:border lg:border-stone-200 lg:shadow-sm">
         {children}
       </div>
     </main>

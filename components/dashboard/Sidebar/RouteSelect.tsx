@@ -5,26 +5,26 @@ import { usePathname } from "next/navigation";
 import { IconType } from "react-icons";
 import { motion } from "framer-motion"; 
 import {
-  FiHome,
-  // FiUsers,
-  // FiFileText,
-  FiImage,
-  FiUserCheck,
-  // FiBox,
+  FiGrid,
+  FiPenTool,
+  FiBriefcase,
+  FiUsers,
+  FiFileText,
+  FiBox,
 } from "react-icons/fi";
 
 export const RouteSelect = () => {
   const pathname = usePathname();
 
   // Define routes in an array for cleaner rendering and easy updating
- const routes = [
-    { title: "Dashboard", href: "/dashboard", Icon: FiHome },
-    // { title: "Team", href: "/dashboard/team", Icon: FiUsers },
-    // { title: "BOQ", href: "/dashboard/boq", Icon: FiFileText },
-    { title: "Drawing", href: "/dashboard/drawing", Icon: FiImage },
-    { title: "Project", href: "/dashboard/labour", Icon: FiUserCheck },
-    // { title: "Inventory", href: "/dashboard/inventory", Icon: FiBox },
-  ];
+const routes = [
+  { title: "Dashboard", href: "/dashboard", Icon: FiGrid },
+  { title: "Team", href: "/dashboard/team", Icon: FiUsers },
+  { title: "BOQ", href: "/dashboard/boq", Icon: FiFileText },
+  { title: "Drawing", href: "/dashboard/drawing", Icon: FiPenTool },
+  { title: "Project", href: "/dashboard/labour", Icon: FiBriefcase },
+  { title: "Inventory", href: "/dashboard/inventory", Icon: FiBox },
+];
 
   return (
     <div className="space-y-1">
