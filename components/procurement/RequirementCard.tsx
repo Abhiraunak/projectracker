@@ -5,10 +5,11 @@ import { FiTrash2 } from "react-icons/fi";
 import { formatQty } from "@/lib/materials/format";
 import { isOverdue, pendingQty, procurementStatus, totalRequired } from "@/lib/materials/procurement";
 import type { Requirement } from "@/lib/materials/types";
-import { buttonSecondary, iconButton } from "@/components/materials/styles";
+
 import { DeliveryCell } from "./DeliveryCell";
 import { ProcurementStatusPill } from "./ProcurementStatusPill";
 import { VendorCell } from "./VendorCell";
+import { buttonSecondary, iconButton } from "../drawing/styles";
 
 interface Props {
   requirement: Requirement;

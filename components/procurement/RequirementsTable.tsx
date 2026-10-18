@@ -5,7 +5,7 @@ import { FiEdit2, FiTrash2 } from "react-icons/fi";
 import { formatQty } from "@/lib/materials/format";
 import { isOverdue, pendingQty, procurementStatus, totalRequired } from "@/lib/materials/procurement";
 import type { Requirement } from "@/lib/materials/types";
-import { iconButton } from "@/components/materials/styles";
+import { iconButton } from "../drawing/styles";
 import { DeliveryCell } from "./DeliveryCell";
 import { ProcurementStatusPill } from "./ProcurementStatusPill";
 import { VendorCell } from "./VendorCell";

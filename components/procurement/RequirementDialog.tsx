@@ -9,7 +9,7 @@ import { DialogHeader, ModalDialog } from "@/components/utilites/ModalDialog";
 import { useCreateRequirement } from "@/hooks/useRequirements";
 import { useMaterialCatalog } from "@/hooks/useMaterialCatalog";
 import { Field } from "@/components/materials/Field";
-import { buttonPrimary, buttonSecondary, inputBase } from "@/components/materials/styles";
+import { buttonPrimary, buttonSecondary, inputBase } from "../drawing/styles";
 
 interface Props {
   open: boolean;

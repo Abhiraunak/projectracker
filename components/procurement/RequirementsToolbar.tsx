@@ -4,8 +4,8 @@ import React from "react";
 import { FiSearch } from "react-icons/fi";
 import type { RequirementFilters } from "@/lib/materials/procurement";
 import type { WorkItemRef } from "@/lib/materials/types";
-import { inputBase } from "@/components/materials/styles";
 import { STATUS_OPTIONS } from "./ProcurementStatusPill";
+import { inputBase } from "../drawing/styles";
 
 interface RequirementsToolbarProps {
   filters: RequirementFilters;

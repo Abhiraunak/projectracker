@@ -12,12 +12,13 @@ import { useDeleteRequirement, useRequirements } from "@/hooks/useRequirements";
 import { useRequirementFilters } from "@/hooks/useRequirementFilters";
 import { useDialogState } from "@/hooks/useDialogState";
 import { QueryError } from "@/components/materials/QueryError";
-import { buttonPrimary } from "@/components/materials/styles";
+
 import { OrderDialog } from "./OrderDialog";
 import { ProcurementSummary } from "./ProcurementSummary";
 import { RequirementDialog } from "./RequirementDialog";
 import { RequirementList } from "./RequirementList";
 import { RequirementsToolbar } from "./RequirementsToolbar";
+import { buttonPrimary } from "../drawing/styles";
 
 interface Props {
   projectId: string;
