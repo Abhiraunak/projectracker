@@ -4,10 +4,6 @@ import React, { memo, useCallback, useEffect, useId, useMemo, useRef, useState }
 import { FiAlertCircle, FiArrowRight, FiPlus, FiTrash2, FiTrendingDown, FiTrendingUp } from "react-icons/fi";
 import { Heading } from "@/components/utilites/Label";
 
-/* -------------------------------------------------------------------------- */
-/*  Public types (unchanged, so the page keeps working)                       */
-/* -------------------------------------------------------------------------- */
-
 export interface TaskInput {
   id: string;
   work: string;
@@ -24,12 +20,16 @@ export interface TaskInput {
 
 export interface ProjectData {
   title: string;
+  /** What the whole project should cost. Empty means not set yet. */
+  projectCost: number | "";
   tasks: TaskInput[];
 }
 
 interface LabourManagementFormProps {
   onSubmit: (data: ProjectData) => void;
+  /** Pass the saved project to edit it instead of starting from a blank form. */
   initialData?: ProjectData | null;
+  /** True while the request is in flight: disables the submit button. */
   submitting?: boolean;
 }
 
@@ -59,20 +59,9 @@ const emptyTask = (): TaskInput => ({
 const n = (v: number | "") => (v === "" ? 0 : v);
 const rupees = (v: number) => `₹${Math.abs(v).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
-// Mobile: 44px tall and 16px text (stops iOS Safari zooming in on focus).
-// sm+: the original compact size.
 const inputBase =
-  "min-h-11 w-full min-w-0 rounded border border-stone-300 bg-white px-3 py-2 text-base text-stone-900 placeholder:text-stone-400 " +
-  "focus:border-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900/20 " +
-  "sm:min-h-0 sm:text-sm";
-
-/**
- * Field widths inside the work-item grid.
- * Mobile grid has 2 columns: FULL spans both, HALF shares a line with its neighbour.
- * From sm up every field is a single cell (2 columns, then 3 at lg), as before.
- */
-const FULL = "col-span-2 sm:col-span-1";
-const HALF = "col-span-1";
+  "w-full rounded border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 placeholder:text-stone-400 " +
+  "focus:border-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900/20";
 
 /* -------------------------------------------------------------------------- */
 /*  Small building blocks (same visual language as StatCards)                 */
@@ -80,8 +69,9 @@ const HALF = "col-span-1";
 
 const Pill = ({ trend, children }: { trend: "up" | "down"; children: React.ReactNode }) => (
   <span
-    className={`flex items-center gap-1 rounded px-2 py-1 text-xs font-medium ${trend === "up" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-      }`}
+    className={`flex items-center gap-1 rounded px-2 py-1 text-xs font-medium ${
+      trend === "up" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+    }`}
   >
     {trend === "up" ? <FiTrendingUp aria-hidden /> : <FiTrendingDown aria-hidden />}
     {children}
@@ -99,13 +89,13 @@ const SummaryCard = ({
   note: string;
   pill?: React.ReactNode;
 }) => (
-  <div className="min-w-0 rounded border border-stone-300 bg-white p-3 sm:p-4">
-    <div className="mb-3 flex items-start justify-between gap-2 sm:mb-6">
-      <div className="min-w-0">
-        <h3 className="mb-1 text-sm text-stone-500 sm:mb-2">{title}</h3>
-        <p className="wrap-break-word text-2xl font-semibold tabular-nums lg:text-3xl">{value}</p>
+  <div className="rounded border border-stone-300 bg-white p-4">
+    <div className="mb-6 flex items-start justify-between gap-2">
+      <div>
+        <h3 className="mb-2 text-sm text-stone-500">{title}</h3>
+        <p className="text-3xl font-semibold tabular-nums">{value}</p>
       </div>
-      {pill && <div className="shrink-0">{pill}</div>}
+      {pill}
     </div>
     <p className="text-xs text-stone-500">{note}</p>
   </div>
@@ -119,12 +109,10 @@ type NumberFieldProps = {
   prefix?: string;
   suffix?: string;
   max?: number;
-  /** Grid placement (FULL / HALF) */
-  className?: string;
 };
 
-const NumberField = ({ id, label, value, onChange, prefix, suffix, max, className = "" }: NumberFieldProps) => (
-  <div className={`min-w-0 ${className}`}>
+const NumberField = ({ id, label, value, onChange, prefix, suffix, max }: NumberFieldProps) => (
+  <div>
     <label htmlFor={id} className="mb-1.5 block text-sm text-stone-500">
       {label}
     </label>
@@ -181,8 +169,8 @@ const TaskRow = memo(function TaskRow({ task, index, canRemove, autoFocus, onCha
 
   const set =
     (field: "area" | "contractorRate" | "inHouseRate" | "progress" | "stipulated" | "paid") =>
-      (value: number | "") =>
-        onChange(task.id, { [field]: value });
+    (value: number | "") =>
+    onChange(task.id, { [field]: value });
 
   const hasRates = task.area !== "" && task.contractorRate !== "" && task.inHouseRate !== "";
   const saving = n(task.area) * (n(task.contractorRate) - n(task.inHouseRate));
@@ -190,11 +178,10 @@ const TaskRow = memo(function TaskRow({ task, index, canRemove, autoFocus, onCha
   const balance = n(task.stipulated) - n(task.paid);
 
   return (
-    // min-w-0: a <fieldset> otherwise refuses to shrink below its content and can push the page sideways
-    <fieldset className="min-w-0 rounded border border-stone-300 p-3 sm:p-4">
+    <fieldset className="rounded border border-stone-300 p-4">
       <legend className="sr-only">Work item {index + 1}</legend>
 
-      <div className="mb-3 flex items-start justify-between gap-3 sm:mb-4">
+      <div className="mb-4 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm text-stone-500">Work item {index + 1}</p>
           <p className="truncate text-base font-semibold">{task.work.trim() || "Untitled"}</p>
@@ -204,16 +191,15 @@ const TaskRow = memo(function TaskRow({ task, index, canRemove, autoFocus, onCha
             type="button"
             onClick={() => onRemove(task.id)}
             aria-label={`Remove work item ${index + 1}`}
-            // 44px tap target on phones (pulled into the corner so the row doesn't grow), compact from sm up
-            className="-mr-1.5 -mt-1.5 flex h-11 w-11 shrink-0 items-center justify-center rounded text-stone-400 transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 active:bg-red-50 sm:m-0 sm:h-8 sm:w-8"
+            className="rounded p-2 text-stone-400 transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
           >
             <FiTrash2 aria-hidden />
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-        <div className="col-span-2 lg:col-span-1">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="sm:col-span-2 lg:col-span-1">
           <label htmlFor={`${uid}-work`} className="mb-1.5 block text-sm text-stone-500">
             Name of work
           </label>
@@ -230,7 +216,7 @@ const TaskRow = memo(function TaskRow({ task, index, canRemove, autoFocus, onCha
           />
         </div>
 
-        <div className={`min-w-0 ${HALF}`}>
+        <div>
           <label htmlFor={`${uid}-start`} className="mb-1.5 block text-sm text-stone-500">
             Start date
           </label>
@@ -243,7 +229,7 @@ const TaskRow = memo(function TaskRow({ task, index, canRemove, autoFocus, onCha
             className={inputBase}
           />
         </div>
-        <div className={`min-w-0 ${HALF}`}>
+        <div>
           <label htmlFor={`${uid}-end`} className="mb-1.5 block text-sm text-stone-500">
             End date
           </label>
@@ -258,16 +244,16 @@ const TaskRow = memo(function TaskRow({ task, index, canRemove, autoFocus, onCha
           />
         </div>
 
-        <NumberField className={FULL} id={`${uid}-area`} label="Total area" suffix="sqft" value={task.area} onChange={set("area")} />
-        <NumberField className={FULL} id={`${uid}-cr`} label="Contractor rate" prefix="₹" suffix="/sqft" value={task.contractorRate} onChange={set("contractorRate")} />
-        <NumberField className={FULL} id={`${uid}-ir`} label="In-house rate" prefix="₹" suffix="/sqft" value={task.inHouseRate} onChange={set("inHouseRate")} />
-        <NumberField className={HALF} id={`${uid}-st`} label="Stipulated budget" prefix="₹" value={task.stipulated} onChange={set("stipulated")} />
-        <NumberField className={HALF} id={`${uid}-pd`} label="Amount paid" prefix="₹" value={task.paid} onChange={set("paid")} />
-        <NumberField className={FULL} id={`${uid}-pr`} label="Progress" suffix="%" max={100} value={task.progress} onChange={set("progress")} />
+        <NumberField id={`${uid}-area`} label="Total area" suffix="sqft" value={task.area} onChange={set("area")} />
+        <NumberField id={`${uid}-cr`} label="Contractor rate" prefix="₹" suffix="/sqft" value={task.contractorRate} onChange={set("contractorRate")} />
+        <NumberField id={`${uid}-ir`} label="In-house rate" prefix="₹" suffix="/sqft" value={task.inHouseRate} onChange={set("inHouseRate")} />
+        <NumberField id={`${uid}-st`} label="Stipulated budget" prefix="₹" value={task.stipulated} onChange={set("stipulated")} />
+        <NumberField id={`${uid}-pd`} label="Amount paid" prefix="₹" value={task.paid} onChange={set("paid")} />
+        <NumberField id={`${uid}-pr`} label="Progress" suffix="%" max={100} value={task.progress} onChange={set("progress")} />
       </div>
 
       {(hasRates || hasBudget) && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-stone-200 pt-3 sm:mt-4 sm:pt-4">
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-stone-200 pt-4">
           {hasRates && (
             <Pill trend={saving >= 0 ? "up" : "down"}>
               {saving >= 0 ? `In-house saves ${rupees(saving)}` : `In-house costs ${rupees(saving)} more`}
@@ -291,6 +277,7 @@ const TaskRow = memo(function TaskRow({ task, index, canRemove, autoFocus, onCha
 export function LabourManagementForm({ onSubmit, initialData, submitting = false }: LabourManagementFormProps) {
   const titleId = useId();
   const [title, setTitle] = useState(initialData?.title ?? "");
+  const [projectCost, setProjectCost] = useState<number | "">(initialData?.projectCost ?? "");
   const [tasks, setTasks] = useState<TaskInput[]>(() =>
     initialData?.tasks.length ? initialData.tasks : [emptyTask()]
   );
@@ -328,13 +315,14 @@ export function LabourManagementForm({ onSubmit, initialData, submitting = false
     setError(null);
     onSubmit({
       title: title.trim(),
+      projectCost,
       tasks: tasks.map((t) => ({ ...t, work: t.work.trim() })),
     });
   };
 
   return (
-    <div className="min-w-0 rounded border border-stone-300 bg-white p-3 sm:p-6">
-      <div className="mb-4 border-b border-stone-200 pb-3 sm:mb-6 sm:pb-4">
+    <div className="rounded border border-stone-300 bg-white p-4 sm:p-6">
+      <div className="mb-6 border-b border-stone-200 pb-4">
         <Heading>{initialData ? "Edit labour dashboard" : "Generate labour dashboard"}</Heading>
         <p className="mt-1 text-sm text-stone-500">
           Add each work item with its rates, budget and progress. The comparison grid, Gantt chart and payment
@@ -342,7 +330,7 @@ export function LabourManagementForm({ onSubmit, initialData, submitting = false
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label htmlFor={titleId} className="mb-1.5 block text-sm text-stone-500">
             Project title
@@ -359,7 +347,33 @@ export function LabourManagementForm({ onSubmit, initialData, submitting = false
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4" aria-live="polite">
+        <div>
+          <label htmlFor={`${titleId}-cost`} className="mb-1.5 block text-sm text-stone-500">
+            Total project cost (optional)
+          </label>
+          <div className="relative">
+            <span aria-hidden className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-stone-400">
+              ₹
+            </span>
+            <input
+              id={`${titleId}-cost`}
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="any"
+              value={projectCost}
+              // Keep "" when the box is cleared: Number("") would silently become 0
+              onChange={(e) => setProjectCost(e.target.value === "" ? "" : Number(e.target.value))}
+              placeholder="e.g. 500000"
+              className={`${inputBase} pl-7 tabular-nums`}
+            />
+          </div>
+          <p className="mt-1 text-xs text-stone-500">
+            What the whole project should cost. Used to track how much budget is left.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3" aria-live="polite">
           <SummaryCard
             title="Stipulated budget"
             value={rupees(totals.stipulated)}
@@ -379,7 +393,7 @@ export function LabourManagementForm({ onSubmit, initialData, submitting = false
           />
         </div>
 
-        <section aria-label="Work items" className="space-y-3 sm:space-y-4">
+        <section aria-label="Work items" className="space-y-4">
           <h3 className="text-lg font-semibold tracking-tight">Work items</h3>
 
           {tasks.map((task, index) => (
@@ -397,7 +411,7 @@ export function LabourManagementForm({ onSubmit, initialData, submitting = false
           <button
             type="button"
             onClick={addTask}
-            className="flex min-h-12 w-full items-center justify-center gap-2 rounded border border-dashed border-stone-300 py-3 text-sm font-medium text-stone-600 transition-colors hover:border-stone-500 hover:bg-stone-50 hover:text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 active:bg-stone-100"
+            className="flex w-full items-center justify-center gap-2 rounded border border-dashed border-stone-300 py-3 text-sm font-medium text-stone-600 transition-colors hover:border-stone-500 hover:bg-stone-50 hover:text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
           >
             <FiPlus aria-hidden /> Add work item
           </button>
@@ -410,15 +424,14 @@ export function LabourManagementForm({ onSubmit, initialData, submitting = false
           </p>
         )}
 
-        {/* Mobile: full-width submit button. sm+: right-aligned, as before */}
-        <div className="flex border-t border-stone-200 pt-4 sm:justify-end">
+        <div className="flex justify-end border-t border-stone-200 pt-4">
           <button
             type="submit"
             disabled={submitting}
-            className="flex min-h-12 w-full items-center justify-center gap-2 rounded bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-stone-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-0 sm:w-auto"
+            className="flex items-center gap-2 rounded bg-stone-900 disabled:cursor-not-allowed disabled:opacity-60 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-stone-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2"
           >
-            {submitting ? "Saving..." : initialData ? "Save changes" : "Generate dashboard"}
-            {!submitting && <FiArrowRight aria-hidden />}
+            {submitting ? "Saving…" : initialData ? "Save changes" : "Create project"}
+            <FiArrowRight aria-hidden />
           </button>
         </div>
       </form>
