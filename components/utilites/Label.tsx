@@ -65,4 +65,6 @@ export const buttonSecondary = `${button} border border-stone-300 text-stone-700
 // 40px tall on phones (easy to tap), a bit tighter on larger screens
 export const iconButton = `rounded p-2.5 text-stone-500 transition-colors hover:bg-stone-100 hover:text-stone-900 sm:p-2 ${focusRing} disabled:cursor-not-allowed disabled:opacity-40`;
 
+export const HIDE_SCROLLBAR = "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+
 

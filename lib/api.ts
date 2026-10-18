@@ -22,6 +22,7 @@ export interface ApiTask {
 export interface ApiProject {
   id: string;
   title: string;
+  projectCost: number | null;
   status: ProjectStatus;
   createdAt: string;
   updatedAt: string;
@@ -35,6 +36,8 @@ export interface ProjectSummary {
   status: ProjectStatus;
   taskCount: number;
   attendanceCount: number;
+  projectCost: number | null;
+  spent: number; // paid so far, across the work items
   budget: number;
   paid: number;
   progress: number;
@@ -44,7 +47,7 @@ export interface ProjectSummary {
 }
 
 export type TaskPatch = { progress?: number; paid?: number };
-export type ProjectPayload = { title: string; status?: ProjectStatus; tasks: (Omit<ApiTask, "id"> & { id?: string })[] };
+export type ProjectPayload = { title: string; projectCost: number | null; status?: ProjectStatus; tasks: (Omit<ApiTask, "id"> & { id?: string })[] };
 
 /* ------------------------------- Requests --------------------------------- */
 
@@ -151,6 +154,7 @@ const n = (v: number | "") => (v === "" ? 0 : v);
 
 export const toPayload = (d: ProjectData): ProjectPayload => ({
   title: d.title.trim(),
+  projectCost: d.projectCost === "" ? null : d.projectCost,
   tasks: d.tasks.map((t) => ({
     id: t.id,
     work: t.work.trim(),
@@ -167,6 +171,7 @@ export const toPayload = (d: ProjectData): ProjectPayload => ({
 
 export const toFormData = (p: ApiProject): ProjectData => ({
   title: p.title,
+  projectCost: p.projectCost ?? "",
   tasks: p.tasks.map((t) => ({ ...t })),
 });
 

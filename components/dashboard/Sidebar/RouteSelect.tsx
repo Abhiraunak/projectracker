@@ -1,83 +1,53 @@
-"use client"; 
+"use client";
+
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconType } from "react-icons";
-import { motion } from "framer-motion"; 
-import {
-  FiGrid,
-  FiPenTool,
-  FiBriefcase,
-  FiUsers,
-  FiFileText,
-  FiBox,
-} from "react-icons/fi";
+import { motion, useReducedMotion } from "framer-motion";
+import { AppRoute, currentRoute, ROUTES } from "./Routes";
 
+
+/** The main menu */
 export const RouteSelect = () => {
   const pathname = usePathname();
-
-  // Define routes in an array for cleaner rendering and easy updating
-const routes = [
-  { title: "Dashboard", href: "/dashboard", Icon: FiGrid },
-  { title: "Team", href: "/dashboard/team", Icon: FiUsers },
-  { title: "BOQ", href: "/dashboard/boq", Icon: FiFileText },
-  { title: "Drawing", href: "/dashboard/drawing", Icon: FiPenTool },
-  { title: "Project", href: "/dashboard/labour", Icon: FiBriefcase },
-  { title: "Inventory", href: "/dashboard/inventory", Icon: FiBox },
-];
+  const active = currentRoute(pathname)?.href;
 
   return (
-    <div className="space-y-1">
-      {routes.map((route) => (
-        <Route
-          key={route.href}
-          Icon={route.Icon}
-          title={route.title}
-          href={route.href}
-          // The route is selected if the current URL matches the href
-          selected={pathname === route.href}
-        />
-      ))}
-    </div>
+    <nav aria-label="Main">
+      <ul className="space-y-0.5">
+        {ROUTES.map((route) => (
+          <li key={route.href}>
+            <RouteLink route={route} selected={route.href === active} />
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 };
 
-const Route = ({
-  selected,
-  Icon,
-  title,
-  href,
-}: {
-  selected: boolean;
-  Icon: IconType;
-  title: string;
-  href: string;
-}) => {
+function RouteLink({ route: { title, href, Icon }, selected }: { route: AppRoute; selected: boolean }) {
+  const reduceMotion = useReducedMotion();
+
   return (
     <Link
       href={href}
-      className={`relative flex items-center justify-start gap-2 w-full rounded px-2 py-1.5 text-sm transition-colors ${
-        selected
-          ? "text-stone-950"
-          : "hover:bg-stone-200 bg-transparent text-stone-500"
+      aria-current={selected ? "page" : undefined}
+      className={`relative flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 lg:py-1.5 ${
+        selected ? "font-medium text-stone-950" : "text-stone-500 hover:bg-stone-200 hover:text-stone-900"
       }`}
     >
       {selected && (
-        <motion.div
-          layoutId="active-bg" 
-          className="absolute inset-0 bg-white rounded shadow"
+        // The white card slides from item to item (instantly, if the person prefers less motion)
+        <motion.span
+          layoutId="sidebar-active"
+          aria-hidden
+          className="absolute inset-0 rounded border border-stone-300 bg-white"
           initial={false}
-          transition={{
-            type: "spring",
-            stiffness: 350,
-            damping: 30,
-          }}
+          transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 350, damping: 30 }}
         />
       )}
-      
-      {/* Added relative and z-10 so the content sits above the animated background */}
-      <Icon className={`relative z-10 transition-colors ${selected ? "text-violet-500" : ""}`} />
-      <span className="relative z-10">{title}</span>
+      <Icon aria-hidden className={`relative z-10 shrink-0 ${selected ? "text-amber-600" : ""}`} />
+      <span className="relative z-10 truncate">{title}</span>
     </Link>
   );
-};
+}

@@ -6,15 +6,16 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/lib/auth-api";
 
+/** The bottom of the sidebar: signing out */
 export const SidebarFooter = () => {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const inFlight = useRef(false);
+  const inFlight = useRef(false); // a ref updates at once; state doesn't, so a double click could slip through
   const router = useRouter();
   const queryClient = useQueryClient();
 
   const handleSignOut = async () => {
-    if (inFlight.current) return; // ref updates immediately, state doesn't
+    if (inFlight.current) return;
     inFlight.current = true;
     setIsSigningOut(true);
     setError(null);
@@ -22,8 +23,8 @@ export const SidebarFooter = () => {
     try {
       await authApi.logout();
     } catch (e) {
-      // If the session is already expired (401), the user is effectively signed out
-      // anyway, so carry on. Anything else (network/server error) is a real failure.
+      // An already-expired session (401) means the person is signed out anyway, so carry on.
+      // Anything else (network or server trouble) is a real failure.
       const status = (e as { status?: number })?.status;
       if (status !== 401) {
         console.error("Failed to sign out:", e);
@@ -34,28 +35,28 @@ export const SidebarFooter = () => {
       }
     }
 
-    // Stop in-flight requests, then wipe cached user data (name, projects, attendance...)
+    // Stop requests still running, then wipe everything cached about this person (name, projects, attendance...)
     await queryClient.cancelQueries();
     queryClient.clear();
 
     router.replace("/signin");
-    router.refresh(); // drops Next's client-side router cache of protected pages
+    router.refresh(); // drops Next's client-side cache of the signed-in pages
   };
 
   return (
-    <div className="mt-auto border-t border-stone-300 p-2 text-xs transition-colors dark:border-stone-800">
+    <div className="mt-auto shrink-0 border-t border-stone-300 pt-3 pb-[env(safe-area-inset-bottom)]">
       <button
         type="button"
         disabled={isSigningOut}
         onClick={handleSignOut}
-        className="flex min-h-9 items-center gap-1.5 rounded bg-stone-200 px-2.5 py-1.5 font-medium text-stone-700 outline-none transition-colors hover:bg-red-600 hover:text-white focus-visible:ring-2 focus-visible:ring-violet-500 disabled:opacity-50 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-red-600"
+        className="flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-sm text-stone-500 transition-colors hover:bg-stone-200 hover:text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:cursor-not-allowed disabled:opacity-50 lg:py-1.5"
       >
-        <FiLogOut className="size-3.5" aria-hidden />
-        <span>{isSigningOut ? "Signing Out..." : "Sign Out"}</span>
+        <FiLogOut aria-hidden className="shrink-0" />
+        <span>{isSigningOut ? "Signing out…" : "Sign out"}</span>
       </button>
 
       {error && (
-        <p role="alert" className="mt-2 px-1 font-medium text-red-600">
+        <p role="alert" className="mt-2 px-2.5 text-xs font-medium text-red-700">
           {error}
         </p>
       )}
