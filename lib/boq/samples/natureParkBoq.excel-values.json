@@ -1,0 +1,79 @@
+{
+ "parts": [
+  {
+   "row": 20,
+   "excelQty": 175.86,
+   "excelAmount": 26699.0652,
+   "formula": "=SUM(H6:H19)"
+  },
+  {
+   "row": 28,
+   "excelQty": 146.88,
+   "excelAmount": 2278.1088,
+   "formula": "=SUM(H25:H27)"
+  },
+  {
+   "row": 36,
+   "excelQty": 291.36,
+   "excelAmount": 55859.5392,
+   "formula": "=SUM(H32:H35)"
+  },
+  {
+   "row": 59,
+   "excelQty": 32.7585,
+   "excelAmount": 150631.11745499997,
+   "formula": "=SUM(H43:H58)"
+  },
+  {
+   "row": 69,
+   "excelQty": 14.688,
+   "excelAmount": 71302.89600000001,
+   "formula": "=AVERAGE(H66:H68)"
+  },
+  {
+   "row": 73,
+   "excelQty": 6.48,
+   "excelAmount": 31457.160000000003,
+   "formula": "=SUM(H72:H72)"
+  },
+  {
+   "row": 85,
+   "excelQty": 28.98,
+   "excelAmount": 140683.41,
+   "formula": "=SUM(H76:H84)"
+  },
+  {
+   "row": 105,
+   "excelQty": 198.975,
+   "excelAmount": 38700.6375,
+   "formula": "=SUM(H90:H100)"
+  },
+  {
+   "row": 112,
+   "excelQty": 1.9143324000000002,
+   "excelAmount": 157160.066449896,
+   "formula": "=SUM(H110:H111)"
+  },
+  {
+   "row": 117,
+   "excelQty": 11.45317,
+   "excelAmount": 926321.7381519001,
+   "formula": "=SUM(H115:H116)"
+  },
+  {
+   "row": 122,
+   "excelQty": 4.7516835,
+   "excelAmount": 384311.40979650005,
+   "formula": "=SUM(H120:H121)"
+  },
+  {
+   "row": 127,
+   "excelQty": 4.436113499999999,
+   "excelAmount": 358788.73429444496,
+   "formula": "=SUM(H126:H126)"
+  }
+ ],
+ "sheetTotal": 2344193.8828477412,
+ "grandTotal": 2557046.6874103164,
+ "say": "25.57 Lacs"
+}

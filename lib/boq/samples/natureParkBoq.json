@@ -1,0 +1,964 @@
+{
+ "company": {
+  "name": "",
+  "address": "",
+  "phone": "",
+  "email": "",
+  "gstin": ""
+ },
+ "logo": null,
+ "title": "THE NATURE PARK, BARIDH, RANCHI (JHARKHAND)",
+ "subtitle": "PART H-1 -CONSERVATORY- LEFT AND RIGHT WING",
+ "rateBasis": "Rates as per SOR Jharkhand: 2022/ DSR: 2023",
+ "boqNumber": "",
+ "date": "",
+ "sheets": [
+  {
+   "id": "w108",
+   "name": "CIVIL WORKS- CONSERVATORY - Main Wing and Left and Right Wing",
+   "title": "PART-H-1 : CIVIL WORKS - SOR- CONSERVATORY- LEFT AND RIGHT RING",
+   "sections": [
+    {
+     "id": "s1",
+     "code": "5.1",
+     "title": "EARTHWORK",
+     "entries": [
+      {
+       "id": "i2",
+       "kind": "item",
+       "code": "5.1.1",
+       "description": "Earthwork in excavation in foundation trenches in ordinary soil (vide classification of soil item -A) and disposal of excavated earth as obtained to a distance upto 50 M. including all lifts, levelling, ramming the foundation trenches, removing roots of trees, shurbs all complete as per approved design, building specification and direction of E/I.",
+       "parts": [
+        {
+         "id": "p3",
+         "code": "",
+         "description": "",
+         "unit": "cum",
+         "rate": 151.82,
+         "lines": [
+          {
+           "id": "t4",
+           "kind": "text",
+           "text": "For Foundation- Conservatory- Left Wing and Right Wing"
+          },
+          {
+           "id": "m5",
+           "kind": "measure",
+           "label": "CF6",
+           "no": 2.0,
+           "length": 7.0,
+           "width": 1.8,
+           "height": 2.0,
+           "qty": null
+          },
+          {
+           "id": "m6",
+           "kind": "measure",
+           "label": "CF7",
+           "no": 2.0,
+           "length": 6.0,
+           "width": 1.8,
+           "height": 2.0,
+           "qty": null
+          },
+          {
+           "id": "m7",
+           "kind": "measure",
+           "label": "CF8",
+           "no": 2.0,
+           "length": 7.4,
+           "width": 1.8,
+           "height": 2.0,
+           "qty": null
+          },
+          {
+           "id": "t8",
+           "kind": "text",
+           "text": "For Plinth Beam- Conservatory-Left Wing and Right Wing"
+          },
+          {
+           "id": "m9",
+           "kind": "measure",
+           "label": "PB-6",
+           "no": 5.0,
+           "length": 7.0,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m10",
+           "kind": "measure",
+           "label": "PB-7",
+           "no": 1.0,
+           "length": 5.5,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m11",
+           "kind": "measure",
+           "label": "PB-8",
+           "no": 1.0,
+           "length": 5.5,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m12",
+           "kind": "measure",
+           "label": "PB-9",
+           "no": 1.0,
+           "length": 5.5,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m13",
+           "kind": "measure",
+           "label": "PB-10",
+           "no": 1.0,
+           "length": 9.0,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m14",
+           "kind": "measure",
+           "label": "PB-11",
+           "no": 1.0,
+           "length": 5.0,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m15",
+           "kind": "measure",
+           "label": "PB-12",
+           "no": 1.0,
+           "length": 5.0,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m16",
+           "kind": "measure",
+           "label": "PB-13",
+           "no": 1.0,
+           "length": 5.0,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m17",
+           "kind": "measure",
+           "label": "PB-14",
+           "no": 1.0,
+           "length": 5.0,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": "i18",
+       "kind": "item",
+       "code": "5.1.2",
+       "description": "Extra for earthwork in hard soil as per specification and direction of E/I (Vide classification of soil item-B).",
+       "parts": [
+        {
+         "id": "p19",
+         "code": "",
+         "description": "",
+         "unit": "cum",
+         "rate": 15.51,
+         "lines": [
+          {
+           "id": "t20",
+           "kind": "text",
+           "text": "For Foundation"
+          },
+          {
+           "id": "t21",
+           "kind": "text",
+           "text": "For Foundation- Conservatory-Left Wing and Right Wing"
+          },
+          {
+           "id": "m22",
+           "kind": "measure",
+           "label": "CF6",
+           "no": 2.0,
+           "length": 7.0,
+           "width": 1.8,
+           "height": 2.0,
+           "qty": null
+          },
+          {
+           "id": "m23",
+           "kind": "measure",
+           "label": "CF7",
+           "no": 2.0,
+           "length": 6.0,
+           "width": 1.8,
+           "height": 2.0,
+           "qty": null
+          },
+          {
+           "id": "m24",
+           "kind": "measure",
+           "label": "CF8",
+           "no": 2.0,
+           "length": 7.4,
+           "width": 1.8,
+           "height": 2.0,
+           "qty": null
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": "i25",
+       "kind": "item",
+       "code": "5.6.5",
+       "description": "Providing average 150mm thick dry rammed khoa beaten to 112mm. (compacted with water) made of well burnt or jhama bricks including ramming properly till compacted thickness is achieved, curing and carriage of water with all leads, making proper slope and blending the top with cement mortar (1:10) allcomplete as per building specification and direction of E/I.",
+       "parts": [
+        {
+         "id": "p26",
+         "code": "",
+         "description": "",
+         "unit": "sqm",
+         "rate": 191.72,
+         "lines": [
+          {
+           "id": "t27",
+           "kind": "text",
+           "text": "For Foundation- Conservatory- Left Wing and Right Wing"
+          },
+          {
+           "id": "m28",
+           "kind": "measure",
+           "label": "CF6",
+           "no": 2.0,
+           "length": 7.0,
+           "width": 1.8,
+           "height": null,
+           "qty": null
+          },
+          {
+           "id": "m29",
+           "kind": "measure",
+           "label": "CF7",
+           "no": 2.0,
+           "length": 6.0,
+           "width": 1.8,
+           "height": null,
+           "qty": null
+          },
+          {
+           "id": "m30",
+           "kind": "measure",
+           "label": "CF8",
+           "no": 2.0,
+           "length": 7.4,
+           "width": 1.8,
+           "height": null,
+           "qty": null
+          },
+          {
+           "id": "m31",
+           "kind": "measure",
+           "label": "Conservatory-Left and Right Wing",
+           "no": 217.92,
+           "length": null,
+           "width": null,
+           "height": null,
+           "qty": null
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "s32",
+     "code": "5.3",
+     "title": "CONCRETE WORKS",
+     "entries": [
+      {
+       "id": "l33",
+       "kind": "label",
+       "text": "P.C.C."
+      },
+      {
+       "id": "i34",
+       "kind": "item",
+       "code": "5.3.1",
+       "description": "Providing and laying position cement concrete of specified grade excluding the cost of centering and shuttering- All work upto plinth level:",
+       "parts": [
+        {
+         "id": "p35",
+         "code": "5.3.1.2",
+         "description": "1:2:4 (1 cement: 2 sand coarse(Zone III): 4 graded stone aggregate 20mm nominal size)",
+         "unit": "cum",
+         "rate": 4598.23,
+         "lines": [
+          {
+           "id": "t36",
+           "kind": "text",
+           "text": "For Foundation- Conservatory-Left Wing and Right Wing"
+          },
+          {
+           "id": "m37",
+           "kind": "measure",
+           "label": "CF6",
+           "no": 2.0,
+           "length": 7.0,
+           "width": 1.8,
+           "height": 0.1,
+           "qty": null
+          },
+          {
+           "id": "m38",
+           "kind": "measure",
+           "label": "CF7",
+           "no": 2.0,
+           "length": 6.0,
+           "width": 1.8,
+           "height": 0.1,
+           "qty": null
+          },
+          {
+           "id": "m39",
+           "kind": "measure",
+           "label": "CF8",
+           "no": 2.0,
+           "length": 7.4,
+           "width": 1.8,
+           "height": 0.1,
+           "qty": null
+          },
+          {
+           "id": "t40",
+           "kind": "text",
+           "text": "For Plinth Beam- Conservatory-Left Wing and Right Wing"
+          },
+          {
+           "id": "m41",
+           "kind": "measure",
+           "label": "PB-6",
+           "no": 5.0,
+           "length": 7.0,
+           "width": 0.45,
+           "height": 0.1,
+           "qty": null
+          },
+          {
+           "id": "m42",
+           "kind": "measure",
+           "label": "PB-7",
+           "no": 1.0,
+           "length": 5.5,
+           "width": 0.45,
+           "height": 0.1,
+           "qty": null
+          },
+          {
+           "id": "m43",
+           "kind": "measure",
+           "label": "PB-8",
+           "no": 1.0,
+           "length": 5.5,
+           "width": 0.45,
+           "height": 0.1,
+           "qty": null
+          },
+          {
+           "id": "m44",
+           "kind": "measure",
+           "label": "PB-9",
+           "no": 1.0,
+           "length": 5.5,
+           "width": 0.45,
+           "height": 0.1,
+           "qty": null
+          },
+          {
+           "id": "m45",
+           "kind": "measure",
+           "label": "PB-10",
+           "no": 1.0,
+           "length": 9.0,
+           "width": 0.45,
+           "height": 0.1,
+           "qty": null
+          },
+          {
+           "id": "m46",
+           "kind": "measure",
+           "label": "PB-11",
+           "no": 1.0,
+           "length": 5.0,
+           "width": 0.45,
+           "height": 0.1,
+           "qty": null
+          },
+          {
+           "id": "m47",
+           "kind": "measure",
+           "label": "PB-12",
+           "no": 1.0,
+           "length": 5.0,
+           "width": 0.45,
+           "height": 0.1,
+           "qty": null
+          },
+          {
+           "id": "m48",
+           "kind": "measure",
+           "label": "PB-13",
+           "no": 1.0,
+           "length": 5.0,
+           "width": 0.45,
+           "height": 0.1,
+           "qty": null
+          },
+          {
+           "id": "m49",
+           "kind": "measure",
+           "label": "PB-14",
+           "no": 1.0,
+           "length": 5.0,
+           "width": 0.45,
+           "height": 0.1,
+           "qty": null
+          },
+          {
+           "id": "m50",
+           "kind": "measure",
+           "label": "For Flooring- Left and Right Wing",
+           "no": 217.92,
+           "length": null,
+           "width": null,
+           "height": 0.1,
+           "qty": null
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": "l51",
+       "kind": "label",
+       "text": "R.C.C."
+      },
+      {
+       "id": "i52",
+       "kind": "item",
+       "code": "5.3.9",
+       "description": "Providing and laying position specified grade of reinforced cement concrete, excluding the cost of centering, shuttering, finishing and reinforcement- All work upto plinth level.",
+       "parts": [
+        {
+         "id": "p53",
+         "code": "5.3.9.2",
+         "description": "1:2:4 (1 cement: 2 coarse sand: 4 graded stone aggregate 20mm nominal size)",
+         "unit": "cum",
+         "rate": 4854.5,
+         "lines": [
+          {
+           "id": "t54",
+           "kind": "text",
+           "text": "Conservatory-Left Wing and Right Wing"
+          },
+          {
+           "id": "t55",
+           "kind": "text",
+           "text": "Footing"
+          },
+          {
+           "id": "m56",
+           "kind": "measure",
+           "label": "CF6",
+           "no": 2.0,
+           "length": 7.0,
+           "width": 1.8,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m57",
+           "kind": "measure",
+           "label": "CF7",
+           "no": 2.0,
+           "length": 6.0,
+           "width": 1.8,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m58",
+           "kind": "measure",
+           "label": "CF8",
+           "no": 2.0,
+           "length": 7.4,
+           "width": 1.8,
+           "height": 0.6,
+           "qty": null
+          }
+         ]
+        },
+        {
+         "id": "p59",
+         "code": "",
+         "description": "",
+         "unit": "cum",
+         "rate": 4854.5,
+         "lines": [
+          {
+           "id": "t60",
+           "kind": "text",
+           "text": "Neck Column-Left Wing and Right Wing"
+          },
+          {
+           "id": "m61",
+           "kind": "measure",
+           "label": "(450*450)",
+           "no": 16.0,
+           "length": 0.45,
+           "width": 0.45,
+           "height": 2.0,
+           "qty": null
+          }
+         ]
+        },
+        {
+         "id": "p62",
+         "code": "",
+         "description": "",
+         "unit": "cum",
+         "rate": 4854.5,
+         "lines": [
+          {
+           "id": "t63",
+           "kind": "text",
+           "text": "Plinth Beam-Left Wing and Right Wing"
+          },
+          {
+           "id": "m64",
+           "kind": "measure",
+           "label": "PB-6",
+           "no": 5.0,
+           "length": 7.0,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m65",
+           "kind": "measure",
+           "label": "PB-7",
+           "no": 1.0,
+           "length": 5.5,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m66",
+           "kind": "measure",
+           "label": "PB-8",
+           "no": 1.0,
+           "length": 5.5,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m67",
+           "kind": "measure",
+           "label": "PB-9",
+           "no": 1.0,
+           "length": 5.5,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m68",
+           "kind": "measure",
+           "label": "PB-10",
+           "no": 1.0,
+           "length": 9.0,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m69",
+           "kind": "measure",
+           "label": "PB-11",
+           "no": 1.0,
+           "length": 5.0,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m70",
+           "kind": "measure",
+           "label": "PB-12",
+           "no": 1.0,
+           "length": 5.0,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m71",
+           "kind": "measure",
+           "label": "PB-13",
+           "no": 1.0,
+           "length": 5.0,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "m72",
+           "kind": "measure",
+           "label": "PB-14",
+           "no": 1.0,
+           "length": 5.0,
+           "width": 0.6,
+           "height": 0.6,
+           "qty": null
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": "i73",
+       "kind": "item",
+       "code": "5.3.17",
+       "description": "Centering and Shuttering including strutting, propping etc. and removal of form for:",
+       "parts": [
+        {
+         "id": "p74",
+         "code": "5.3.17.1",
+         "description": "Foundations, footings, bases of columns, etc for mass concrete",
+         "unit": "sqm",
+         "rate": 194.5,
+         "lines": [
+          {
+           "id": "t75",
+           "kind": "text",
+           "text": "For Footing-Left Wing and Right Wing"
+          },
+          {
+           "id": "m76",
+           "kind": "measure",
+           "label": "F1(total 16 footings- 16x4)",
+           "no": 64.0,
+           "length": 2.0,
+           "width": null,
+           "height": 0.6,
+           "qty": null
+          },
+          {
+           "id": "t77",
+           "kind": "text",
+           "text": "Neck Column-Left Wing and Right Wing"
+          },
+          {
+           "id": "m78",
+           "kind": "measure",
+           "label": "(450*450)- total 16 footings- 16x4",
+           "no": 64.0,
+           "length": 0.6,
+           "width": null,
+           "height": 2.0,
+           "qty": null
+          },
+          {
+           "id": "t79",
+           "kind": "text",
+           "text": "Plinth Beam-Left Wing and Right Wing"
+          },
+          {
+           "id": "m80",
+           "kind": "measure",
+           "label": "PB-6",
+           "no": 5.0,
+           "length": 7.0,
+           "width": null,
+           "height": 0.75,
+           "qty": null
+          },
+          {
+           "id": "m81",
+           "kind": "measure",
+           "label": "PB-7",
+           "no": 1.0,
+           "length": 5.5,
+           "width": null,
+           "height": 0.75,
+           "qty": null
+          },
+          {
+           "id": "m82",
+           "kind": "measure",
+           "label": "PB-8",
+           "no": 1.0,
+           "length": 5.5,
+           "width": null,
+           "height": 0.75,
+           "qty": null
+          },
+          {
+           "id": "m83",
+           "kind": "measure",
+           "label": "PB-9",
+           "no": 1.0,
+           "length": 5.5,
+           "width": null,
+           "height": 0.75,
+           "qty": null
+          },
+          {
+           "id": "m84",
+           "kind": "measure",
+           "label": "PB-10",
+           "no": 1.0,
+           "length": 9.0,
+           "width": null,
+           "height": 0.75,
+           "qty": null
+          },
+          {
+           "id": "m85",
+           "kind": "measure",
+           "label": "PB-11",
+           "no": 1.0,
+           "length": 5.0,
+           "width": null,
+           "height": 0.75,
+           "qty": null
+          },
+          {
+           "id": "m86",
+           "kind": "measure",
+           "label": "PB-12",
+           "no": 1.0,
+           "length": 5.0,
+           "width": null,
+           "height": 0.75,
+           "qty": null
+          },
+          {
+           "id": "m87",
+           "kind": "measure",
+           "label": "PB-13",
+           "no": 1.0,
+           "length": 5.0,
+           "width": null,
+           "height": 0.75,
+           "qty": null
+          },
+          {
+           "id": "m88",
+           "kind": "measure",
+           "label": "PB-14",
+           "no": 1.0,
+           "length": 5.0,
+           "width": null,
+           "height": 0.75,
+           "qty": null
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "s89",
+     "code": "5.5",
+     "title": "STEEL WORKS",
+     "entries": [
+      {
+       "id": "i90",
+       "kind": "item",
+       "code": "5.5.5",
+       "description": "Providing Tor steel reinforcement of 10mm, 12mm and 16mm., dia bars as per approved design and drawing with cutting,bending and binding with annealed wire with cost of wire ,removal of rust placing the rods in position(excluding carriage of bars to work site) all complete as per building specification and direction of E/I.",
+       "parts": [
+        {
+         "id": "p91",
+         "code": "(a)",
+         "description": "10mm (TMT coil Fe 500) {Only valid for TATA (Tiscon), SAIL, JSPL, Electrosteel Steels Ltd Bokaro and Vizag(RINL)}",
+         "unit": "MT",
+         "rate": 82096.54,
+         "lines": [
+          {
+           "id": "m92",
+           "kind": "measure",
+           "label": "For Footing-F2-Left Wing and Right Wing",
+           "no": 14.688,
+           "length": 0.008,
+           "width": 7.85,
+           "height": null,
+           "qty": null
+          },
+          {
+           "id": "m93",
+           "kind": "measure",
+           "label": "For Pedestal-Left Wing and Right Wing",
+           "no": 6.48,
+           "length": 0.0195,
+           "width": 7.85,
+           "height": null,
+           "qty": null
+          }
+         ]
+        },
+        {
+         "id": "p94",
+         "code": "(b)",
+         "description": "12mm (TMT coil Fe 500) {Only valid for TATA (Tiscon), SAIL, JSPL, Electrosteel Steels Ltd Bokaro and Vizag(RINL)}",
+         "unit": "MT",
+         "rate": 80879.07,
+         "lines": [
+          {
+           "id": "m95",
+           "kind": "measure",
+           "label": "For Footing- F2-Left Wing and Right Wing",
+           "no": 38.0,
+           "length": 0.009899999999999999,
+           "width": 7.85,
+           "height": null,
+           "qty": null
+          },
+          {
+           "id": "m96",
+           "kind": "measure",
+           "label": "",
+           "no": null,
+           "length": null,
+           "width": null,
+           "height": null,
+           "qty": 8.5
+          }
+         ]
+        },
+        {
+         "id": "p97",
+         "code": "(c)",
+         "description": "16mm (TMT coil Fe 500) {Only valid for TATA (Tiscon), SAIL, JSPL, Electrosteel Steels Ltd Bokaro and Vizag(RINL)}",
+         "unit": "MT",
+         "rate": 80879.0,
+         "lines": [
+          {
+           "id": "m98",
+           "kind": "measure",
+           "label": "Plinth Beam-Left Wing and Right Wing",
+           "no": 28.98,
+           "length": 0.0095,
+           "width": 7.85,
+           "height": null,
+           "qty": null
+          },
+          {
+           "id": "m99",
+           "kind": "measure",
+           "label": "For Pedestal(450*450)-Left Wing and Right Wing",
+           "no": 6.0,
+           "length": 0.055,
+           "width": 7.85,
+           "height": null,
+           "qty": null
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": "i100",
+       "kind": "item",
+       "code": "5.5.6",
+       "description": "Providing Tor steel reinforcement of 20mm, 25mm,28mm and 32mm dia. bars as per approved design and drawing with cutting,bending and binding with annealed wire with cost of wire ,removal of rust placing the rods in position(excluding carriage of bars to work site) all complete as per building specification and direction of E/I.",
+       "parts": [
+        {
+         "id": "p101",
+         "code": "",
+         "description": "",
+         "unit": "MT",
+         "rate": 80879.07,
+         "lines": [
+          {
+           "id": "t102",
+           "kind": "text",
+           "text": "20/ 25 mm dia TMT bar Fe 500 {Only valid for TATA (Tiscon), SAIL, JSPL, Electrosteel Steels Ltd Bokaro and Vizag(RINL)}"
+          },
+          {
+           "id": "m103",
+           "kind": "measure",
+           "label": "Plinth Beam-Left Wing and Right Wing",
+           "no": 28.98,
+           "length": 0.0195,
+           "width": 7.85,
+           "height": null,
+           "qty": null
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "adjustments": [
+  {
+   "id": "a104",
+   "label": "Deduction Contractor's Profit",
+   "percent": 9.1,
+   "effect": "deduct"
+  },
+  {
+   "id": "a105",
+   "label": "GST",
+   "percent": 18.0,
+   "effect": "add"
+  },
+  {
+   "id": "a106",
+   "label": "Labour Cess",
+   "percent": 1.0,
+   "effect": "add"
+  },
+  {
+   "id": "a107",
+   "label": "Contingency",
+   "percent": 1.0,
+   "effect": "add"
+  }
+ ],
+ "signatures": {
+  "leftLabel": "Commissioned by:",
+  "leftName": "RFO Bero Range",
+  "rightLabel": "Submitted by:",
+  "rightName": ""
+ }
+}
