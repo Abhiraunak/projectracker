@@ -4,7 +4,7 @@ import React, { useId, useState, type ChangeEvent, type DragEvent } from "react"
 import { FiUploadCloud } from "react-icons/fi";
 import { ACCEPT_ATTRIBUTE } from "@/lib/drawings/validation";
 
-/** Choose images by tapping (phone, camera or gallery) or dragging them in (desktop). It only hands the files up. */
+/** Choose files by tapping (phone, camera or gallery) or dragging them in (desktop). It only hands the files up. */
 export function DropZone({ onFiles, disabled = false }: { onFiles: (files: File[]) => void; disabled?: boolean }) {
   const inputId = useId();
   const [dragging, setDragging] = useState(false);
@@ -37,10 +37,12 @@ export function DropZone({ onFiles, disabled = false }: { onFiles: (files: File[
     >
       <FiUploadCloud aria-hidden className="h-8 w-8 text-stone-400" />
       <span className="text-sm font-medium">
-        Tap to choose images
+        Tap to choose drawings
         <span className="hidden sm:inline"> or drag and drop them here</span>
       </span>
-      <span className="text-xs text-stone-500">PNG, JPG, WebP or GIF, up to 10 MB each, 10 at a time</span>
+      <span className="text-xs text-stone-500">
+        Images up to 10 MB · PDF and AutoCAD (DWG, DXF, DWF) up to 25 MB · 10 at a time
+      </span>
       <input id={inputId} type="file" accept={ACCEPT_ATTRIBUTE} multiple disabled={disabled} onChange={handleChange} className="sr-only" />
     </label>
   );

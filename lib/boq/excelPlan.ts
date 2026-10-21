@@ -9,6 +9,7 @@
  */
 import { boqTotals, itemCombinedQty, lineQty, partAmount, partQty, serialNumbers } from "./calc";
 import { fmtDay } from "./format";
+import { companyHeaderShown } from "./operations";
 import type { BoqDocument, Item, MeasureLine, Part, WorksSheet } from "./types";
 
 export type CellStyle =
@@ -211,7 +212,7 @@ function summaryTab(doc: BoqDocument, sheetRefs: { name: string; title: string; 
   const mergeRow = (from = "A", to = "D") => w.merges.push(`${from}${w.row}:${to}${w.row}`);
 
   // Company block (with the logo on its left), when filled in
-  if (doc.company.name || doc.logo) {
+  if (companyHeaderShown(doc) && (doc.company.name || doc.logo)) {
     w.put("A", { value: doc.company.name, style: "companyName" });
     mergeRow();
     w.rowHeights[w.row] = doc.logo ? 48 : 24;

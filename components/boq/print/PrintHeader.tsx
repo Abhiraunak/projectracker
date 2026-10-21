@@ -1,4 +1,5 @@
 import { fmtDay } from "@/lib/boq/format";
+import { companyHeaderShown } from "@/lib/boq/operations";
 import type { BoqDocument } from "@/lib/boq/types";
 
 const contact = (doc: BoqDocument) =>
@@ -8,7 +9,7 @@ const contact = (doc: BoqDocument) =>
 export function PrintHeader({ doc }: { doc: BoqDocument }) {
   return (
     <header>
-      {(doc.logo || doc.company.name) && (
+      {companyHeaderShown(doc) && (doc.logo || doc.company.name) && (
         <div style={{ display: "flex", alignItems: "center", gap: "10pt", borderBottom: "1pt solid #000", paddingBottom: "6pt", marginBottom: "8pt" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           {doc.logo && <img src={doc.logo} alt="" style={{ height: "48pt", width: "48pt", objectFit: "contain" }} />}

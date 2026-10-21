@@ -5,6 +5,8 @@ import { FiLogOut } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/lib/auth-api";
+import { forgetThisDevice } from "@/lib/push";
+import { NotificationToggle } from "@/components/notifications/NotificationToggle";
 
 /** The bottom of the sidebar: signing out */
 export const SidebarFooter = () => {
@@ -19,6 +21,9 @@ export const SidebarFooter = () => {
     inFlight.current = true;
     setIsSigningOut(true);
     setError(null);
+
+    // This device stops getting this person's notifications (done while still signed in, so the server accepts it)
+    await forgetThisDevice();
 
     try {
       await authApi.logout();
@@ -44,7 +49,8 @@ export const SidebarFooter = () => {
   };
 
   return (
-    <div className="mt-auto shrink-0 border-t border-stone-300 pt-3 pb-[env(safe-area-inset-bottom)]">
+    <div className="mt-auto shrink-0 space-y-1 border-t border-stone-300 pt-3 pb-[env(safe-area-inset-bottom)]">
+      <NotificationToggle />
       <button
         type="button"
         disabled={isSigningOut}

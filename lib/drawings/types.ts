@@ -3,16 +3,23 @@ export interface AppUser {
   email: string;
 }
 
+/** A picture, a PDF, or an AutoCAD drawing (DWG, DXF, DWF) */
+export type DrawingKind = "image" | "pdf" | "cad";
+
 export interface Drawing {
   id: string;
   title: string;
   description: string;
-  imageUrl: string; // full size
-  thumbnailUrl: string; // small version for the grid
+  kind: DrawingKind;
+  format: string; // png, jpg, pdf, dwg, dxf, dwf...
+  pageCount: number | null; // PDFs only
+  imageUrl: string | null; // large picture (page 1 for a PDF); none for AutoCAD files
+  thumbnailUrl: string | null; // small picture for the grid; none for AutoCAD files
+  openUrl: string; // the original, to open in a new tab
+  downloadUrl: string; // the original file, sent as a download
   mimeType: string;
   sizeBytes: number;
   owner: AppUser;
-  downloadUrl: string;
   isOwner: boolean; // is the signed-in user the uploader?
   sharedWith: AppUser[]; // only filled for the owner
   createdAt: string;
@@ -39,13 +46,13 @@ export interface UploadInput {
   file: File;
   title: string;
   description: string;
-  sharedWith: string[];
+  sharedWith: string[]; // user ids
 }
 
 /** fraction between 0 and 1 */
 export type ProgressCallback = (fraction: number) => void;
 
-
+/** The contract the UI depends on. The real API and the mock both implement it. */
 export interface DrawingsApi {
   list(params: DrawingListParams): Promise<DrawingPage>;
   upload(input: UploadInput, onProgress: ProgressCallback): Promise<Drawing>;

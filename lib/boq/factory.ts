@@ -38,6 +38,7 @@ export const defaultAdjustments = (): Adjustment[] => [
 export const blankDocument = (today: string): BoqDocument => ({
   company: { name: "", address: "", phone: "", email: "", gstin: "" },
   logo: null,
+  showCompanyHeader: true,
   title: "",
   subtitle: "",
   rateBasis: "",

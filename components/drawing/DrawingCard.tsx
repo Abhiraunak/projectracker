@@ -4,6 +4,7 @@ import React, { memo } from "react";
 import { FiDownload, FiShare2, FiTrash2 } from "react-icons/fi";
 import { downloadName, formatDate } from "@/lib/drawings/format";
 import type { Drawing } from "@/lib/drawings/types";
+import { FileTypeTile, kindLabel } from "./FileTypeTile";
 import { ImageWithFallback } from "./ImageWithFallback";
 import { focusRing, iconButton } from "./styles";
 
@@ -30,8 +31,12 @@ function ShareBadge({ drawing }: { drawing: Drawing }) {
 export const DrawingCard = memo(function DrawingCard({ drawing, onOpen, onShare, onDelete }: DrawingCardProps) {
   return (
     <article className="flex h-full flex-col overflow-hidden rounded border border-stone-300">
-      <button type="button" onClick={() => onOpen(drawing.id)} aria-label={`Open ${drawing.title}`} className={`block aspect-4/3 w-full bg-stone-100 ${focusRing}`}>
-        <ImageWithFallback src={drawing.thumbnailUrl} alt={drawing.title} className="h-full w-full object-cover" />
+      <button type="button" onClick={() => onOpen(drawing.id)} aria-label={`Open ${drawing.title}`} className={`block aspect-[4/3] w-full bg-stone-100 ${focusRing}`}>
+        {drawing.thumbnailUrl ? (
+          <ImageWithFallback src={drawing.thumbnailUrl} alt={drawing.title} className={`h-full w-full ${drawing.kind === "pdf" ? "object-contain bg-white" : "object-cover"}`} />
+        ) : (
+          <FileTypeTile kind={drawing.kind} format={drawing.format} className="h-full w-full" />
+        )}
       </button>
 
       <div className="flex-1 space-y-2 p-4">
@@ -41,7 +46,10 @@ export const DrawingCard = memo(function DrawingCard({ drawing, onOpen, onShare,
         <p className="truncate text-xs text-stone-500">
           {drawing.isOwner ? "Uploaded by you" : `From ${drawing.owner.email}`} on {formatDate(drawing.createdAt)}
         </p>
-        <ShareBadge drawing={drawing} />
+        <div className="flex flex-wrap gap-1.5">
+          <span className="inline-block rounded border border-stone-200 px-2 py-1 text-xs text-stone-600">{kindLabel(drawing.kind, drawing.format, drawing.pageCount)}</span>
+          <ShareBadge drawing={drawing} />
+        </div>
       </div>
 
       <div className="flex items-center justify-between border-t border-stone-200 px-2 py-1">

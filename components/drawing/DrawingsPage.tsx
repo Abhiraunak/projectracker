@@ -4,7 +4,9 @@ import React, { useCallback, useEffect } from "react";
 import { Heading } from "@/components/utilites/Label";
 import { ConfirmDeleteDialog } from "@/components/utilites/Confirmdeletedialog"; // match your actual file name
 import { describeError } from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
 import { useDeleteDrawing, useDrawingList } from "@/hooks/useDrawings";
+import { NotificationsPrompt } from "@/components/notifications/NotificationsPrompt";
 import { useDrawingDialogs } from "@/hooks/useDrawingDialogs";
 import { useGalleryFilters } from "@/hooks/useGalleryFilters";
 import { DrawingGallery } from "./DrawingGallery";
@@ -19,6 +21,28 @@ export function DrawingsPage() {
   const list = useDrawingList(filters.params);
   const dialogs = useDrawingDialogs();
   const remove = useDeleteDrawing();
+  const queryClient = useQueryClient();
+
+  // Opened from a notification (/dashboard/drawing?tab=shared&q=<title>): show that drawing straight away.
+  // Read once on arrival; window.location avoids Next's useSearchParams, which needs a Suspense boundary.
+  const { setScope, setSearch } = filters;
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    const q = params.get("q");
+    if (tab === "all" || tab === "mine" || tab === "shared") setScope(tab);
+    if (q) setSearch(q.slice(0, 100));
+  }, [setScope, setSearch]);
+
+  // A notification arrived while this page is open: refresh the gallery so the new drawing shows
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === "push") void queryClient.invalidateQueries({ queryKey: ["drawings"] });
+    };
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
+  }, [queryClient]);
 
   const items = list.data?.items ?? [];
   const find = (id: string | null) => items.find((drawing) => drawing.id === id) ?? null;
@@ -67,10 +91,12 @@ export function DrawingsPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
-      <header className="border-b mb-4 mt-2 pb-4 border-stone-300">
+      <header>
         <Heading>Drawings</Heading>
-        <p className="mt-1 text-sm text-stone-500">Upload drawings and share them with the people on your project.</p>
+        <p className="mt-1 text-sm text-stone-500">Upload images, PDFs and AutoCAD drawings, and share them with the people on your project.</p>
       </header>
+
+      <NotificationsPrompt />
 
       <DrawingUploader />
 

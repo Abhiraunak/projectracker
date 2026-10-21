@@ -197,3 +197,9 @@ export const insertEntry = (doc: BoqDocument, sectionId: string, afterId: string
   withEntries(doc, (entries, section) => (section.id === sectionId ? insertAfter<Entry>(entries, afterId, [entry]) : entries));
 export const insertPart = (doc: BoqDocument, itemId: string, afterId: string | null, part: Part) =>
   withParts(doc, (parts, item) => (item.id === itemId ? insertAfter(parts, afterId, [part]) : parts));
+
+/** Shown unless it was switched off (older BOQs don't have the setting: they show it) */
+export const companyHeaderShown = (doc: BoqDocument) => doc.showCompanyHeader !== false;
+
+export const setCompanyHeaderShown = (doc: BoqDocument, shown: boolean): BoqDocument =>
+  companyHeaderShown(doc) === shown ? doc : { ...doc, showCompanyHeader: shown };

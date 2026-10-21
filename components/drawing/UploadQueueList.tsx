@@ -4,6 +4,7 @@ import React from "react";
 import { FiAlertCircle, FiX } from "react-icons/fi";
 import { formatBytes } from "@/lib/drawings/format";
 import type { QueueItem } from "@/hooks/useUploadQueue";
+import { FileTypeTile } from "./FileTypeTile";
 import { iconButton, inputBase } from "./styles";
 
 interface UploadQueueListProps {
@@ -13,14 +14,18 @@ interface UploadQueueListProps {
   onRemove: (id: string) => void;
 }
 
-/** The images waiting to upload: a preview, an editable title, and the upload progress or error for each */
+/** The files waiting to upload: a preview, an editable title, and the upload progress or error for each */
 export function UploadQueueList({ items, disabled, onTitleChange, onRemove }: UploadQueueListProps) {
   return (
     <ul className="space-y-3">
       {items.map((item) => (
         <li key={item.id} className="flex gap-3 rounded border border-stone-300 p-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.previewUrl} alt="" className="h-16 w-16 shrink-0 rounded bg-stone-100 object-cover" />
+          {item.previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={item.previewUrl} alt="" className="h-16 w-16 shrink-0 rounded bg-stone-100 object-cover" />
+          ) : (
+            <FileTypeTile kind={item.kind} format={item.format} compact className="h-16 w-16 shrink-0 rounded" />
+          )}
 
           <div className="min-w-0 flex-1 space-y-1.5">
             <input

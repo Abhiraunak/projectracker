@@ -45,7 +45,7 @@ export function EditorToolbar({ editor, onPrint, onExport, exporting }: Props) {
   const title = editor.doc.title || "Untitled BOQ";
 
   return (
-    <div className="sticky top-0 z-20 -mx-4 border-b border-stone-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+    <div className="sticky top-14 z-20 -mx-4 border-b border-stone-200 bg-white px-4 py-3 sm:-mx-6 sm:px-6 lg:-top-6 lg:-mx-8 lg:px-8">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <Link href="/dashboard/boq" aria-label="Back to all BOQs" className="rounded p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">

@@ -4,13 +4,12 @@ import React, { useState } from "react";
 import { FiUpload } from "react-icons/fi";
 import { useDrawingUploader } from "@/hooks/useDrawingUploader";
 import type { AppUser } from "@/lib/drawings/types";
+import { DropZone } from "./DropZone";
 import { UploadQueueList } from "./UploadQueueList";
 import { UserPicker } from "./UserPicker";
 import { buttonPrimary, buttonSecondary, inputBase } from "./styles";
-import { DropZone } from "./DropZone";
 
-
-/** The top of the page: choose images, name them, optionally share them, upload */
+/** The top of the page: choose files (images, PDF, AutoCAD), name them, optionally share them, upload */
 export function DrawingUploader() {
   const uploader = useDrawingUploader();
   const [description, setDescription] = useState("");
@@ -33,7 +32,7 @@ export function DrawingUploader() {
   return (
     <section aria-label="Upload drawings" className="rounded border border-stone-300 p-4 sm:p-6">
       <h2 className="text-base font-semibold">Upload drawings</h2>
-      <p className="mb-4 mt-1 text-sm text-stone-500">Add images, then choose who can see them.</p>
+      <p className="mb-4 mt-1 text-sm text-stone-500">Add images, PDFs or AutoCAD drawings, then choose who can see them. They&rsquo;ll get a notification if they&rsquo;ve turned notifications on.</p>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <DropZone onFiles={uploader.addFiles} disabled={uploader.isUploading} />

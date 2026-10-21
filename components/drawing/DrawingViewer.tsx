@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { FiChevronLeft, FiChevronRight, FiDownload, FiShare2 } from "react-icons/fi";
+import { FiChevronLeft, FiChevronRight, FiDownload, FiExternalLink, FiShare2 } from "react-icons/fi";
 import { DialogHeader, ModalDialog } from "@/components/utilites/ModalDialog";
 import { downloadName, formatBytes, formatDate } from "@/lib/drawings/format";
 import type { Drawing } from "@/lib/drawings/types";
 import { Avatar } from "./Avatar";
+import { FileTypeTile, kindLabel } from "./FileTypeTile";
 import { ImageWithFallback } from "./ImageWithFallback";
 import { buttonSecondary, focusRing } from "./styles";
 
@@ -61,14 +62,26 @@ function ViewerBody({ drawing, hasPrev, hasNext, onPrev, onNext, onClose, onShar
       <DialogHeader title={drawing.title} subtitle={`${drawing.isOwner ? "Uploaded by you" : `From ${drawing.owner.email}`} on ${formatDate(drawing.createdAt)}`} onClose={onClose} />
 
       <div className="relative bg-stone-100">
-        <ImageWithFallback src={drawing.imageUrl} alt={drawing.title} className="mx-auto max-h-[55dvh] w-auto max-w-full object-contain sm:max-h-[65dvh]" />
+        {drawing.imageUrl ? (
+          <ImageWithFallback src={drawing.imageUrl} alt={drawing.kind === "pdf" ? `${drawing.title}, page 1` : drawing.title} className="mx-auto max-h-[55dvh] w-auto max-w-full object-contain sm:max-h-[65dvh]" />
+        ) : (
+          <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
+            <FileTypeTile kind={drawing.kind} format={drawing.format} className="h-32 w-40 rounded" />
+            <p className="max-w-sm text-sm text-stone-600">
+              Browsers can&rsquo;t show AutoCAD files. Download it and open it in AutoCAD, DWG TrueView or another CAD viewer.
+            </p>
+          </div>
+        )}
         {hasPrev && <NavButton side="left" onClick={onPrev} label="Previous drawing" />}
         {hasNext && <NavButton side="right" onClick={onNext} label="Next drawing" />}
       </div>
 
       <div className="space-y-4 p-4 sm:p-5">
         {drawing.description && <p className="whitespace-pre-line text-sm text-stone-700">{drawing.description}</p>}
-        <p className="text-xs text-stone-500">{formatBytes(drawing.sizeBytes)}</p>
+        <p className="text-xs text-stone-500">
+          {kindLabel(drawing.kind, drawing.format, drawing.pageCount)} · {formatBytes(drawing.sizeBytes)}
+          {drawing.kind === "pdf" && (drawing.pageCount ?? 0) > 1 && " · the preview shows page 1"}
+        </p>
 
         {drawing.isOwner && drawing.sharedWith.length > 0 && (
           <div>
@@ -85,6 +98,11 @@ function ViewerBody({ drawing, hasPrev, hasNext, onPrev, onNext, onClose, onShar
         )}
 
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+          {drawing.kind === "pdf" && (
+            <a href={drawing.openUrl} target="_blank" rel="noopener noreferrer" className={buttonSecondary}>
+              <FiExternalLink aria-hidden /> Open PDF
+            </a>
+          )}
           <a href={drawing.downloadUrl} download={downloadName(drawing.title)} target="_blank" rel="noopener noreferrer" className={buttonSecondary}>
             <FiDownload aria-hidden /> Download
           </a>
