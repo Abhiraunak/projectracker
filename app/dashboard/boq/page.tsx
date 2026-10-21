@@ -1,10 +1,9 @@
-import { Heading } from "@/components/utilites/Label";
+import type { Metadata } from "next";
+import { BoqDashboard } from "@/components/boq/dashboard/BoqDashboard";
 
-export default function TeamPage() {
-  return (
-    <div>
-      <Heading>Boq Managament</Heading>
-      <p className="text-stone-500 mt-1">Manage team permissions and invitations here.</p>
-    </div>
-  );
+export const metadata: Metadata = { title: "BOQ" };
+
+/** The BOQ dashboard (replaces the old one-page BOQ builder) */
+export default function Page() {
+  return <BoqDashboard />;
 }
