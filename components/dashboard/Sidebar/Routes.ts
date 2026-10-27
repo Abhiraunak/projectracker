@@ -15,7 +15,7 @@ export const ROUTES: AppRoute[] = [
   { title: "Team", href: "/dashboard/team", Icon: FiUsers },
   { title: "BOQ", href: "/dashboard/boq", Icon: FiFileText },
   { title: "Drawing", href: "/dashboard/drawing", Icon: FiPenTool },
-  { title: "Project", href: "/dashboard/labour", Icon: FiBriefcase },
+  { title: "Labour", href: "/dashboard/labour", Icon: FiBriefcase },
   { title: "Inventory", href: "/dashboard/inventory", Icon: FiBox },
 ];
 

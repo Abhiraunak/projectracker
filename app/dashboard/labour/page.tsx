@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import Link from "next/link";
 // import { Search } from "@/components/dashboard/Sidebar/Search";
 import { Heading } from "@/components/utilites/Label";
 import { TasksProvider } from "@/components/labour/Taskscontext";
@@ -110,7 +111,13 @@ function processTasks(project: ApiProject): ProcessedTask[] {
 function summarise(tasks: ProcessedTask[]) {
   const stipulated = tasks.reduce((s, t) => s + t.stipulated, 0);
   const paid = tasks.reduce((s, t) => s + t.paid, 0);
-  const progress = tasks.length ? tasks.reduce((s, t) => s + t.progress, 0) / tasks.length : 0;
+  // Weighted by each task's agreed amount, the same way the project cards work it out; a plain average when nothing is agreed yet
+  const progress =
+    stipulated > 0
+      ? tasks.reduce((s, t) => s + t.stipulated * t.progress, 0) / stipulated
+      : tasks.length
+        ? tasks.reduce((s, t) => s + t.progress, 0) / tasks.length
+        : 0;
   return { stipulated, paid, balance: stipulated - paid, progress, count: tasks.length };
 }
 
@@ -151,7 +158,7 @@ const Ledger = memo(function Ledger({ s }: { s: ReturnType<typeof summarise> }) 
       value: formatNumber(Math.abs(s.balance)),
       tone: over ? "text-rose-700" : "text-emerald-700",
     },
-    { label: `Average progress across ${s.count} ${s.count === 1 ? "task" : "tasks"}`, value: `${Math.round(s.progress)}%` },
+    { label: `Progress across ${s.count} ${s.count === 1 ? "task" : "tasks"}`, value: `${Math.round(s.progress)}%` },
   ];
   return (
     // Mobile: 2x2. sm+: one row of four
@@ -171,7 +178,7 @@ const Ledger = memo(function Ledger({ s }: { s: ReturnType<typeof summarise> }) 
   );
 });
 
-const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+const Section = ({ title, children }: { title: string; children: ReactNode }) => (
   <section aria-label={title} className="min-w-0">
     {children}
   </section>
@@ -180,10 +187,16 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
 const ErrorNotice = ({ error, onRetry }: { error: unknown; onRetry?: () => void }) => (
   <div role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700 sm:p-4">
     <p>{describeError(error)}</p>
-    {onRetry && !(error instanceof ApiError && error.status === 401) && (
-      <button type="button" onClick={onRetry} className="mt-2 min-h-11 font-medium underline sm:min-h-0">
-        Try again
-      </button>
+    {error instanceof ApiError && error.status === 401 ? (
+      <Link href="/signin" className="mt-2 inline-flex min-h-11 items-center font-medium underline sm:min-h-0">
+        Sign in again
+      </Link>
+    ) : (
+      onRetry && (
+        <button type="button" onClick={onRetry} className="mt-2 min-h-11 font-medium underline sm:min-h-0">
+          Try again
+        </button>
+      )
     )}
   </div>
 );
@@ -213,6 +226,7 @@ export default function TeamPage() {
   const totals = useMemo(() => (tasks ? summarise(tasks) : null), [tasks]);
 
   const openProject = useCallback((id: string) => {
+    setBanner(null); // an error about another project doesn't belong here
     setActiveId(id);
     setView("dashboard");
   }, []);
@@ -265,8 +279,9 @@ export default function TeamPage() {
     [editing, activeId, createProject, updateProject]
   );
 
-  // New screen, start at the top
+  // New screen, start at the top. On large screens the dashboard layout's <main> scrolls, not the window.
   useEffect(() => {
+    document.getElementById("main-content")?.scrollTo({ top: 0 });
     window.scrollTo({ top: 0 });
   }, [view]);
 
@@ -281,20 +296,19 @@ export default function TeamPage() {
         : (project?.title ?? "Loading project");
 
   return (
-    // dvh: on phones, 100vh is taller than the visible area while the browser bar is showing
-    <div className="min-h-dvh min-w-0 text-stone-900">
-      <a
-        href="#content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2"
-      >
-        Skip to content
-      </a>
-
-      <header className="border-b border-stone-200">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:pt-5">
+    // The dashboard layout gives the page its <main>, padding and height, so this is a plain wrapper
+    <div className="min-w-0 text-stone-900">
+      {/*
+        Stays at the top while the page scrolls. On phones and tablets it sits just under the layout's 56px top bar
+        (top-14). On large screens the white card scrolls, and a sticky element sticks inside the card's 24px
+        padding, so lg:-top-6 lifts it flush to the card's edge; the negative margins with matching padding stretch
+        its white background over the card's padding, so nothing shows through above or beside it.
+      */}
+      <header className="sticky top-14 z-20 -mx-4 -mt-5 border-b border-stone-200 bg-white px-4 pt-3 sm:-mx-6 sm:-mt-6 sm:px-6 lg:-top-6 lg:-mx-8 lg:px-8 lg:pt-4">
+        <div className="mx-auto max-w-7xl">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div className="mb-3 min-w-0 space-y-0.5 sm:mb-4">
-              <Heading>Project Management</Heading>
+              <Heading>Labour Management</Heading>
               <p className="truncate text-sm text-stone-500">{subtitle}</p>
             </div>
             {/* <div className="w-full sm:w-72">
@@ -321,8 +335,8 @@ export default function TeamPage() {
                     onClick={() => setView(v)}
                     aria-current={active ? "page" : undefined}
                     className={`shrink-0 whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition-colors sm:py-2.5 ${focusRing} ${active
-                        ? "border-amber-500 text-stone-900"
-                        : "border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-800"
+                      ? "border-amber-500 text-stone-900"
+                      : "border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-800"
                       }`}
                   >
                     {label}
@@ -335,7 +349,7 @@ export default function TeamPage() {
       </header>
 
       <TasksProvider tasks={tasks}>
-        <main id="content" className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
+        <div className="mx-auto max-w-7xl py-5 sm:py-8">
           {banner && (
             <div
               role="alert"
@@ -506,7 +520,7 @@ export default function TeamPage() {
               )}
             </>
           )}
-        </main>
+        </div>
       </TasksProvider>
     </div>
   );

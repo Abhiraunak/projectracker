@@ -90,57 +90,69 @@ export function DrawingsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8">
-      <header>
-        <Heading>Drawings</Heading>
-        <p className="mt-1 text-sm text-stone-500">Upload images, PDFs and AutoCAD drawings, and share them with the people on your project.</p>
+    <div className="min-w-0 text-stone-900">
+      {/*
+        Stays at the top while the page scrolls, the same as the Labour page header. On phones and tablets it sits
+        just under the layout's 56px top bar (top-14). On large screens the white card scrolls, and a sticky element
+        sticks inside the card's 24px padding, so lg:-top-6 lifts it flush to the card's edge; the negative margins
+        with matching padding stretch its white background over the card's padding.
+      */}
+      <header className="sticky top-14 z-20 -mx-4 -mt-5 border-b border-stone-200 bg-white px-4 pt-3 sm:-mx-6 sm:-mt-6 sm:px-6 lg:-top-6 lg:-mx-8 lg:px-8 lg:pt-4">
+        <div className="mx-auto max-w-7xl">
+          <div className="mb-3 min-w-0 space-y-0.5 sm:mb-4">
+            <Heading>Drawings</Heading>
+            <p className="text-sm text-stone-500">Upload images, PDFs and AutoCAD drawings, and share them with the people on your project.</p>
+          </div>
+        </div>
       </header>
 
-      <NotificationsPrompt />
+      <div className="mx-auto max-w-7xl space-y-8 py-5 sm:py-8">
+        <NotificationsPrompt />
 
-      <DrawingUploader />
+        <DrawingUploader />
 
-      <section aria-label="Gallery" className="space-y-4">
-        <h2 className="text-base font-semibold">Gallery</h2>
-        <GalleryToolbar scope={filters.scope} search={filters.search} onScopeChange={filters.setScope} onSearchChange={filters.setSearch} />
-        <DrawingGallery
-          list={list}
-          scope={filters.scope}
-          isSearching={filters.search.trim() !== ""}
-          onOpen={dialogs.openViewer}
-          onShare={dialogs.openShare}
-          onDelete={askToDelete}
-          onPageChange={filters.setPage}
+        <section aria-label="Gallery" className="space-y-4">
+          <h2 className="text-base font-semibold">Gallery</h2>
+          <GalleryToolbar scope={filters.scope} search={filters.search} onScopeChange={filters.setScope} onSearchChange={filters.setSearch} />
+          <DrawingGallery
+            list={list}
+            scope={filters.scope}
+            isSearching={filters.search.trim() !== ""}
+            onOpen={dialogs.openViewer}
+            onShare={dialogs.openShare}
+            onDelete={askToDelete}
+            onPageChange={filters.setPage}
+          />
+        </section>
+
+        <DrawingViewer
+          drawing={viewing}
+          hasPrev={viewingIndex > 0}
+          hasNext={viewingIndex >= 0 && viewingIndex < items.length - 1}
+          onPrev={showPrev}
+          onNext={showNext}
+          onClose={dialogs.closeViewer}
+          onShare={shareFromViewer}
         />
-      </section>
 
-      <DrawingViewer
-        drawing={viewing}
-        hasPrev={viewingIndex > 0}
-        hasNext={viewingIndex >= 0 && viewingIndex < items.length - 1}
-        onPrev={showPrev}
-        onNext={showNext}
-        onClose={dialogs.closeViewer}
-        onShare={shareFromViewer}
-      />
+        <ShareDialog drawing={sharing} onClose={dialogs.closeShare} />
 
-      <ShareDialog drawing={sharing} onClose={dialogs.closeShare} />
-
-      <ConfirmDeleteDialog
-        open={!!deleting}
-        onClose={dialogs.closeDelete}
-        onConfirm={confirmDelete}
-        title="Delete drawing?"
-        itemName={deleting?.title}
-        warning={
-          deleting && deleting.sharedWith.length > 0
-            ? `${deleting.sharedWith.length} ${deleting.sharedWith.length === 1 ? "person" : "people"} will lose access to this drawing.`
-            : undefined
-        }
-        confirmLabel="Delete drawing"
-        pending={remove.isPending}
-        error={remove.isError ? describeError(remove.error) : null}
-      />
+        <ConfirmDeleteDialog
+          open={!!deleting}
+          onClose={dialogs.closeDelete}
+          onConfirm={confirmDelete}
+          title="Delete drawing?"
+          itemName={deleting?.title}
+          warning={
+            deleting && deleting.sharedWith.length > 0
+              ? `${deleting.sharedWith.length} ${deleting.sharedWith.length === 1 ? "person" : "people"} will lose access to this drawing.`
+              : undefined
+          }
+          confirmLabel="Delete drawing"
+          pending={remove.isPending}
+          error={remove.isError ? describeError(remove.error) : null}
+        />
+      </div>
     </div>
   );
 }

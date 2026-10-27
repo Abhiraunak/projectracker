@@ -44,6 +44,9 @@ export interface AttendancePayload {
   notes: string;
 }
 
+/** The same labour and amounts on several days (one entry per day) */
+export type AttendanceManyPayload = Omit<AttendancePayload, "date"> & { projectId: string; dates: string[] };
+
 export const attendanceApi = {
   list: ({ projectId, q, page, pageSize }: AttendanceListParams) => {
     const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
@@ -59,5 +62,7 @@ export const attendanceApi = {
     request<{ attendance: AttendanceRecord }>(`/attendance/${id}`, { method: "PUT", body: JSON.stringify(data) }).then(
       (r) => r.attendance
     ),
+  createMany: (data: AttendanceManyPayload) =>
+    request<{ attendance: AttendanceRecord[]; count: number }>("/attendance/bulk", { method: "POST", body: JSON.stringify(data) }),
   remove: (id: string) => request<void>(`/attendance/${id}`, { method: "DELETE" }),
 };

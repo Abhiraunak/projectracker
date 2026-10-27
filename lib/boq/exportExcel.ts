@@ -62,6 +62,8 @@ function writeSheet(workbook: InstanceType<ExcelJSModule["Workbook"]>, plan: Pla
     views: plan.freezeRows ? [{ state: "frozen", ySplit: plan.freezeRows }] : [],
   });
   if (plan.printTitleRows) worksheet.pageSetup.printTitlesRow = plan.printTitleRows;
+  // Printed from Excel, every page shows "Page X of Y" at the bottom, like the print from the app
+  worksheet.headerFooter.oddFooter = "&C&8Page &P of &N";
   worksheet.columns = plan.columnWidths.map((width) => ({ width }));
 
   for (const cell of plan.cells) {

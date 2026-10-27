@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { FiMenu, FiX } from "react-icons/fi";
 import { SideBar } from "@/components/dashboard/Sidebar/SideBar";
@@ -18,7 +18,7 @@ function sectionTitle(pathname: string): string {
   return first ? first.replace(/-/g, " ").replace(/^./, (c) => c.toUpperCase()) : "Dashboard";
 }
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -50,7 +50,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [open, closeMenu]);
 
   return (
-    <div className="min-h-dvh bg-[#f4f1ec] text-stone-950 lg:grid lg:h-dvh lg:grid-cols-[220px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-4 lg:overflow-hidden lg:p-4">
+    <div className="min-h-dvh bg-[#f4f1ec] text-stone-950 lg:relative lg:grid lg:h-dvh lg:grid-cols-[220px_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-4 lg:overflow-hidden lg:p-4">
       {/* Phone and tablet top bar (hidden on large screens) */}
       <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-stone-200 bg-white px-4 py-2 lg:hidden">
         <button
@@ -93,11 +93,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/*
         The page. On phones the whole page scrolls; on large screens only this card scrolls, so the sidebar and
         the frame stay put. This is the one and only <main>: pages inside must not add their own.
+        `relative` keeps absolutely placed pieces of a page (chart tooltips, Gantt bars) inside this card. Without
+        it they are placed against the whole page, make it taller than the screen, and the whole app scrolls.
+        `overscroll-contain` stops a scroll that reaches the end of the card from carrying on into the page.
       */}
       <main
         id="main-content"
         tabIndex={-1}
-        className={`min-w-0 bg-white px-4 py-5 focus:outline-none sm:px-6 sm:py-6 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:rounded-lg lg:border lg:border-stone-200 lg:px-8 ${HIDE_SCROLLBAR}`}
+        className={`relative min-w-0 bg-white px-4 py-5 focus:outline-none sm:px-6 sm:py-6 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:rounded-lg lg:border lg:border-stone-200 lg:px-8 ${HIDE_SCROLLBAR}`}
       >
         {children}
       </main>

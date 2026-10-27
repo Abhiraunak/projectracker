@@ -1,114 +1,137 @@
-"use client"
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Image from "next/image"; // Import the Next.js Image component
-import { Group, Heading, Input, Label, SubHeading } from "@/components/utilites/Label";
-// Import the custom hook we created earlier
-import { useAuth } from "@/hooks/useAuth";
+"use client";
+
+import React, { useEffect, useState, type FormEvent } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { FiEye, FiEyeOff } from "react-icons/fi";
+import { describeError } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
+import { Heading, SubHeading } from "@/components/utilites/Label";
 
-export default function Page() {
+const inputClass =
+    "w-full rounded-lg border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 " +
+    "transition-colors focus:border-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900/20 disabled:opacity-60";
+
+/** Where to go after signing in: ?next=/dashboard/boq if it is a page of this app, else the dashboard */
+function nextPath(): string {
+    if (typeof window === "undefined") return "/dashboard";
+    const next = new URLSearchParams(window.location.search).get("next");
+    // Only paths on this site: "/x" yes, "//evil.com" or "https://..." no
+    return next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+}
+
+export default function LoginPage() {
     const router = useRouter();
-    const { login } = useAuth(); // Destructure the login mutation
-
-    // Add state for form inputs
+    const { user, isUserLoading, login } = useAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
 
-    const handleSignIn = (e: React.FormEvent) => {
-        e.preventDefault(); // Prevent page reload
+    // Already signed in: skip the form
+    useEffect(() => {
+        if (!isUserLoading && user) router.replace(nextPath());
+    }, [isUserLoading, user, router]);
 
-        // Trigger the TanStack Query mutation
+    const handleSignIn = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (login.isPending) return;
         login.mutate(
-            { email, password },
-            {
-                onSuccess: () => {
-                    // Redirect to dashboard ONLY if login is successful
-                    router.push("/dashboard");
-                }
-            }
+            { email: email.trim(), password },
+            // replace, not push: Back shouldn't return to the sign-in form
+            { onSuccess: () => router.replace(nextPath()) }
         );
     };
 
     return (
-        // Changed to 'relative' to position the background image
-        <div className='relative w-full min-h-screen flex items-center justify-center p-4 sm:p-6 overflow-hidden'>
-            <Image
-                src="/background.jpeg" // REPLACE WITH YOUR IMAGE PATH
-                alt="Modern collaborative office space background"
-                fill
-                priority // Load this image with high priority
-                quality={100}
-                className="object-cover z-0" // cover the container, send to back
-            />
+        <main className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden p-4 sm:p-6">
+            <Image src="/background.jpeg" alt="" aria-hidden fill priority sizes="100vw" quality={80} className="z-0 object-cover" />
+            {/* Darkens the photo so the card reads well on any image */}
+            <div aria-hidden className="absolute inset-0 z-0 bg-stone-950/40" />
 
-            {/* Added relative z-10 to keep form above image */}
-            <div className='relative z-10 w-full max-w-md bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl shadow-stone-900/10 border border-stone-100 p-8 sm:p-10'>
-
-                <div className='mb-8 flex flex-col items-center text-center space-y-2'>
-                    <Heading className="text-3xl font-extrabold tracking-tight text-slate-900">
-                        Welcome back
-                    </Heading>
-                    <SubHeading className="text-sm text-slate-500">
-                        Please enter your credentials to sign in
-                    </SubHeading>
+            <div className="relative z-10 w-full max-w-md rounded-2xl border border-stone-200 bg-white/95 p-8 shadow-xl shadow-stone-900/10 backdrop-blur-sm sm:p-10">
+                <div className="mb-8 flex flex-col items-center space-y-2 text-center">
+                    <Heading className="text-3xl font-extrabold tracking-tight text-stone-900">Welcome back</Heading>
+                    <SubHeading className="text-sm text-stone-500">Enter your email and password to sign in</SubHeading>
                 </div>
 
-                {/* Attach onSubmit to the form instead of onClick on the button */}
-                <form onSubmit={handleSignIn} className='space-y-4 sm:space-y-5'>
-                    <Group className="flex flex-col gap-1.5">
-                        <Label className="text-sm font-medium text-stone-700 after:content-['*'] after:ml-0.5 after:text-amber-600">
+                <form onSubmit={handleSignIn} className="space-y-5">
+                    <div className="flex flex-col gap-1.5">
+                        <label htmlFor="login-email" className="text-sm font-medium text-stone-700">
                             Email
-                        </Label>
-                        <Input
-                            type='email'
-                            name='email'
-                            placeholder='name@company.com'
+                        </label>
+                        <input
+                            id="login-email"
+                            type="email"
+                            name="email"
+                            inputMode="email"
+                            autoComplete="email"
+                            autoCapitalize="none"
+                            spellCheck={false}
+                            placeholder="name@company.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50/50 text-stone-900 placeholder:text-stone-400 focus:bg-white focus:border-stone-800 focus:ring-1 focus:ring-stone-800 transition-all outline-none text-sm"
+                            disabled={login.isPending}
+                            aria-invalid={login.isError || undefined}
+                            aria-describedby={login.isError ? "login-error" : undefined}
+                            className={inputClass}
                             required
                         />
-                    </Group>
+                    </div>
 
-                    <Group className="flex flex-col gap-1.5">
-                        <Label className="text-sm font-medium text-stone-700 after:content-['*'] after:ml-0.5 after:text-amber-600">
+                    <div className="flex flex-col gap-1.5">
+                        <label htmlFor="login-password" className="text-sm font-medium text-stone-700">
                             Password
-                        </Label>
-                        <Input
-                            type='password'
-                            name='password'
-                            placeholder='••••••••'
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 bg-stone-50/50 text-stone-900 placeholder:text-stone-400 focus:bg-white focus:border-stone-800 focus:ring-1 focus:ring-stone-800 transition-all outline-none text-sm"
-                            required
-                        />
-                    </Group>
-
-                    {/* Display error message if the mutation fails */}
-                    {login.isError && (
-                        <div className="text-sm font-medium text-red-500 text-center">
-                            {login.error?.message || "Failed to sign in. Please try again."}
+                        </label>
+                        <div className="relative">
+                            <input
+                                id="login-password"
+                                type={showPassword ? "text" : "password"}
+                                name="password"
+                                autoComplete="current-password"
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                disabled={login.isPending}
+                                aria-invalid={login.isError || undefined}
+                                aria-describedby={login.isError ? "login-error" : undefined}
+                                className={`${inputClass} pr-11`}
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword((v) => !v)}
+                                aria-label={showPassword ? "Hide password" : "Show password"}
+                                aria-pressed={showPassword}
+                                className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-stone-500 hover:text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900"
+                            >
+                                {showPassword ? <FiEyeOff aria-hidden /> : <FiEye aria-hidden />}
+                            </button>
                         </div>
+                    </div>
+
+                    {login.isError && (
+                        <p id="login-error" role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-sm text-red-700">
+                            {describeError(login.error) || "Sign-in failed. Check your email and password and try again."}
+                        </p>
                     )}
 
                     <button
                         type="submit"
-                        disabled={login.isPending} // Disable while loading
-                        className="mt-6 w-full flex justify-center items-center py-3 px-6 rounded-xl text-sm font-semibold text-stone-50 bg-stone-900 hover:bg-stone-800 active:bg-stone-950 shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-stone-900 active:scale-[0.99] transition-all duration-150 cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+                        disabled={login.isPending}
+                        className="flex w-full items-center justify-center rounded-lg bg-stone-900 px-6 py-3 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-stone-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
                     >
-                        {login.isPending ? "Signing in..." : "Sign In"}
+                        {login.isPending ? "Signing in…" : "Sign in"}
                     </button>
                 </form>
-                <div className="mt-6 text-center text-xs text-stone-500">
+
+                <p className="mt-6 text-center text-sm text-stone-500">
                     Don&apos;t have an account?{" "}
-                    <Link href="/signup" className="font-semibold text-stone-900 underline hover:text-stone-700">
+                    <Link href="/signup" className="font-semibold text-stone-900 underline underline-offset-2 hover:text-stone-700">
                         Sign up
                     </Link>
-                </div>
+                </p>
             </div>
-            <div className="py-2" />
-        </div>
+        </main>
     );
 }

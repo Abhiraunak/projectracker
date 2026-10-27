@@ -19,7 +19,9 @@ import {
 import { Heading } from "@/components/utilites/Label";
 import { describeError } from "@/lib/api";
 import type { AttendancePayload, AttendanceRecord } from "@/lib/attendanceApi";
-import { useAttendanceList, useDeleteAttendance, useSaveAttendance } from "@/hooks/useAttendance";
+import { useAttendanceList, useDeleteAttendance, useSaveAttendance, useSaveAttendanceDays } from "@/hooks/useAttendance";
+import { describeDays } from "@/lib/attendance/days";
+import { AttendanceDays } from "./AttendanceDays";
 import { Pagination } from "./Pagination";
 
 /* -------------------------------------------------------------------------- */
@@ -34,7 +36,8 @@ interface WorkerRow {
 
 interface FormState {
   contractorName: string;
-  date: string;
+  date: string; // one day
+  days: string[]; // several days: one entry is saved for each
   workers: WorkerRow[];
   extras: number | "";
   notes: string;
@@ -58,6 +61,7 @@ const todayLocal = () => {
 const createDefaultForm = (): FormState => ({
   contractorName: "",
   date: todayLocal(),
+  days: [],
   workers: [
     { id: newId(), label: "L1", amount: "" },
     { id: newId(), label: "L2", amount: "" },
@@ -124,7 +128,7 @@ const PRINT_CSS = `
   }
 `;
 
-function PrintSlip({ title, form, total }: { title: string; form: FormState; total: number }) {
+function PrintSlip({ title, form, total, days }: { title: string; form: FormState; total: number; days: string[] | null }) {
   // Only rows that actually have an amount, so empty rows don't print
   const rows = form.workers.filter((w) => num(w.amount) > 0);
   const extras = num(form.extras);
@@ -139,8 +143,8 @@ function PrintSlip({ title, form, total }: { title: string; form: FormState; tot
           <dd>{form.contractorName.trim() || "-"}</dd>
         </div>
         <div className="flex gap-2">
-          <dt className="font-semibold">Date:</dt>
-          <dd>{formatDay(form.date)}</dd>
+          <dt className="font-semibold">{days ? "Days:" : "Date:"}</dt>
+          <dd>{days ? describeDays(days) : formatDay(form.date)}</dd>
         </div>
       </dl>
 
@@ -179,9 +183,16 @@ function PrintSlip({ title, form, total }: { title: string; form: FormState; tot
         <tfoot>
           <tr className="border-t-2 border-black">
             <td />
-            <td className="py-3 text-base font-bold">Total</td>
+            <td className="py-3 text-base font-bold">{days ? "Total per day" : "Total"}</td>
             <td className="py-3 text-right text-base font-bold tabular-nums">{rupees(total)}</td>
           </tr>
+          {days && (
+            <tr>
+              <td />
+              <td className="py-1 text-base font-bold">Total for {days.length} days</td>
+              <td className="py-1 text-right text-base font-bold tabular-nums">{rupees(total * days.length)}</td>
+            </tr>
+          )}
         </tfoot>
       </table>
 
@@ -279,6 +290,10 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
   // Records, search and pagination all come from the server
   const list = useAttendanceList({ projectId, q: query || undefined, page, pageSize: PAGE_SIZE });
   const save = useSaveAttendance();
+  const saveDays = useSaveAttendanceDays();
+  const [multiDay, setMultiDay] = useState(false); // several days at once (new entries only)
+  const [savedNote, setSavedNote] = useState<string | null>(null);
+  const saving = save.isPending || saveDays.isPending;
   const remove = useDeleteAttendance();
 
   useEffect(() => setPage(1), [query]); // new search starts on page 1
@@ -353,6 +368,15 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
 
   // Display only: the server recomputes the real total when saving
   const formTotal = formData.workers.reduce((sum, w) => sum + num(w.amount), 0) + num(formData.extras);
+  const severalDays = multiDay && !editingId;
+  const dayCount = severalDays ? formData.days.length : 1;
+
+  /** Switching to several days starts from the day already chosen; switching back keeps the first chosen day */
+  const toggleMultiDay = () => {
+    if (!multiDay) setFormData((prev) => ({ ...prev, days: prev.days.length ? prev.days : [prev.date] }));
+    else setFormData((prev) => ({ ...prev, date: prev.days[0] ?? prev.date }));
+    setMultiDay(!multiDay);
+  };
 
   /* -------------------------------- Print -------------------------------- */
 
@@ -378,7 +402,12 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
       document.getElementById("contractorNameInput")?.focus();
       return;
     }
+    if (severalDays && formData.days.length === 0) {
+      setFormError("Choose at least one day.");
+      return;
+    }
     setFormError(null);
+    setSavedNote(null);
 
     const payload: AttendancePayload = {
       projectId,
@@ -390,7 +419,13 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
     };
 
     try {
-      await save.mutateAsync({ id: editingId ?? undefined, data: payload });
+      if (severalDays) {
+        const { date: _one, ...rest } = payload;
+        const result = await saveDays.mutateAsync({ ...rest, projectId, dates: formData.days });
+        setSavedNote(`Saved ${result.count} entries for ${payload.contractorName}: ${describeDays(formData.days)}.`);
+      } else {
+        await save.mutateAsync({ id: editingId ?? undefined, data: payload });
+      }
     } catch (err) {
       setFormError(describeError(err));
       return;
@@ -402,6 +437,7 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
       workers: formData.workers.map((w) => ({ ...w, amount: "" })),
       extras: "",
       notes: "",
+      days: [], // those days are saved now: choosing them again by mistake would double-count them
     });
     setEditingId(null);
     setPrintTitle("");
@@ -417,8 +453,11 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
       workers: r.workers.map((w) => ({ id: w.id, label: w.label, amount: w.amount === 0 ? "" : w.amount })),
       extras: r.extras === 0 ? "" : r.extras,
       notes: r.notes,
+      days: [],
     });
     setEditingId(r.id);
+    setMultiDay(false); // an existing entry is one day
+    setSavedNote(null);
     setFormError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -446,7 +485,7 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <style>{PRINT_CSS}</style>
-      {mounted && <PrintSlip title={slipTitle} form={formData} total={formTotal} />}
+      {mounted && <PrintSlip title={slipTitle} form={formData} total={formTotal} days={severalDays ? formData.days : null} />}
 
       {/* Header */}
       <div className="flex flex-col items-start justify-between gap-4 lg:flex-row lg:items-end">
@@ -543,19 +582,46 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
               />
             </div>
             <div>
-              <label htmlFor="attendanceDate" className="mb-1.5 block text-sm text-stone-500">
-                Date
-              </label>
-              <input
-                id="attendanceDate"
-                type="date"
-                required
-                value={formData.date}
-                onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
-                className={inputBase}
-              />
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <label htmlFor="attendanceDate" className="block text-sm text-stone-500">
+                  {severalDays ? "Days" : "Date"}
+                </label>
+                {!editingId && (
+                  <button
+                    type="button"
+                    onClick={toggleMultiDay}
+                    aria-pressed={multiDay}
+                    className="rounded px-1 text-sm font-medium text-stone-700 underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                  >
+                    {multiDay ? "Just one day" : "Several days"}
+                  </button>
+                )}
+              </div>
+              {severalDays ? (
+                <p id="attendanceDate" className={`${inputBase} truncate`}>
+                  {describeDays(formData.days)}
+                </p>
+              ) : (
+                <input
+                  id="attendanceDate"
+                  type="date"
+                  required
+                  value={formData.date}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
+                  className={inputBase}
+                />
+              )}
             </div>
           </div>
+
+          {severalDays && (
+            <div>
+              <AttendanceDays days={formData.days} onChange={(days) => setFormData((prev) => ({ ...prev, days }))} />
+              <p className="mt-2 text-xs text-stone-500">
+                The labour and amounts below are saved once for each day, as separate entries you can edit or delete one by one.
+              </p>
+            </div>
+          )}
 
           <fieldset className="rounded border border-stone-300 p-4">
             <legend className="sr-only">Labour details</legend>
@@ -657,9 +723,23 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
           </div>
 
           <div className="flex items-center justify-between gap-3 rounded border border-stone-300 p-4">
-            <span className="text-sm text-stone-500">Total entry value</span>
-            <span className="text-3xl font-semibold tabular-nums">{rupees(formTotal)}</span>
+            <span className="text-sm text-stone-500">
+              {severalDays ? (
+                <>
+                  {rupees(formTotal)} a day × {dayCount} {dayCount === 1 ? "day" : "days"}
+                </>
+              ) : (
+                "Total entry value"
+              )}
+            </span>
+            <span className="text-3xl font-semibold tabular-nums">{rupees(formTotal * dayCount)}</span>
           </div>
+
+          {savedNote && (
+            <p role="status" className="rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+              {savedNote}
+            </p>
+          )}
 
           {formError && (
             <p role="alert" className="flex items-start gap-2 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -672,11 +752,17 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
             <button
               type="submit"
               ref={submitBtnRef}
-              disabled={save.isPending}
+              disabled={saving}
               className="flex items-center gap-2 rounded bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-stone-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <FiSave aria-hidden />
-              {save.isPending ? "Saving…" : editingId ? "Update entry" : "Save entry (Ctrl+S)"}
+              {saving
+                ? "Saving…"
+                : editingId
+                  ? "Update entry"
+                  : severalDays
+                    ? `Save ${dayCount} ${dayCount === 1 ? "entry" : "entries"} (Ctrl+S)`
+                    : "Save entry (Ctrl+S)"}
             </button>
           </div>
         </form>
