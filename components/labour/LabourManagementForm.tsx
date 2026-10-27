@@ -4,6 +4,10 @@ import React, { memo, useCallback, useEffect, useId, useMemo, useRef, useState }
 import { FiAlertCircle, FiArrowRight, FiPlus, FiTrash2, FiTrendingDown, FiTrendingUp } from "react-icons/fi";
 import { Heading } from "@/components/utilites/Label";
 
+/* -------------------------------------------------------------------------- */
+/*  Public types (unchanged, so the page keeps working)                       */
+/* -------------------------------------------------------------------------- */
+
 export interface TaskInput {
   id: string;
   work: string;
@@ -69,9 +73,8 @@ const inputBase =
 
 const Pill = ({ trend, children }: { trend: "up" | "down"; children: React.ReactNode }) => (
   <span
-    className={`flex items-center gap-1 rounded px-2 py-1 text-xs font-medium ${
-      trend === "up" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-    }`}
+    className={`flex items-center gap-1 rounded px-2 py-1 text-xs font-medium ${trend === "up" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+      }`}
   >
     {trend === "up" ? <FiTrendingUp aria-hidden /> : <FiTrendingDown aria-hidden />}
     {children}
@@ -169,8 +172,8 @@ const TaskRow = memo(function TaskRow({ task, index, canRemove, autoFocus, onCha
 
   const set =
     (field: "area" | "contractorRate" | "inHouseRate" | "progress" | "stipulated" | "paid") =>
-    (value: number | "") =>
-    onChange(task.id, { [field]: value });
+      (value: number | "") =>
+        onChange(task.id, { [field]: value });
 
   const hasRates = task.area !== "" && task.contractorRate !== "" && task.inHouseRate !== "";
   const saving = n(task.area) * (n(task.contractorRate) - n(task.inHouseRate));
