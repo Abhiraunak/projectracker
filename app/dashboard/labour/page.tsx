@@ -341,7 +341,7 @@ export default function LabourPage() {
             // Mobile: tabs scroll sideways and run edge to edge. sm+: inside the header's padding.
             <nav
               aria-label="Labour sections"
-              className="-mx-4 -mb-px flex gap-1 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
+              className="-mx-4 -mb-px flex gap-1 overflow-x-auto px-4 scrollbar-none sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
             >
               {NAV.filter((item) => !item.needs || access.can(item.needs)).map(({ view: v, label }) => {
                 const active =
@@ -513,7 +513,7 @@ export default function LabourPage() {
                       {saveState === "idle" && "All changes saved"}
                       {saveState === "error" && "Couldn't save the last change. The values were reset to what is stored."}
                     </p>
-                    <ProgressTracker tasks={tasks} onUpdate={updateTask} canEditPaid={access.can("project.manage")} />
+                    <ProgressTracker tasks={tasks} onUpdate={updateTask} />
                   </div>
                 )}
 
