@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic";
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Search } from "@/components/dashboard/Sidebar/Search";
 import { Heading } from "@/components/utilites/Label";
 import { TasksProvider } from "@/components/labour/Taskscontext";
 import { ProjectAccessProvider, useMyAccess } from "@/hooks/useProjectAccess";
@@ -55,20 +54,13 @@ const AttendanceManager = dynamic(() => import("@/components/labour/Attendancema
 const RecentAttendance = dynamic(() => import("@/components/labour/RecentAttendance").then((m) => m.RecentAttendance), {
   loading: SectionSkeleton,
 });
-// Materials (the plan from the BOQ) and Inventory (the store) are two tabs of the same inventory screen
-// const ProjectInventory = dynamic(() => import("@/components/inventory/ProjectInventory").then((m) => m.ProjectInventory), {
-//   loading: SectionSkeleton,
-// });
-// const AuditLog = dynamic(() => import("@/components/audit/AuditLog").then((m) => m.AuditLog), {
-//   loading: SectionSkeleton,
-// });
 
 /* -------------------------------------------------------------------------- */
 /*  Types & pure helpers                                                      */
 /* -------------------------------------------------------------------------- */
 
-type PageView = "menu" | "form" | "dashboard" | "progress" | "materials" | "inventory" | "payments" | "attendance" | "activity";
-const PROJECT_VIEWS: PageView[] = ["dashboard", "progress", "materials", "inventory", "payments", "attendance", "activity"];
+type PageView = "menu" | "form" | "dashboard" | "progress" | "payments" | "attendance";
+const PROJECT_VIEWS: PageView[] = ["dashboard", "progress", "payments", "attendance"];
 
 type ProcessedTask = {
   id: string;
@@ -120,14 +112,12 @@ function processTasks(project: ApiProject): ProcessedTask[] {
 function summarise(tasks: ProcessedTask[]) {
   const stipulated = tasks.reduce((s, t) => s + t.stipulated, 0);
   const paid = tasks.reduce((s, t) => s + t.paid, 0);
+  // What the work done so far is worth: each task's agreed amount × how far along it is
+  const earned = tasks.reduce((s, t) => s + (t.stipulated * t.progress) / 100, 0);
   // Weighted by each task's agreed amount, the same way the project cards work it out; a plain average when nothing is agreed yet
   const progress =
-    stipulated > 0
-      ? tasks.reduce((s, t) => s + t.stipulated * t.progress, 0) / stipulated
-      : tasks.length
-        ? tasks.reduce((s, t) => s + t.progress, 0) / tasks.length
-        : 0;
-  return { stipulated, paid, balance: stipulated - paid, progress, count: tasks.length };
+    stipulated > 0 ? (earned / stipulated) * 100 : tasks.length ? tasks.reduce((s, t) => s + t.progress, 0) / tasks.length : 0;
+  return { stipulated, paid, earned, balance: stipulated - paid, progress, count: tasks.length };
 }
 
 function describeError(e: unknown): string {
@@ -151,28 +141,39 @@ const NAV: { view: PageView; label: string; needs?: Permission }[] = [
   { view: "menu", label: "Projects" },
   { view: "dashboard", label: "Dashboard" },
   { view: "progress", label: "Progress", needs: "tasks.progress" },
-  { view: "materials", label: "Materials", needs: "materials.view" },
-  { view: "inventory", label: "Inventory", needs: "materials.view" },
   { view: "payments", label: "Payments" },
   { view: "attendance", label: "Attendance", needs: "attendance.view" },
-  { view: "activity", label: "Activity", needs: "audit.view" },
 ];
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500";
 // Mobile: 44px tall tap target. sm+: the compact size.
 const buttonSecondary = `min-h-11 rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition-colors hover:bg-stone-50 active:bg-stone-100 sm:min-h-0 ${focusRing}`;
 
+const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+const rupee = (n: number) => `₹${formatNumber(Math.round(n))}`;
+
+/**
+ * Payments against the work actually done. The useful question isn't "how much is left of the contract" but
+ * "do we owe for work already done, or have we paid ahead of it?": work done is worth agreed amount × progress.
+ */
 const Ledger = memo(function Ledger({ s }: { s: ReturnType<typeof summarise> }) {
-  const over = s.balance < 0;
-  const cells = [
-    { label: "Agreed amount", value: formatNumber(s.stipulated) },
-    { label: "Paid so far", value: formatNumber(s.paid) },
+  const due = s.earned - s.paid; // > 0: owed for work done; < 0: paid ahead of the work
+  const paidAhead = due < -0.5;
+  const settled = Math.abs(due) <= 0.5;
+  const cells: { label: string; value: string; note: string; tone?: string; bar?: number }[] = [
+    { label: "Agreed amount", value: rupee(s.stipulated), note: `${s.count} ${s.count === 1 ? "work item" : "work items"}` },
     {
-      label: over ? "Overpaid by" : "Still to pay",
-      value: formatNumber(Math.abs(s.balance)),
-      tone: over ? "text-rose-700" : "text-emerald-700",
+      label: "Work done",
+      value: rupee(s.earned),
+      note: `${Math.round(s.progress)}% of the agreed work`,
+      bar: Math.min(100, Math.round(s.progress)),
     },
-    { label: `Progress across ${s.count} ${s.count === 1 ? "task" : "tasks"}`, value: `${Math.round(s.progress)}%` },
+    { label: "Paid so far", value: rupee(s.paid), note: `${pct(s.paid, s.stipulated)}% of the agreed amount` },
+    settled
+      ? { label: "Payments", value: "Up to date", note: `${rupee(Math.max(0, s.balance))} left for the work still to do`, tone: "text-emerald-700" }
+      : paidAhead
+        ? { label: "Paid ahead of work", value: rupee(-due), note: "More paid than the work done so far is worth", tone: "text-red-700" }
+        : { label: "Due for work done", value: rupee(due), note: `${rupee(Math.max(0, s.balance))} left to pay in total`, tone: "text-amber-700" },
   ];
   return (
     // Mobile: 2x2. sm+: one row of four
@@ -186,6 +187,12 @@ const Ledger = memo(function Ledger({ s }: { s: ReturnType<typeof summarise> }) 
           <dd className={`mt-1 wrap-break-word text-xl font-semibold tabular-nums tracking-tight sm:text-2xl ${c.tone ?? "text-stone-900"}`}>
             {c.value}
           </dd>
+          {c.bar !== undefined && (
+            <div aria-hidden className="mt-2 h-1.5 overflow-hidden rounded bg-stone-200">
+              <div className="h-full bg-stone-900" style={{ width: `${c.bar}%` }} />
+            </div>
+          )}
+          <dd className="mt-1 text-xs text-stone-500">{c.note}</dd>
         </div>
       ))}
     </dl>
@@ -328,16 +335,13 @@ export default function LabourPage() {
               <Heading>Labour management</Heading>
               <p className="truncate text-sm text-stone-500">{subtitle}</p>
             </div>
-            <div className="mb-3 w-full sm:mb-4 sm:w-72">
-              <Search className="w-full" />
-            </div>
           </div>
 
           {activeId && (
             // Mobile: tabs scroll sideways and run edge to edge. sm+: inside the header's padding.
             <nav
               aria-label="Labour sections"
-              className="-mx-4 -mb-px flex gap-1 overflow-x-auto px-4 scrollbar-none sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
+              className="-mx-4 -mb-px flex gap-1 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
             >
               {NAV.filter((item) => !item.needs || access.can(item.needs)).map(({ view: v, label }) => {
                 const active =
@@ -351,8 +355,8 @@ export default function LabourPage() {
                     onClick={() => setView(v)}
                     aria-current={active ? "page" : undefined}
                     className={`shrink-0 whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition-colors sm:py-2.5 ${focusRing} ${active
-                        ? "border-amber-500 text-stone-900"
-                        : "border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-800"
+                      ? "border-amber-500 text-stone-900"
+                      : "border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-800"
                       }`}
                   >
                     {label}
@@ -486,9 +490,6 @@ export default function LabourPage() {
             {isProjectView && project && tasks && totals && (
               <>
                 {view === "attendance" && <AttendanceManager projectId={project.id} />}
-                {view === "materials" && <ProjectInventory key="plan" projectId={project.id} initialTab="plan" />}
-                {view === "inventory" && <ProjectInventory key="stock" projectId={project.id} initialTab="stock" />}
-                {view === "activity" && <AuditLog projectId={project.id} />}
 
                 {view === "payments" && (
                   <div className="mx-auto min-w-0 max-w-6xl space-y-5 sm:space-y-6">
@@ -529,7 +530,6 @@ export default function LabourPage() {
                     </div>
 
                     <ProjectCostTracker
-                      projectId={project.id}
                       projectCost={project.projectCost}
                       tasks={tasks}
                       onSetCost={access.can("project.manage") ? startEdit : undefined}

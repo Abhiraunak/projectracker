@@ -3,8 +3,7 @@
 import React, { memo, useState } from "react";
 import { FiCalendar, FiClock, FiTrendingDown, FiTrendingUp } from "react-icons/fi";
 import { describeError, type ProjectSummary } from "@/lib/api";
-
-import { RoleBadge } from "@/components/team/RoleBadge";
+import { useCan } from "@/hooks/useProjectAccess";
 import { ConfirmDeleteDialog } from "../utilites/Confirmdeletedialog";
 
 const DAY = 86_400_000;
@@ -53,10 +52,14 @@ export const ProjectCard = memo(function ProjectCard({ project: p, onOpen, onTog
   const start = parse(p.startDate);
   const end = parse(p.endDate);
   const balance = p.budget - p.paid;
-  // The project cost is the whole budget; p.budget is only the work item budgets added up
+  // Two different amounts, shown separately so they aren't confused:
+  //  - the project budget (projectCost): what the whole job should cost, against everything spent on it (p.spent)
+  //  - the labour contracts (p.budget): the work items' agreed amounts, against what has been paid on them (p.paid)
   const costLeft = p.projectCost === null ? null : p.projectCost - p.spent;
-  const canToggle = p.myRole === "OWNER" || p.myRole === "MANAGER"; // change status
-  const canDelete = p.myRole === "OWNER";
+  const budgetUsed = p.projectCost ? Math.round((p.spent / p.projectCost) * 100) : 0;
+  // Company-wide permissions, set on the Admin page (admins have all of them). The server checks them again.
+  const canToggle = useCan("project.manage"); // mark completed / reopen
+  const canDelete = useCan("project.delete");
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -100,40 +103,65 @@ export const ProjectCard = memo(function ProjectCard({ project: p, onOpen, onTog
               <FiCalendar aria-hidden />
               {start && end ? `${fmt(start)} to ${fmt(end)}` : "No dates set"}
             </p>
-            {p.myRole !== "OWNER" && (
-              <span className="mt-1.5 inline-block">
-                <RoleBadge role={p.myRole} />
-              </span>
-            )}
           </div>
           <span className={`flex items-center gap-1 whitespace-nowrap rounded px-2 py-1 text-xs font-medium ${cls}`}>
             <Icon aria-hidden /> {s.label}
           </span>
         </div>
 
-        <p className="mb-2 text-sm text-stone-500">{p.projectCost === null ? "Labour budget" : "Total project cost"}</p>
-        <p className="text-3xl font-semibold tabular-nums">{rupees(p.projectCost ?? p.budget)}</p>
-        {costLeft !== null && (
-          <p className={`mt-1 text-sm font-medium tabular-nums ${costLeft < 0 ? "text-red-700" : "text-stone-500"}`}>
-            {costLeft < 0 ? `Over by ${rupees(costLeft)}` : `${rupees(costLeft)} left`}
-          </p>
-        )}
+        {/* 1) The whole project's budget, and how much of it has been spent */}
+        <section aria-label="Project budget">
+          <p className="text-xs font-medium uppercase tracking-wide text-stone-500">Project budget</p>
+          {p.projectCost === null ? (
+            <p className="mt-1 text-sm text-stone-500">Not set yet. Edit the project to add what the whole job should cost.</p>
+          ) : (
+            <>
+              <p className="mt-1 text-3xl font-semibold tabular-nums">{rupees(p.projectCost)}</p>
+              <div
+                role="progressbar"
+                aria-label={`${p.title}: share of the project budget spent`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={budgetUsed}
+                className="mt-2 h-1.5 overflow-hidden rounded bg-stone-200"
+              >
+                <div className={`h-full ${costLeft! < 0 ? "bg-red-600" : "bg-amber-500"}`} style={{ width: `${Math.min(100, p.spent > 0 ? Math.max(1, budgetUsed) : 0)}%` }} />
+              </div>
+              <p className="mt-1.5 flex justify-between gap-2 text-xs tabular-nums">
+                <span className="text-stone-500">{rupees(p.spent)} spent</span>
+                <span className={costLeft! < 0 ? "font-medium text-red-700" : "text-stone-500"}>
+                  {costLeft! < 0 ? `Over by ${rupees(costLeft!)}` : `${rupees(costLeft!)} left`}
+                </span>
+              </p>
+            </>
+          )}
+        </section>
 
-        <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <dt className="text-stone-500">Paid</dt>
-            <dd className="font-medium tabular-nums">{rupees(p.paid)}</dd>
-          </div>
-          <div>
-            <dt className="text-stone-500">{balance < 0 ? "Overpaid" : "Remaining"}</dt>
-            <dd className={`font-medium tabular-nums ${balance < 0 ? "text-red-700" : ""}`}>{rupees(balance)}</dd>
-          </div>
-        </dl>
+        {/* 2) The labour contracts: what the work items were agreed at, and what has been paid against them */}
+        <section aria-label="Labour contracts" className="mt-4 rounded border border-stone-200 bg-stone-50 px-3 py-2.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-stone-500">
+            Labour · {plural(p.taskCount, "work item", "work items")}
+          </p>
+          <dl className="mt-1.5 grid grid-cols-3 gap-2 text-sm">
+            <div className="min-w-0">
+              <dt className="text-xs text-stone-500">Agreed</dt>
+              <dd className="font-medium tabular-nums">{rupees(p.budget)}</dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="text-xs text-stone-500">Paid</dt>
+              <dd className="font-medium tabular-nums">{rupees(p.paid)}</dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="text-xs text-stone-500">{balance < 0 ? "Overpaid" : "To pay"}</dt>
+              <dd className={`font-medium tabular-nums ${balance < 0 ? "text-red-700" : ""}`}>{rupees(balance)}</dd>
+            </div>
+          </dl>
+        </section>
 
         <div className="mt-4">
           <div className="mb-1.5 flex justify-between text-xs text-stone-500">
-            <span>{plural(p.taskCount, "work item", "work items")}</span>
-            <span className="tabular-nums">{p.progress}% complete</span>
+            <span>Work done</span>
+            <span className="tabular-nums">{p.progress}%</span>
           </div>
           <div
             role="progressbar"

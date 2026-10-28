@@ -4,18 +4,21 @@ import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { AppRoute, currentRoute, ROUTES } from "./Routes";
+import { useAccess } from "@/hooks/useProjectAccess";
+import { AppRoute, ROUTES, currentRoute, routeAllowed } from "./Routes";
 
 
-/** The main menu */
+/** The main menu: only the pages this person may open */
 export const RouteSelect = () => {
   const pathname = usePathname();
+  const access = useAccess();
+  const visible = ROUTES.filter((route) => routeAllowed(route, access));
   const active = currentRoute(pathname)?.href;
 
   return (
     <nav aria-label="Main">
       <ul className="space-y-0.5">
-        {ROUTES.map((route) => (
+        {visible.map((route) => (
           <li key={route.href}>
             <RouteLink route={route} selected={route.href === active} />
           </li>
