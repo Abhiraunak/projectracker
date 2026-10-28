@@ -37,8 +37,12 @@ export const boqApi = {
 
   get: (id: string) => request<{ boq: BoqRecord }>(`/boqs/${id}`).then((r) => r.boq),
 
-  create: (document: BoqDocument) =>
-    request<{ boq: BoqRecord }>("/boqs", { method: "POST", body: json({ document }) }).then((r) => r.boq),
+  create: (document: BoqDocument, projectId: string | null = null) =>
+    request<{ boq: BoqRecord }>("/boqs", { method: "POST", body: json({ document, projectId }) }).then((r) => r.boq),
+
+  /** Which project the BOQ belongs to; its items reach that project's materials on the next sync */
+  setProject: (id: string, projectId: string | null) =>
+    request<{ boq: BoqRecord }>(`/boqs/${id}/project`, { method: "PUT", body: json({ projectId }) }).then((r) => r.boq),
 
   duplicate: (id: string) => request<{ boq: BoqRecord }>(`/boqs/${id}/duplicate`, { method: "POST" }).then((r) => r.boq),
 

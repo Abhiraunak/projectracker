@@ -123,6 +123,8 @@ export interface BoqRecord {
   createdAt: string;
   updatedAt: string;
   updatedBy: string | null; // email
+  /** The project whose materials this BOQ feeds (chosen in the editor), or null */
+  project: { id: string; title: string } | null;
 }
 
 /** One row of the BOQ dashboard */
@@ -134,6 +136,7 @@ export interface BoqSummary {
   status: BoqStatus;
   grandTotal: number;
   itemCount: number;
+  project: { id: string; title: string } | null;
   updatedAt: string;
   updatedBy: string | null;
 }

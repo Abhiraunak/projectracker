@@ -16,9 +16,17 @@ export interface CostTask {
 
 export type CostStatus = "within" | "nearly" | "over_allocated" | "over";
 
+/** A project's materials, from its BOQ and orders: value received so far, and the most likely final cost */
+export interface CostMaterials {
+  spent: number;
+  expected: number;
+}
+
 export interface CostSummary {
   total: number | null;
-  spent: number;
+  spent: number; // labour paid + materials received
+  labourSpent: number;
+  materialSpent: number;
   committed: number;
   remaining: number | null;
   unallocated: number | null;
@@ -32,12 +40,15 @@ export const NEARLY_THRESHOLD = 90;
 const round2 = (value: number) => Math.round(value * 100) / 100;
 const sum = (values: number[]) => round2(values.reduce((a, b) => a + b, 0));
 
-export function summarizeProjectCost(total: number | null, tasks: CostTask[]): CostSummary {
-  const spent = sum(tasks.map((t) => t.paid));
-  const committed = sum(tasks.map((t) => Math.max(t.paid, t.stipulated)));
+export function summarizeProjectCost(total: number | null, tasks: CostTask[], materials: CostMaterials = { spent: 0, expected: 0 }): CostSummary {
+  const labourSpent = sum(tasks.map((t) => t.paid));
+  const materialSpent = round2(materials.spent);
+  const spent = round2(labourSpent + materialSpent);
+  const committed = round2(sum(tasks.map((t) => Math.max(t.paid, t.stipulated))) + Math.max(materials.expected, materials.spent));
+  const parts = { labourSpent, materialSpent };
 
   if (total === null) {
-    return { total: null, spent, committed, remaining: null, unallocated: null, usedPercent: null, status: null };
+    return { total: null, spent, ...parts, committed, remaining: null, unallocated: null, usedPercent: null, status: null };
   }
 
   const usedPercent = total > 0 ? (spent / total) * 100 : spent > 0 ? 100 : 0;
@@ -47,6 +58,7 @@ export function summarizeProjectCost(total: number | null, tasks: CostTask[]): C
   return {
     total,
     spent,
+    ...parts,
     committed,
     remaining: round2(total - spent),
     unallocated: round2(total - committed),

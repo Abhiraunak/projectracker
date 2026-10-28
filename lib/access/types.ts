@@ -3,6 +3,7 @@ export type Permission =
   | "project.view" | "project.manage" | "project.delete" | "tasks.progress" | "audit.view"
   | "materials.view" | "catalog.manage" | "requirements.create" | "requirements.order" | "requirements.delete"
   | "stock.receive" | "stock.issue" | "stock.reserve" | "stock.adjust"
+  | "requests.create" | "requests.approve"
   | "attendance.view" | "attendance.write"
   | "drawings.use" | "boq.use";
 
@@ -28,19 +29,26 @@ export const PERMISSION_GROUPS: { title: string; items: PermissionInfo[] }[] = [
     title: "Materials and orders",
     items: [
       { key: "materials.view", label: "View materials and stock", help: "Requirements, orders and inventory." },
-      { key: "requirements.create", label: "Add material requirements", help: "Say what a work item needs." },
+      { key: "requirements.create", label: "Plan materials from the BOQ", help: "Sync from the BOQ and set each item's materials." },
       { key: "requirements.order", label: "Place and update orders", help: "Vendor, quantity and delivery date." },
-      { key: "requirements.delete", label: "Delete requirements", help: "Only ones with nothing received yet." },
-      { key: "catalog.manage", label: "Add materials and vendors", help: "The lists everyone picks from." },
+      { key: "requirements.delete", label: "Delete orders", help: "Only ones with nothing received yet." },
+      { key: "catalog.manage", label: "Materials, vendors and recipes", help: "The lists everyone picks from, and the material recipes." },
     ],
   },
   {
     title: "Stock",
     items: [
       { key: "stock.receive", label: "Receive stock", help: "Record deliveries into the store." },
-      { key: "stock.issue", label: "Issue stock", help: "Record material used on a work item." },
-      { key: "stock.reserve", label: "Reserve stock", help: "Set material aside for a work item, or release it." },
+      { key: "stock.issue", label: "Issue stock", help: "Record material used on a BOQ item." },
+      { key: "stock.reserve", label: "Reserve stock", help: "Set material aside for a BOQ item, or release it." },
       { key: "stock.adjust", label: "Correct stock", help: "Fix counts, record loss or damage." },
+    ],
+  },
+  {
+    title: "Material requests",
+    items: [
+      { key: "requests.create", label: "Request material", help: "Ask for material for a BOQ item from site." },
+      { key: "requests.approve", label: "Approve requests", help: "Approve or reject requests; get notified of new ones." },
     ],
   },
   {
@@ -64,8 +72,8 @@ export const ALL_PERMISSIONS: Permission[] = PERMISSION_GROUPS.flatMap((group) =
 /** One-click starting points on the admin page; the boxes can still be adjusted after */
 export const PRESETS: { label: string; permissions: Permission[] }[] = [
   { label: "Everything", permissions: ALL_PERMISSIONS },
-  { label: "Site engineer", permissions: ["project.view", "tasks.progress", "materials.view", "requirements.create", "stock.issue", "attendance.view", "attendance.write", "drawings.use"] },
-  { label: "Storekeeper", permissions: ["project.view", "materials.view", "stock.receive", "stock.issue", "stock.reserve", "stock.adjust"] },
+  { label: "Site engineer", permissions: ["project.view", "tasks.progress", "materials.view", "requirements.create", "requests.create", "stock.issue", "attendance.view", "attendance.write", "drawings.use"] },
+  { label: "Storekeeper", permissions: ["project.view", "materials.view", "stock.receive", "stock.issue", "stock.reserve", "stock.adjust", "requests.approve"] },
   { label: "View only", permissions: ["project.view"] },
   { label: "None", permissions: [] },
 ];

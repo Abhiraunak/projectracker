@@ -5,14 +5,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { useAccess } from "@/hooks/useProjectAccess";
+import { useInventoryBadge } from "@/hooks/useInventory";
 import { AppRoute, ROUTES, currentRoute, routeAllowed } from "./Routes";
-
 
 /** The main menu: only the pages this person may open */
 export const RouteSelect = () => {
   const pathname = usePathname();
   const access = useAccess();
   const visible = ROUTES.filter((route) => routeAllowed(route, access));
+  // Open stock alerts, plus requests waiting for my approval: shown on the Inventory item
+  const inventoryCount = useInventoryBadge(access.can("materials.view"), access.can("requests.approve"));
   const active = currentRoute(pathname)?.href;
 
   return (
@@ -20,7 +22,7 @@ export const RouteSelect = () => {
       <ul className="space-y-0.5">
         {visible.map((route) => (
           <li key={route.href}>
-            <RouteLink route={route} selected={route.href === active} />
+            <RouteLink route={route} selected={route.href === active} badge={route.href === "/dashboard/inventory" ? inventoryCount : 0} />
           </li>
         ))}
       </ul>
@@ -28,7 +30,7 @@ export const RouteSelect = () => {
   );
 };
 
-function RouteLink({ route: { title, href, Icon }, selected }: { route: AppRoute; selected: boolean }) {
+function RouteLink({ route: { title, href, Icon }, selected, badge = 0 }: { route: AppRoute; selected: boolean; badge?: number }) {
   const reduceMotion = useReducedMotion();
 
   return (
@@ -50,7 +52,12 @@ function RouteLink({ route: { title, href, Icon }, selected }: { route: AppRoute
         />
       )}
       <Icon aria-hidden className={`relative z-10 shrink-0 ${selected ? "text-amber-600" : ""}`} />
-      <span className="relative z-10 truncate">{title}</span>
+      <span className="relative z-10 flex-1 truncate">{title}</span>
+      {badge > 0 && (
+        <span className="relative z-10 rounded-full bg-red-600 px-1.5 text-[11px] font-semibold leading-5 text-white tabular-nums" aria-label={`${badge} to look at`}>
+          {badge > 99 ? "99+" : badge}
+        </span>
+      )}
     </Link>
   );
 }

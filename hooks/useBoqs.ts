@@ -54,3 +54,16 @@ export function useDeleteBoq() {
     },
   });
 }
+
+/** Moves a BOQ to a project (or to none). Its items reach the project's materials on the next "Sync from BOQ". */
+export function useSetBoqProject(id: string) {
+  const remember = useRemember();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (projectId: string | null) => boqApi.setProject(id, projectId),
+    onSuccess: (boq) => {
+      remember(boq);
+      void queryClient.invalidateQueries({ queryKey: ["inventory"] }); // the material plans show a sync is due
+    },
+  });
+}
