@@ -4,6 +4,8 @@ import React, { memo } from "react";
 import { FiAlertCircle, FiAlertTriangle, FiCheckCircle } from "react-icons/fi";
 import { barSegments, summarizeProjectCost, type CostStatus, type CostTask } from "@/lib/projectCost";
 import { Pill, type Tone } from "@/components/materials/Pill";
+import { useCan } from "@/hooks/useProjectAccess";
+import { useMaterialCost } from "@/hooks/useInventory";
 
 const rupees = (value: number) => `₹${Math.abs(value).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 
@@ -20,6 +22,8 @@ interface Props {
   tasks: CostTask[];
   /** Shown when there is no project cost yet and this person may add one */
   onSetCost?: () => void;
+  /** Given: the project's materials (received so far, likely final cost) count too */
+  projectId?: string;
 }
 
 function Figure({ label, value, note, tone }: { label: string; value: string; note?: string; tone?: string }) {
@@ -33,8 +37,12 @@ function Figure({ label, value, note, tone }: { label: string; value: string; no
 }
 
 /** The whole-project cost, how much has been paid out of it, and what is left */
-export const ProjectCostTracker = memo(function ProjectCostTracker({ projectCost, tasks, onSetCost }: Props) {
-  const summary = summarizeProjectCost(projectCost, tasks);
+export const ProjectCostTracker = memo(function ProjectCostTracker({ projectCost, tasks, onSetCost, projectId }: Props) {
+  const canSeeMaterials = useCan("materials.view");
+  const cost = useMaterialCost(projectId ?? "", !!projectId && canSeeMaterials);
+  const materials = cost.data ? { spent: cost.data.totals.spent, expected: cost.data.totals.expected } : undefined;
+  const summary = summarizeProjectCost(projectCost, tasks, materials);
+  const hasMaterials = summary.materialSpent > 0 || (materials?.expected ?? 0) > 0;
   const bar = barSegments(summary);
 
   if (summary.total === null) {
@@ -43,8 +51,8 @@ export const ProjectCostTracker = memo(function ProjectCostTracker({ projectCost
         <div>
           <p className="font-semibold">No project cost set</p>
           <p className="mt-1 text-sm text-stone-500">
-            Add what the whole project should cost to track how much of it is left. {rupees(summary.spent)} has been paid
-            on work items so far.
+            Add what the whole project should cost to track how much of it is left. {rupees(summary.spent)} has been spent so far
+            {hasMaterials ? ` (${rupees(summary.labourSpent)} labour, ${rupees(summary.materialSpent)} materials)` : " on work items"}.
           </p>
         </div>
         {onSetCost && (
@@ -93,21 +101,21 @@ export const ProjectCostTracker = memo(function ProjectCostTracker({ projectCost
             )}
           </div>
           <p className="mt-2 text-xs text-stone-500">
-            {Math.round(summary.usedPercent!)}% of the project cost paid out
+            {Math.round(summary.usedPercent!)}% of the project cost spent
             {bar.limitPct !== null && <span className="text-red-700"> &middot; the red line is the project cost</span>}
           </p>
         </div>
       )}
 
       <dl className="grid grid-cols-2 divide-stone-200 sm:grid-cols-4 sm:divide-x">
-        <Figure label="Paid so far" value={rupees(summary.spent)} note="Across all work items" />
+        <Figure label="Spent so far" value={rupees(summary.spent)} note={hasMaterials ? `Labour ${rupees(summary.labourSpent)} · materials ${rupees(summary.materialSpent)}` : "Across all work items"} />
         <Figure
           label={overspent ? "Over budget by" : "Remaining"}
           value={rupees(summary.remaining!)}
-          note={overspent ? "Paid more than the project cost" : "Left to pay out"}
+          note={overspent ? "Spent more than the project cost" : "Left to pay out"}
           tone={overspent ? "text-red-700" : "text-emerald-700"}
         />
-        <Figure label="Work item budgets" value={rupees(summary.committed)} note="What the work items are meant to cost" />
+        <Figure label={hasMaterials ? "Budgets" : "Work item budgets"} value={rupees(summary.committed)} note={hasMaterials ? "Work items + expected material cost" : "What the work items are meant to cost"} />
         <Figure
           label={summary.unallocated! < 0 ? "Over-allocated by" : "Not yet allocated"}
           value={rupees(summary.unallocated!)}

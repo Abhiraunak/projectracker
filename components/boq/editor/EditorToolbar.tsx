@@ -5,6 +5,7 @@ import Link from "next/link";
 import { FiAlertCircle, FiArrowLeft, FiCheck, FiCornerUpLeft, FiCornerUpRight, FiDownload, FiLock, FiPrinter, FiUnlock } from "react-icons/fi";
 import type { BoqEditorState } from "@/hooks/useBoqEditor";
 import { Pill } from "@/components/materials/Pill";
+import { ProjectPicker } from "./ProjectPicker";
 import { ShortcutsHelp } from "./ShortcutsHelp";
 
 const BTN =
@@ -34,6 +35,7 @@ function SaveIndicator({ editor }: { editor: BoqEditorState }) {
 }
 
 interface Props {
+  boqId: string;
   editor: BoqEditorState;
   onPrint: () => void;
   onExport: () => void;
@@ -41,7 +43,7 @@ interface Props {
 }
 
 /** Above the page (never printed): back, title and save status, undo/redo, shortcuts, print, Excel, final/draft */
-export function EditorToolbar({ editor, onPrint, onExport, exporting }: Props) {
+export function EditorToolbar({ boqId, editor, onPrint, onExport, exporting }: Props) {
   const title = editor.doc.title || "Untitled BOQ";
 
   return (
@@ -56,7 +58,10 @@ export function EditorToolbar({ editor, onPrint, onExport, exporting }: Props) {
               <h1 className="truncate text-base font-semibold">{title}</h1>
               {editor.status === "FINAL" ? <Pill tone="dark" icon={FiLock}>Final</Pill> : <Pill tone="neutral">Draft</Pill>}
             </div>
-            <SaveIndicator editor={editor} />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <SaveIndicator editor={editor} />
+              <ProjectPicker boqId={boqId} />
+            </div>
           </div>
         </div>
 

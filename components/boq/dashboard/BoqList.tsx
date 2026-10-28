@@ -60,7 +60,7 @@ export function BoqList({ items, onDuplicate, onDelete, busyId }: Props) {
               <div className="text-sm">
                 <p className="font-semibold tabular-nums">₹{fmtMoney(boq.grandTotal)}</p>
                 <p className="text-xs text-stone-500">
-                  {boq.itemCount} items{boq.boqNumber && ` · ${boq.boqNumber}`} · {fmtDateTime(boq.updatedAt)}
+                  {boq.itemCount} items{boq.boqNumber && ` · ${boq.boqNumber}`}{boq.project && ` · ${boq.project.title}`} · {fmtDateTime(boq.updatedAt)}
                 </p>
               </div>
               <Actions boq={boq} onDuplicate={onDuplicate} onDelete={onDelete} busy={busyId === boq.id} />
@@ -75,6 +75,7 @@ export function BoqList({ items, onDuplicate, onDelete, busyId }: Props) {
             <tr className="border-b border-stone-200 text-left text-xs font-semibold uppercase tracking-wide text-stone-500">
               <th scope="col" className="px-4 py-3">BOQ</th>
               <th scope="col" className="px-4 py-3">BOQ No.</th>
+              <th scope="col" className="px-4 py-3">Project</th>
               <th scope="col" className="px-4 py-3">Status</th>
               <th scope="col" className="px-4 py-3 text-right">Items</th>
               <th scope="col" className="px-4 py-3 text-right">Grand total</th>
@@ -92,6 +93,7 @@ export function BoqList({ items, onDuplicate, onDelete, busyId }: Props) {
                   {boq.subtitle && <p className="truncate text-stone-500">{boq.subtitle}</p>}
                 </td>
                 <td className="px-4 py-3 text-stone-600">{boq.boqNumber || "—"}</td>
+                <td className="max-w-48 truncate px-4 py-3 text-stone-600">{boq.project?.title ?? "—"}</td>
                 <td className="px-4 py-3"><StatusPill boq={boq} /></td>
                 <td className="px-4 py-3 text-right tabular-nums">{boq.itemCount}</td>
                 <td className="px-4 py-3 text-right font-semibold tabular-nums">₹{fmtMoney(boq.grandTotal)}</td>

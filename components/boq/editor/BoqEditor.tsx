@@ -34,7 +34,7 @@ export function BoqEditor({ record }: { record: BoqRecord }) {
   return (
     <BoqEditProvider value={editApi}>
       <div className="space-y-4">
-        <EditorToolbar editor={editor} onPrint={() => window.print()} onExport={exportExcel} exporting={exporting} />
+        <EditorToolbar boqId={record.id} editor={editor} onPrint={() => window.print()} onExport={exportExcel} exporting={exporting} />
         <EditorBanners editor={editor} />
         {exportError && (
           <p role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
