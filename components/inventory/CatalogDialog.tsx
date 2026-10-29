@@ -9,9 +9,12 @@ import { useCan } from "@/hooks/useProjectAccess";
 import { useDeleteVendor, useMaterialCatalog, useSaveMaterial, useSaveVendor } from "@/hooks/useMaterialCatalog";
 import { DialogHeader, ModalDialog } from "@/components/utilites/ModalDialog";
 import { Field } from "@/components/materials/Field";
-import { buttonPrimary, buttonSecondary, iconButton, inputBase } from "../utilites/Label";
+import { buttonPrimary, buttonSecondary, iconButton, inputBase } from "../utilites/Label"
 
-const rupees = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+const rupees = (value: unknown) => {
+  const n = typeof value === "number" ? value : Number(value ?? 0);
+  return `₹${(Number.isFinite(n) ? n : 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+};
 
 /** The company's materials (unit, category, minimum stock, standard rate) and vendors, in one place */
 export function CatalogDialog({ open, onClose }: { open: boolean; onClose: () => void }) {

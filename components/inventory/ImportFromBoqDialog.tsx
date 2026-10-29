@@ -193,8 +193,17 @@ function PickItems({ projectId, boqId, onBack, onClose, onImported, setLocked }:
               </div>
             </div>
 
+            {allParts.length === 0 && (
+              <div className="rounded border border-dashed border-stone-300 p-6 text-center text-sm text-stone-600">
+                <p className="font-semibold text-stone-900">This BOQ has no items yet</p>
+                <p className="mt-1">Open the BOQ and add its items (with a description, and a quantity or unit), then come back to import them.</p>
+              </div>
+            )}
+
             <p className="text-sm text-stone-600" aria-live="polite">
-              {tickable.length === 0
+              {allParts.length === 0
+                ? ""
+                : tickable.length === 0
                 ? "Every item of this BOQ is already in this project's inventory."
                 : `${picked.size} of ${tickable.length} ticked${already ? ` · ${already} already in inventory` : ""}`}
             </p>
@@ -324,7 +333,7 @@ function PartFacts({ part }: { part: ImportPart }) {
   return (
     <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-500">
       <span className="tabular-nums">
-        {fmtQty(part.quantity)} {part.unit}
+        {part.quantity === 0 && !part.unit ? "No quantity yet" : `${fmtQty(part.quantity)} ${part.unit}`}
       </span>
       {part.state === "in" && <span className="rounded bg-stone-100 px-1.5 py-0.5 text-stone-700">In inventory</span>}
       {part.state === "removed" && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-amber-900">Removed earlier: ticking brings it back</span>}

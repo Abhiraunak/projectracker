@@ -10,6 +10,11 @@ import { INVENTORY_TABS, ProjectInventory, type InventoryTab } from "./ProjectIn
 import { ProjectSwitcher } from "./ProjectSwitcher";
 
 const Skeleton = () => <div aria-busy="true" className="h-64 animate-pulse rounded bg-stone-200/60 motion-reduce:animate-none" />;
+function tabFromUrl(): InventoryTab | undefined {
+  if (typeof window === "undefined") return undefined;
+  const wanted = new URLSearchParams(window.location.search).get("tab");
+  return wanted && (INVENTORY_TABS as string[]).includes(wanted) ? (wanted as InventoryTab) : undefined;
+}
 
 function Notice({ title, hint }: { title: string; hint: string }) {
   return (
@@ -29,15 +34,13 @@ export function InventoryPage() {
 
   // Opened from a notification (/dashboard/inventory?project=<id>&tab=requests): that project, that tab.
   // Read once on arrival; window.location avoids Next's useSearchParams, which needs a Suspense boundary.
-  const [tab, setTab] = useState<InventoryTab | undefined>(undefined);
+  const [tab] = useState<InventoryTab | undefined>(tabFromUrl);
+  // The project goes to the browser's saved choice (updating something outside React, which is what an
+  // effect is for; useActiveProject then re-reads it). Runs once, on arrival.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const wanted = params.get("tab");
-    if (wanted && (INVENTORY_TABS as string[]).includes(wanted)) setTab(wanted as InventoryTab);
-    const project = params.get("project");
+    const project = new URLSearchParams(window.location.search).get("project");
     if (project) select(project);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on arrival
-  }, []);
+  }, [select]);
 
   if (projects.isPending || access.isLoading) return <Skeleton />;
   if (projects.isError) return <QueryError error={projects.error} onRetry={() => projects.refetch()} />;
