@@ -4,7 +4,8 @@ import { memo, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useR
 import { FiArrowLeft, FiEdit2, FiGrid } from "react-icons/fi";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAccess } from "@/hooks/useProjectAccess";
-import { usePrefetchProjectDetail, useProjectHub } from "@/hooks/useProjectHub";
+import { useProjectHub } from "@/hooks/useProjectHub";
+import { usePrefetchSection } from "@/hooks/useProjectPages";
 import { hrefFor, onPlaceClick, useWorkspaceSection } from "@/hooks/useWorkspacePlace";
 import type { ProjectSummary } from "@/lib/api";
 import type { ProjectHub as Hub } from "@/lib/projects/hub";
@@ -31,6 +32,16 @@ export function ProjectHub({ projectId }: { projectId: string }) {
   const [editing, setEditing] = useState(false);
   const startEditing = useCallback(() => setEditing(true), []);
 
+  // Pointing at or touching a tab or tile: download the section's code and start its one request
+  const prefetchSection = usePrefetchSection();
+  const warm = useCallback(
+    (def: SectionDef) => {
+      void def.load();
+      prefetchSection(def.key, projectId);
+    },
+    [prefetchSection, projectId]
+  );
+
   const allowed = useMemo(() => SECTIONS.filter((s) => access.can(s.needs)), [access]);
   const current: SectionKey = section !== "overview" && allowed.some((s) => s.key === section) ? section : "overview";
 
@@ -55,14 +66,14 @@ export function ProjectHub({ projectId }: { projectId: string }) {
         canEdit={access.can("project.manage") && !!hub.data}
         onEdit={startEditing}
       />
-      <SectionNav projectId={projectId} current={current} sections={allowed} />
+      <SectionNav projectId={projectId} current={current} sections={allowed} onWarm={warm} />
 
       <div className="pt-5 sm:pt-6">
         {shown === "overview" &&
           (hub.isError ? (
             <SectionError error={hub.error} onRetry={() => void hub.refetch()} />
           ) : hub.data ? (
-            <Overview projectId={projectId} hub={hub.data} sections={allowed} />
+            <Overview projectId={projectId} hub={hub.data} sections={allowed} onWarm={warm} />
           ) : (
             <SectionSkeleton />
           ))}
@@ -158,17 +169,19 @@ const HubHeader = memo(function HubHeader({
 
 /**
  * The section tabs. On phones they scroll sideways in one row. Re-renders only when the section changes.
- * Pointing at or touching a tab downloads its code (and, for Progress and Payments, the work items).
+ * Pointing at or touching a tab downloads its code and starts its data.
  */
-const SectionNav = memo(function SectionNav({ projectId, current, sections }: { projectId: string; current: SectionKey; sections: SectionDef[] }) {
-  const prefetchDetail = usePrefetchProjectDetail();
-  const warm = useCallback(
-    (def: SectionDef) => {
-      void def.load();
-      if (def.key === "progress" || def.key === "payments") prefetchDetail(projectId);
-    },
-    [prefetchDetail, projectId]
-  );
+const SectionNav = memo(function SectionNav({
+  projectId,
+  current,
+  sections,
+  onWarm: warm,
+}: {
+  projectId: string;
+  current: SectionKey;
+  sections: SectionDef[];
+  onWarm: (def: SectionDef) => void;
+}) {
   // On a phone the tabs scroll sideways: keep the open one in view (after the back button, or a shared link)
   const listRef = useRef<HTMLUListElement>(null);
   useEffect(() => {
@@ -185,7 +198,7 @@ const SectionNav = memo(function SectionNav({ projectId, current, sections }: { 
       aria-label="Project sections"
       className="sticky top-14 z-10 -mx-4 mt-3 border-b border-stone-200 bg-white px-4 sm:-mx-6 sm:px-6 lg:-top-6 lg:-mx-8 lg:px-8"
     >
-      <ul ref={listRef} className="-mb-px flex gap-1 overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden">
+      <ul ref={listRef} className="-mb-px flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map(({ key, label, Icon, def }) => {
           const place = { projectId, section: key };
           const active = key === current;

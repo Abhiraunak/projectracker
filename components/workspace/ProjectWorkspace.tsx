@@ -1,14 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { useWorkspaceProjectId, useWorkspaceSection } from "@/hooks/useWorkspacePlace";
+import { useWorkspaceItem, useWorkspaceProjectId, useWorkspaceSection } from "@/hooks/useWorkspacePlace";
 import { ProjectTiles } from "./ProjectTiles";
 import { ProjectHub } from "./ProjectHub";
 
-/**
- * The project workspace: one page for everything. The tiles, a project's hub and each of its sections are
- * swapped in place as the address changes (see useWorkspacePlace): the page never reloads.
- */
 /**
  * A new screen starts at the top. On large screens the layout's card scrolls, not the window.
  * Its own little component, so following the section re-renders nothing else.
@@ -16,13 +12,18 @@ import { ProjectHub } from "./ProjectHub";
 function ScrollToTop() {
   const projectId = useWorkspaceProjectId();
   const section = useWorkspaceSection();
+  const item = useWorkspaceItem();
   useEffect(() => {
     document.getElementById("main-content")?.scrollTo({ top: 0 });
     window.scrollTo({ top: 0 });
-  }, [projectId, section]);
+  }, [projectId, section, item]);
   return null;
 }
 
+/**
+ * The project workspace: one page for everything. The tiles, a project's hub and each of its sections are
+ * swapped in place as the address changes (see useWorkspacePlace): the page never reloads.
+ */
 export function ProjectWorkspace() {
   const projectId = useWorkspaceProjectId(); // re-renders only when the project changes, not the section
 

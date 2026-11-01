@@ -8,7 +8,17 @@ import type { SectionDef } from "./sections";
 import { ProgressRing } from "./ui";
 
 /** The project at a glance: four figures, then one tile per section with a single line of news */
-export const Overview = memo(function Overview({ projectId, hub, sections }: { projectId: string; hub: ProjectHub; sections: SectionDef[] }) {
+export const Overview = memo(function Overview({
+  projectId,
+  hub,
+  sections,
+  onWarm,
+}: {
+  projectId: string;
+  hub: ProjectHub;
+  sections: SectionDef[];
+  onWarm: (def: SectionDef) => void;
+}) {
   const { money: m, progress: p } = hub;
   const over = m.left < 0;
 
@@ -32,7 +42,7 @@ export const Overview = memo(function Overview({ projectId, hub, sections }: { p
 
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         {sections.map((s) => (
-          <SectionTile key={s.key} projectId={projectId} def={s} hub={hub} />
+          <SectionTile key={s.key} projectId={projectId} def={s} hub={hub} onWarm={onWarm} />
         ))}
       </ul>
     </div>
@@ -49,10 +59,10 @@ function Figure({ label, value, note, tone }: { label: string; value: string; no
   );
 }
 
-function SectionTile({ projectId, def, hub }: { projectId: string; def: SectionDef; hub: ProjectHub }) {
+function SectionTile({ projectId, def, hub, onWarm }: { projectId: string; def: SectionDef; hub: ProjectHub; onWarm: (def: SectionDef) => void }) {
   const place = { projectId, section: def.key };
   const { text, tone } = def.summary(hub);
-  const warm = () => void def.load();
+  const warm = () => onWarm(def);
   return (
     <li>
       <a

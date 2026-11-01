@@ -1,9 +1,10 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 import type { IconType } from "react-icons";
-import { FiBox, FiClipboard, FiCreditCard, FiFileText, FiPenTool, FiTrendingUp } from "react-icons/fi";
+import { FiBox, FiClipboard, FiCreditCard, FiFileText, FiPenTool, FiTrendingUp, FiTruck } from "react-icons/fi";
 import type { Permission } from "@/lib/access/types";
 import type { SectionKey } from "@/lib/projects/place";
 import { plural, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
+import { isFeatureOn } from "@/lib/features";
 
 type SectionProps = { projectId: string };
 type Loader = () => Promise<{ default: ComponentType<SectionProps> }>;
@@ -33,7 +34,8 @@ export const SECTIONS: SectionDef[] = [
     label: "Progress",
     Icon: FiTrendingUp,
     needs: "project.view",
-    load: () => import("./sections/ProgressSection"),
+    // Phase 2: the Progress page (budget, time, time-line) when switched on; until then, today's tracker
+    load: isFeatureOn("progress") ? () => import("./sections/ProgressPage") : () => import("./sections/ProgressSection"),
     summary: ({ progress: p }) =>
       p.items === 0
         ? { text: "No work items yet" }
@@ -46,7 +48,8 @@ export const SECTIONS: SectionDef[] = [
     label: "Drawings",
     Icon: FiPenTool,
     needs: "drawings.use",
-    load: () => import("./sections/DrawingsSection"),
+    // Phase 4: drawings by number, with revisions, when switched on; until then, today's gallery
+    load: isFeatureOn("drawingsByProject") ? () => import("./sections/DrawingsBook") : () => import("./sections/DrawingsSection"),
     summary: ({ drawings }) => ({ text: drawings ? plural(drawings.count, "drawing") : "" }),
   }),
   def({
@@ -63,7 +66,8 @@ export const SECTIONS: SectionDef[] = [
     label: "Materials",
     Icon: FiBox,
     needs: "materials.view",
-    load: () => import("./sections/MaterialsSection"),
+    // Phase 3: material tiles and sheets when switched on; until then, today's inventory screen
+    load: isFeatureOn("materialSheet") ? () => import("./sections/MaterialsBook") : () => import("./sections/MaterialsSection"),
     summary: ({ materials: m }) => {
       if (!m) return { text: "" };
       const waiting = [m.openAlerts && plural(m.openAlerts, "alert"), m.pendingRequests && `${plural(m.pendingRequests, "request")} waiting`].filter(Boolean);
@@ -94,6 +98,22 @@ export const SECTIONS: SectionDef[] = [
         ? { text: "Nothing recorded yet" }
         : { text: `Last ${shortDate(a.lastDate)} · ${rupeesShort(a.amountThisWeek)} this week` },
   }),
+  // Phase 6: shuttering, machinery and the rest at this site (FEATURES=equipment)
+  ...(isFeatureOn("equipment")
+    ? [
+        def({
+          key: "equipment",
+          label: "Equipment",
+          Icon: FiTruck,
+          needs: "equipment.view",
+          load: () => import("./sections/EquipmentBook"),
+          summary: ({ equipment: e }) =>
+            !e || e.items === 0
+              ? { text: "Nothing here yet" }
+              : { text: `${plural(e.items, "item")} here${e.hireThisMonth > 0 ? ` · ${rupeesShort(e.hireThisMonth)} hire this month` : ""}` },
+        }),
+      ]
+    : []),
 ];
 
 export const sectionByKey = new Map(SECTIONS.map((s) => [s.key, s]));

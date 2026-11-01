@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import {
   FiAlertCircle,
   FiCommand,
+  FiCopy,
   FiCornerUpLeft,
   FiCornerUpRight,
   FiEdit2,
@@ -19,8 +20,9 @@ import {
 import { Heading } from "@/components/utilites/Label";
 import { describeError } from "@/lib/api";
 import type { AttendancePayload, AttendanceRecord } from "@/lib/attendanceApi";
-import { useAttendanceList, useDeleteAttendance, useSaveAttendance, useSaveAttendanceDays } from "@/hooks/useAttendance";
-import { describeDays } from "@/lib/attendance/days";
+import { useAttendanceList, useAttendanceTrades, useDeleteAttendance, useSaveAttendance, useSaveAttendanceDays } from "@/hooks/useAttendance";
+import { TradeCards } from "./TradeCards";
+import { describeDays, shortDay, weekday } from "@/lib/attendance/days";
 import { AttendanceDays } from "./AttendanceDays";
 import { Pagination } from "./Pagination";
 
@@ -31,10 +33,12 @@ import { Pagination } from "./Pagination";
 interface WorkerRow {
   id: string;
   label: string;
-  amount: number | "";
+  amount: number | ""; // one day
+  amounts: Record<string, number | "">; // several days: what this labourer is paid on each day ("YYYY-MM-DD")
 }
 
 interface FormState {
+  trade: string; // "Civil", "Tiles"…: which part of the work this entry pays for
   contractorName: string;
   date: string; // one day
   days: string[]; // several days: one entry is saved for each
@@ -44,6 +48,8 @@ interface FormState {
 }
 
 const PAGE_SIZE = 5;
+/** Shown until the project's own trades arrive (the server sends the same list, plus any trade the project uses) */
+const DEFAULT_CHOICES = ["Civil", "Architecture", "Tiles", "Fabrication", "Plumbing", "Electrical", "Painting", "Carpentry"];
 
 // crypto.randomUUID only exists in secure contexts (https / localhost)
 const newId = () =>
@@ -59,12 +65,13 @@ const todayLocal = () => {
 
 // A function, not a constant: every reset gets fresh row ids instead of sharing one set
 const createDefaultForm = (): FormState => ({
+  trade: "",
   contractorName: "",
   date: todayLocal(),
   days: [],
   workers: [
-    { id: newId(), label: "L1", amount: "" },
-    { id: newId(), label: "L2", amount: "" },
+    { id: newId(), label: "L1", amount: "", amounts: {} },
+    { id: newId(), label: "L2", amount: "", amounts: {} },
   ],
   extras: "",
   notes: "",
@@ -73,6 +80,12 @@ const createDefaultForm = (): FormState => ({
 const rupees = (v: number) => `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 const num = (v: number | "") => (v === "" ? 0 : v);
 const toInput = (v: string): number | "" => (v === "" ? "" : Number(v));
+
+/** What a labourer is paid on one of the chosen days (several-days mode) */
+const dayAmount = (w: WorkerRow, day: string) => num(w.amounts[day] ?? "");
+/** Everything paid on one day: each labourer's amount for that day, plus the extras */
+const dayTotal = (workers: WorkerRow[], day: string, extras: number | "") =>
+  workers.reduce((sum, w) => sum + dayAmount(w, day), 0) + num(extras);
 
 function formatDay(s: string) {
   const [y, m, d] = s.split("-").map(Number);
@@ -129,9 +142,11 @@ const PRINT_CSS = `
 `;
 
 function PrintSlip({ title, form, total, days }: { title: string; form: FormState; total: number; days: string[] | null }) {
+  // Several days: each labourer's amount is what they get over all the days
+  const amountOf = (w: WorkerRow) => (days ? days.reduce((sum, d) => sum + dayAmount(w, d), 0) : num(w.amount));
   // Only rows that actually have an amount, so empty rows don't print
-  const rows = form.workers.filter((w) => num(w.amount) > 0);
-  const extras = num(form.extras);
+  const rows = form.workers.filter((w) => amountOf(w) > 0);
+  const extras = num(form.extras) * (days ? days.length : 1);
 
   return createPortal(
     <div id="attendance-print-root" className="hidden text-black">
@@ -141,6 +156,10 @@ function PrintSlip({ title, form, total, days }: { title: string; form: FormStat
         <div className="flex gap-2">
           <dt className="font-semibold">Contractor:</dt>
           <dd>{form.contractorName.trim() || "-"}</dd>
+        </div>
+        <div className="flex gap-2">
+          <dt className="font-semibold">Trade:</dt>
+          <dd>{form.trade.trim() || "-"}</dd>
         </div>
         <div className="flex gap-2">
           <dt className="font-semibold">{days ? "Days:" : "Date:"}</dt>
@@ -168,14 +187,14 @@ function PrintSlip({ title, form, total, days }: { title: string; form: FormStat
               <tr key={w.id} className="border-b border-stone-300">
                 <td className="py-2 pr-2">{i + 1}</td>
                 <td className="py-2">{w.label.trim() || "Labour"}</td>
-                <td className="py-2 text-right tabular-nums">{rupees(num(w.amount))}</td>
+                <td className="py-2 text-right tabular-nums">{rupees(amountOf(w))}</td>
               </tr>
             ))
           )}
           {extras > 0 && (
             <tr className="border-b border-stone-300">
               <td />
-              <td className="py-2">Extras / additional cost</td>
+              <td className="py-2">Extras / additional cost{days && days.length > 1 ? ` (${rupees(num(form.extras))} a day)` : ""}</td>
               <td className="py-2 text-right tabular-nums">{rupees(extras)}</td>
             </tr>
           )}
@@ -183,18 +202,32 @@ function PrintSlip({ title, form, total, days }: { title: string; form: FormStat
         <tfoot>
           <tr className="border-t-2 border-black">
             <td />
-            <td className="py-3 text-base font-bold">{days ? "Total per day" : "Total"}</td>
+            <td className="py-3 text-base font-bold">{days ? `Total for ${days.length} ${days.length === 1 ? "day" : "days"}` : "Total"}</td>
             <td className="py-3 text-right text-base font-bold tabular-nums">{rupees(total)}</td>
           </tr>
-          {days && (
-            <tr>
-              <td />
-              <td className="py-1 text-base font-bold">Total for {days.length} days</td>
-              <td className="py-1 text-right text-base font-bold tabular-nums">{rupees(total * days.length)}</td>
-            </tr>
-          )}
         </tfoot>
       </table>
+
+      {days && days.length > 0 && (
+        <table className="mt-6 w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b-2 border-black text-left">
+              <th className="py-2 font-semibold">Day</th>
+              <th className="py-2 text-right font-semibold">Paid that day</th>
+            </tr>
+          </thead>
+          <tbody>
+            {days.map((d) => (
+              <tr key={d} className="border-b border-stone-300">
+                <td className="py-1.5">
+                  {weekday(d)} {formatDay(d)}
+                </td>
+                <td className="py-1.5 text-right tabular-nums">{rupees(dayTotal(form.workers, d, form.extras))}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
 
       {form.notes.trim() && (
         <p className="mt-6 text-sm">
@@ -203,6 +236,130 @@ function PrintSlip({ title, form, total, days }: { title: string; form: FormStat
       )}
     </div>,
     document.body
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Several days: one amount per labourer per day                             */
+/* -------------------------------------------------------------------------- */
+
+interface DayGridProps {
+  days: string[];
+  workers: WorkerRow[];
+  extras: number | "";
+  onLabel: (id: string, label: string) => void;
+  onAmount: (id: string, day: string, value: number | "") => void;
+  onSameEveryDay: (id: string) => void;
+  onRemove: (id: string) => void;
+  onNavigate: (e: React.KeyboardEvent, index: number, field: string) => void;
+}
+
+/**
+ * Labourers down the side, the chosen days across the top: type what each labourer was paid on each day.
+ * The label column stays put while the days scroll sideways. Row totals on the right, day totals at the bottom.
+ */
+function DayAmountsGrid({ days, workers, extras, onLabel, onAmount, onSameEveryDay, onRemove, onNavigate }: DayGridProps) {
+  if (days.length === 0) return <p className="text-sm text-stone-500">Choose the days above first.</p>;
+  const cell = "border-b border-stone-200 px-1.5 py-1.5";
+  return (
+    <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:thin]">
+      <table className="w-full border-separate border-spacing-0 text-sm">
+        <thead>
+          <tr className="text-left text-xs text-stone-500">
+            <th scope="col" className={`${cell} sticky left-0 z-10 min-w-40 bg-white font-medium`}>
+              Labourer
+            </th>
+            {days.map((d) => (
+              <th key={d} scope="col" className={`${cell} min-w-24 text-right font-medium`}>
+                <span className="block">{weekday(d)}</span>
+                <span className="block text-stone-900">{shortDay(d)}</span>
+              </th>
+            ))}
+            <th scope="col" className={`${cell} min-w-24 text-right font-medium`}>
+              Total
+            </th>
+            <th scope="col" className={cell}>
+              <span className="sr-only">Actions</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {workers.map((w, index) => {
+            const rowTotal = days.reduce((sum, d) => sum + dayAmount(w, d), 0);
+            return (
+              <tr key={w.id}>
+                <td className={`${cell} sticky left-0 z-10 bg-white`}>
+                  <input
+                    id={`worker-${index}-label`}
+                    type="text"
+                    maxLength={40}
+                    aria-label={`Labourer ${index + 1} label`}
+                    value={w.label}
+                    onKeyDown={(e) => onNavigate(e, index, "label")}
+                    onChange={(e) => onLabel(w.id, e.target.value)}
+                    placeholder="Label (e.g. L1)"
+                    className={inputBase}
+                  />
+                </td>
+                {days.map((d, di) => (
+                  <td key={d} className={cell}>
+                    <input
+                      id={`worker-${index}-day-${di}`}
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step="any"
+                      aria-label={`${w.label || `Labourer ${index + 1}`}, ${weekday(d)} ${shortDay(d)}`}
+                      value={w.amounts[d] ?? ""}
+                      onKeyDown={(e) => onNavigate(e, index, `day-${di}`)}
+                      onChange={(e) => onAmount(w.id, d, toInput(e.target.value))}
+                      placeholder="0"
+                      className={`${inputBase} text-right tabular-nums`}
+                    />
+                  </td>
+                ))}
+                <td className={`${cell} text-right font-semibold tabular-nums`}>{rupees(rowTotal)}</td>
+                <td className={`${cell} whitespace-nowrap text-right`}>
+                  {days.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => onSameEveryDay(w.id)}
+                      title="Copy the first amount to every day"
+                      aria-label={`Same amount every day for ${w.label || `labourer ${index + 1}`}`}
+                      className={iconBtn}
+                    >
+                      <FiCopy aria-hidden />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onRemove(w.id)}
+                    disabled={workers.length === 1}
+                    aria-label={`Remove labourer ${index + 1}`}
+                    className="rounded p-1.5 text-stone-400 transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <FiTrash2 aria-hidden />
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr className="text-xs text-stone-500">
+            <th scope="row" className="sticky left-0 z-10 bg-white px-1.5 py-2 text-left font-medium">
+              Paid that day{num(extras) > 0 ? ` (with ${rupees(num(extras))} extras)` : ""}
+            </th>
+            {days.map((d) => (
+              <td key={d} className="px-1.5 py-2 text-right font-semibold tabular-nums text-stone-900">
+                {rupees(dayTotal(workers, d, extras))}
+              </td>
+            ))}
+            <td colSpan={2} />
+          </tr>
+        </tfoot>
+      </table>
+    </div>
   );
 }
 
@@ -280,6 +437,7 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
   const [listError, setListError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [tradeFilter, setTradeFilter] = useState<string | undefined>(undefined); // one trade's entries ("-" = not set)
   const [printTitle, setPrintTitle] = useState(""); // optional, only used for printing
   const [mounted, setMounted] = useState(false); // the print slip needs document.body
   const query = useDebounced(search.trim(), 300);
@@ -288,7 +446,10 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
   useEffect(() => setMounted(true), []);
 
   // Records, search and pagination all come from the server
-  const list = useAttendanceList({ projectId, q: query || undefined, page, pageSize: PAGE_SIZE });
+  const list = useAttendanceList({ projectId, q: query || undefined, trade: tradeFilter, page, pageSize: PAGE_SIZE });
+  const trades = useAttendanceTrades(projectId);
+  const choices = trades.data?.choices ?? DEFAULT_CHOICES;
+  const usual = trades.data?.usual;
   const save = useSaveAttendance();
   const saveDays = useSaveAttendanceDays();
   const [multiDay, setMultiDay] = useState(false); // several days at once (new entries only)
@@ -296,7 +457,7 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
   const saving = save.isPending || saveDays.isPending;
   const remove = useDeleteAttendance();
 
-  useEffect(() => setPage(1), [query]); // new search starts on page 1
+  useEffect(() => setPage(1), [query, tradeFilter]); // a new search or trade starts on page 1
 
   // After deleting the last row of the last page, step back instead of showing an empty page
   useEffect(() => {
@@ -327,10 +488,10 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
 
   /* ---------------------------- Form handlers --------------------------- */
 
-  const addWorker = (autoFocus = false, focusField: "label" | "amount" = "label", focusIndex = 0) => {
+  const addWorker = (autoFocus = false, focusField: string = "label", focusIndex = 0) => {
     setFormData((prev) => ({
       ...prev,
-      workers: [...prev.workers, { id: newId(), label: `L${prev.workers.length + 1}`, amount: "" }],
+      workers: [...prev.workers, { id: newId(), label: `L${prev.workers.length + 1}`, amount: "", amounts: {} }],
     }));
     if (autoFocus) {
       setTimeout(() => {
@@ -347,8 +508,27 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
   const changeWorker = (id: string, patch: Partial<WorkerRow>) =>
     setFormData((prev) => ({ ...prev, workers: prev.workers.map((w) => (w.id === id ? { ...w, ...patch } : w)) }));
 
-  // Arrow keys / Enter move through the grid; Enter on the last row adds a new one
-  const handleGridNavigation = (e: React.KeyboardEvent, index: number, field: "label" | "amount") => {
+  /** Several days: one labourer's amount on one day */
+  const changeDayAmount = (id: string, day: string, value: number | "") =>
+    setFormData((prev) => ({
+      ...prev,
+      workers: prev.workers.map((w) => (w.id === id ? { ...w, amounts: { ...w.amounts, [day]: value } } : w)),
+    }));
+
+  /** Several days: the labourer's first filled-in amount, copied to every chosen day */
+  const sameEveryDay = (id: string) =>
+    setFormData((prev) => ({
+      ...prev,
+      workers: prev.workers.map((w) => {
+        if (w.id !== id) return w;
+        const first = prev.days.map((d) => w.amounts[d] ?? "").find((v) => v !== "") ?? "";
+        return { ...w, amounts: Object.fromEntries(prev.days.map((d) => [d, first])) };
+      }),
+    }));
+
+  // Arrow keys / Enter move through the grid; Enter on the last row adds a new one.
+  // `field` is "label", "amount", or "day-<n>" for a day's column when entering several days.
+  const handleGridNavigation = (e: React.KeyboardEvent, index: number, field: string) => {
     if (e.key === "ArrowDown" || e.key === "Enter") {
       e.preventDefault();
       const next = document.getElementById(`worker-${index + 1}-${field}`) as HTMLInputElement | null;
@@ -366,15 +546,39 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
     }
   };
 
-  // Display only: the server recomputes the real total when saving
-  const formTotal = formData.workers.reduce((sum, w) => sum + num(w.amount), 0) + num(formData.extras);
   const severalDays = multiDay && !editingId;
   const dayCount = severalDays ? formData.days.length : 1;
+  // Display only: the server recomputes the real totals when saving.
+  // Several days: everything paid over all the chosen days. One day: that day's amounts.
+  const formTotal = severalDays
+    ? formData.days.reduce((sum, d) => sum + dayTotal(formData.workers, d, formData.extras), 0)
+    : formData.workers.reduce((sum, w) => sum + num(w.amount), 0) + num(formData.extras);
 
-  /** Switching to several days starts from the day already chosen; switching back keeps the first chosen day */
+  /**
+   * Switching to several days starts from the day already chosen, with the amounts already typed on that day.
+   * Switching back keeps the first chosen day and its amounts.
+   */
   const toggleMultiDay = () => {
-    if (!multiDay) setFormData((prev) => ({ ...prev, days: prev.days.length ? prev.days : [prev.date] }));
-    else setFormData((prev) => ({ ...prev, date: prev.days[0] ?? prev.date }));
+    if (!multiDay) {
+      setFormData((prev) => {
+        const days = prev.days.length ? prev.days : [prev.date];
+        const first = days[0]!;
+        return {
+          ...prev,
+          days,
+          workers: prev.workers.map((w) => (w.amounts[first] === undefined ? { ...w, amounts: { ...w.amounts, [first]: w.amount } } : w)),
+        };
+      });
+    } else {
+      setFormData((prev) => {
+        const first = prev.days[0];
+        return {
+          ...prev,
+          date: first ?? prev.date,
+          workers: first ? prev.workers.map((w) => ({ ...w, amount: w.amounts[first] ?? w.amount })) : prev.workers,
+        };
+      });
+    }
     setMultiDay(!multiDay);
   };
 
@@ -397,6 +601,11 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.trade.trim()) {
+      setFormError("Choose the trade this entry is for (Civil, Tiles…).");
+      document.getElementById("tradeInput")?.focus();
+      return;
+    }
     if (!formData.contractorName.trim()) {
       setFormError("Please enter a contractor name.");
       document.getElementById("contractorNameInput")?.focus();
@@ -406,12 +615,20 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
       setFormError("Choose at least one day.");
       return;
     }
+    if (severalDays) {
+      const empty = formData.days.filter((d) => dayTotal(formData.workers, d, formData.extras) === 0);
+      if (empty.length) {
+        setFormError(`Nothing is paid on ${empty.map((d) => `${weekday(d)} ${shortDay(d)}`).join(", ")}. Enter the amounts, or remove ${empty.length === 1 ? "that day" : "those days"}.`);
+        return;
+      }
+    }
     setFormError(null);
     setSavedNote(null);
 
     const payload: AttendancePayload = {
       projectId,
       contractorName: formData.contractorName.trim(),
+      trade: formData.trade.trim(),
       date: formData.date,
       workers: formData.workers.map((w) => ({ label: w.label.trim() || "Labour", amount: num(w.amount) })),
       extras: num(formData.extras),
@@ -420,8 +637,14 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
 
     try {
       if (severalDays) {
-        const { date: _one, ...rest } = payload;
-        const result = await saveDays.mutateAsync({ ...rest, projectId, dates: formData.days });
+        const { date: _one, workers: _same, ...rest } = payload;
+        // Each labourer's amount on each chosen day; `amount` is only used for a day not listed (none here)
+        const workers = formData.workers.map((w) => ({
+          label: w.label.trim() || "Labour",
+          amount: 0,
+          amounts: Object.fromEntries(formData.days.map((d) => [d, dayAmount(w, d)])),
+        }));
+        const result = await saveDays.mutateAsync({ ...rest, workers, projectId, dates: formData.days });
         setSavedNote(`Saved ${result.count} entries for ${payload.contractorName}: ${describeDays(formData.days)}.`);
       } else {
         await save.mutateAsync({ id: editingId ?? undefined, data: payload });
@@ -434,7 +657,7 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
     // Keep the contractor and rows for the next entry, clear amounts. This also clears undo history.
     resetHistory({
       ...formData,
-      workers: formData.workers.map((w) => ({ ...w, amount: "" })),
+      workers: formData.workers.map((w) => ({ ...w, amount: "", amounts: {} })),
       extras: "",
       notes: "",
       days: [], // those days are saved now: choosing them again by mistake would double-count them
@@ -448,9 +671,10 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
 
   const handleEditRecord = (r: AttendanceRecord) => {
     resetHistory({
+      trade: r.trade,
       contractorName: r.contractorName,
       date: r.date,
-      workers: r.workers.map((w) => ({ id: w.id, label: w.label, amount: w.amount === 0 ? "" : w.amount })),
+      workers: r.workers.map((w) => ({ id: w.id, label: w.label, amount: w.amount === 0 ? "" : w.amount, amounts: {} })),
       extras: r.extras === 0 ? "" : r.extras,
       notes: r.notes,
       days: [],
@@ -528,6 +752,10 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
         </div>
       </div>
 
+      {trades.data && (
+        <TradeCards projectId={projectId} data={trades.data} selected={tradeFilter} onSelect={setTradeFilter} canEdit />
+      )}
+
       {/* ================================ Form ================================ */}
       <section
         className={`rounded border ${editingId ? "border-stone-900" : "border-stone-300"}`}
@@ -565,6 +793,46 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6 p-4 sm:p-6">
+          <div>
+            <label htmlFor="tradeInput" className="mb-1.5 block text-sm text-stone-500">
+              Trade
+            </label>
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+              <input
+                id="tradeInput"
+                type="text"
+                maxLength={40}
+                list="attendanceTrades"
+                value={formData.trade}
+                onChange={(e) => setFormData((prev) => ({ ...prev, trade: e.target.value }))}
+                placeholder="e.g. Civil"
+                className={`${inputBase} md:w-56`}
+              />
+              <datalist id="attendanceTrades">
+                {choices.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+              <div className="flex gap-1.5 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0" role="group" aria-label="Pick a trade">
+                {choices.slice(0, 8).map((c) => {
+                  const on = formData.trade.trim().toLowerCase() === c.toLowerCase();
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setFormData((prev) => ({ ...prev, trade: c }))}
+                      className={`shrink-0 rounded-full border px-3 py-1 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${
+                        on ? "border-stone-900 bg-stone-900 text-white" : "border-stone-300 text-stone-700 hover:border-stone-500"
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label htmlFor="contractorNameInput" className="mb-1.5 block text-sm text-stone-500">
@@ -577,6 +845,11 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
                 maxLength={120}
                 value={formData.contractorName}
                 onChange={(e) => setFormData((prev) => ({ ...prev, contractorName: e.target.value }))}
+                // A known contractor brings their usual trade along, when none is chosen yet
+                onBlur={(e) => {
+                  const known = usual?.[e.target.value.trim()];
+                  if (known) setFormData((prev) => (prev.trade.trim() ? prev : { ...prev, trade: known }));
+                }}
                 placeholder="e.g. Sundar Lal"
                 className={inputBase}
               />
@@ -618,7 +891,7 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
             <div>
               <AttendanceDays days={formData.days} onChange={(days) => setFormData((prev) => ({ ...prev, days }))} />
               <p className="mt-2 text-xs text-stone-500">
-                The labour and amounts below are saved once for each day, as separate entries you can edit or delete one by one.
+                Enter what each labourer is paid on each day below. Each day is saved as its own entry, which you can edit or delete on its own.
               </p>
             </div>
           )}
@@ -638,6 +911,18 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
               </button>
             </div>
 
+            {severalDays ? (
+              <DayAmountsGrid
+                days={formData.days}
+                workers={formData.workers}
+                extras={formData.extras}
+                onLabel={(id, label) => changeWorker(id, { label })}
+                onAmount={changeDayAmount}
+                onSameEveryDay={sameEveryDay}
+                onRemove={removeWorker}
+                onNavigate={handleGridNavigation}
+              />
+            ) : (
             <div className="space-y-3">
               {formData.workers.map((worker, index) => (
                 <div key={worker.id} className="flex items-center gap-3">
@@ -682,12 +967,13 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
                 </div>
               ))}
             </div>
+            )}
           </fieldset>
 
           <div className="grid grid-cols-1 gap-4 border-t border-stone-200 pt-6 md:grid-cols-2">
             <div>
               <label htmlFor="attendanceExtras" className="mb-1.5 block text-sm text-stone-500">
-                Extras / additional cost
+                Extras / additional cost{severalDays ? " (each day)" : ""}
               </label>
               <div className="relative">
                 <span aria-hidden className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-stone-400">
@@ -724,15 +1010,9 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
 
           <div className="flex items-center justify-between gap-3 rounded border border-stone-300 p-4">
             <span className="text-sm text-stone-500">
-              {severalDays ? (
-                <>
-                  {rupees(formTotal)} a day × {dayCount} {dayCount === 1 ? "day" : "days"}
-                </>
-              ) : (
-                "Total entry value"
-              )}
+              {severalDays ? `Total for ${dayCount} ${dayCount === 1 ? "day" : "days"}` : "Total entry value"}
             </span>
-            <span className="text-3xl font-semibold tabular-nums">{rupees(formTotal * dayCount)}</span>
+            <span className="text-3xl font-semibold tabular-nums">{rupees(formTotal)}</span>
           </div>
 
           {savedNote && (
@@ -777,6 +1057,16 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
               <span className="rounded bg-stone-100 px-2 py-1 text-xs font-medium text-stone-600">
                 {list.data.total} {list.data.total === 1 ? "entry" : "entries"}
               </span>
+            )}
+            {tradeFilter !== undefined && (
+              <button
+                type="button"
+                onClick={() => setTradeFilter(undefined)}
+                aria-label="Show all trades"
+                className="flex items-center gap-1 rounded bg-stone-900 px-2 py-1 text-xs font-medium text-white"
+              >
+                {tradeFilter === "-" ? "Not set" : tradeFilter} <FiX aria-hidden />
+              </button>
             )}
           </div>
 
@@ -824,17 +1114,20 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
               <>
                 No results for &ldquo;<span className="font-semibold text-stone-700">{query}</span>&rdquo;.
               </>
+            ) : tradeFilter !== undefined ? (
+              "No entries for this trade."
             ) : (
               "No entries yet. Fill in the form above and save."
             )}
           </p>
         ) : (
           <>
-            <div className={`overflow-x-auto transition-opacity ${list.isPlaceholderData ? "opacity-60" : ""}`}>
+            <div className={`relative overflow-x-auto transition-opacity ${list.isPlaceholderData ? "opacity-60" : ""}`}>
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-stone-200 text-stone-500">
                   <tr>
                     <th scope="col" className="px-4 py-3 font-medium">Date</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Trade</th>
                     <th scope="col" className="px-4 py-3 font-medium">Contractor</th>
                     <th scope="col" className="px-4 py-3 font-medium">Labourers</th>
                     <th scope="col" className="px-4 py-3 font-medium">Notes</th>
@@ -848,6 +1141,13 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
                   {list.data.items.map((r) => (
                     <tr key={r.id} className="hover:bg-stone-50">
                       <td className="whitespace-nowrap px-4 py-3 text-stone-600">{formatDay(r.date)}</td>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        {r.trade ? (
+                          <span className="rounded bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-700">{r.trade}</span>
+                        ) : (
+                          <span className="text-xs text-amber-700">Not set</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 font-medium">{r.contractorName}</td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
