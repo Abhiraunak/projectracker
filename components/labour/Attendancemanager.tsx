@@ -822,9 +822,8 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
                       type="button"
                       aria-pressed={on}
                       onClick={() => setFormData((prev) => ({ ...prev, trade: c }))}
-                      className={`shrink-0 rounded-full border px-3 py-1 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${
-                        on ? "border-stone-900 bg-stone-900 text-white" : "border-stone-300 text-stone-700 hover:border-stone-500"
-                      }`}
+                      className={`shrink-0 rounded-full border px-3 py-1 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 ${on ? "border-stone-900 bg-stone-900 text-white" : "border-stone-300 text-stone-700 hover:border-stone-500"
+                        }`}
                     >
                       {c}
                     </button>
@@ -923,50 +922,50 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
                 onNavigate={handleGridNavigation}
               />
             ) : (
-            <div className="space-y-3">
-              {formData.workers.map((worker, index) => (
-                <div key={worker.id} className="flex items-center gap-3">
-                  <input
-                    id={`worker-${index}-label`}
-                    type="text"
-                    maxLength={40}
-                    aria-label={`Labourer ${index + 1} label`}
-                    value={worker.label}
-                    onKeyDown={(e) => handleGridNavigation(e, index, "label")}
-                    onChange={(e) => changeWorker(worker.id, { label: e.target.value })}
-                    placeholder="Label (e.g. L1)"
-                    className={`${inputBase} min-w-0 flex-1`}
-                  />
-                  <div className="relative w-36 shrink-0 sm:w-44">
-                    <span aria-hidden className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-stone-400">
-                      ₹
-                    </span>
+              <div className="space-y-3">
+                {formData.workers.map((worker, index) => (
+                  <div key={worker.id} className="flex items-center gap-3">
                     <input
-                      id={`worker-${index}-amount`}
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      step="any"
-                      aria-label={`Labourer ${index + 1} amount`}
-                      value={worker.amount}
-                      onKeyDown={(e) => handleGridNavigation(e, index, "amount")}
-                      onChange={(e) => changeWorker(worker.id, { amount: toInput(e.target.value) })}
-                      placeholder="0"
-                      className={`${inputBase} w-full pl-7 tabular-nums`}
+                      id={`worker-${index}-label`}
+                      type="text"
+                      maxLength={40}
+                      aria-label={`Labourer ${index + 1} label`}
+                      value={worker.label}
+                      onKeyDown={(e) => handleGridNavigation(e, index, "label")}
+                      onChange={(e) => changeWorker(worker.id, { label: e.target.value })}
+                      placeholder="Label (e.g. L1)"
+                      className={`${inputBase} min-w-0 flex-1`}
                     />
+                    <div className="relative w-36 shrink-0 sm:w-44">
+                      <span aria-hidden className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-stone-400">
+                        ₹
+                      </span>
+                      <input
+                        id={`worker-${index}-amount`}
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        step="any"
+                        aria-label={`Labourer ${index + 1} amount`}
+                        value={worker.amount}
+                        onKeyDown={(e) => handleGridNavigation(e, index, "amount")}
+                        onChange={(e) => changeWorker(worker.id, { amount: toInput(e.target.value) })}
+                        placeholder="0"
+                        className={`${inputBase} w-full pl-7 tabular-nums`}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeWorker(worker.id)}
+                      disabled={formData.workers.length === 1}
+                      aria-label={`Remove labourer ${index + 1}`}
+                      className="shrink-0 rounded p-2 text-stone-400 transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <FiTrash2 aria-hidden />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeWorker(worker.id)}
-                    disabled={formData.workers.length === 1}
-                    aria-label={`Remove labourer ${index + 1}`}
-                    className="shrink-0 rounded p-2 text-stone-400 transition-colors hover:bg-red-50 hover:text-red-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    <FiTrash2 aria-hidden />
-                  </button>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
             )}
           </fieldset>
 
@@ -1158,7 +1157,7 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
                           ))}
                         </div>
                       </td>
-                      <td className="max-w-[160px] truncate px-4 py-3 text-stone-500" title={r.notes}>
+                      <td className="max-w-40 truncate px-4 py-3 text-stone-500" title={r.notes}>
                         {r.notes || "-"}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold tabular-nums">{rupees(r.totalAmount)}</td>
