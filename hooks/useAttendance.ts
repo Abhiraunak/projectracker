@@ -36,3 +36,16 @@ export function useDeleteAttendance() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance"] }),
   });
 }
+
+/** Per-trade cards, the trades to offer, and each contractor's usual trade. Under "attendance": every save refreshes it. */
+export const useAttendanceTrades = (projectId: string) =>
+  useQuery({ queryKey: ["attendance", "trades", projectId], queryFn: () => attendanceApi.trades(projectId), staleTime: 30_000 });
+
+/** Put all of a contractor's entries (the ones with no trade yet) under a trade */
+export function useSetContractorTrade() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { projectId: string; contractorName: string; trade: string; all?: boolean }) => attendanceApi.setTrade(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance"] }),
+  });
+}

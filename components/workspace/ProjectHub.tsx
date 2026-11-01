@@ -185,7 +185,7 @@ const SectionNav = memo(function SectionNav({ projectId, current, sections }: { 
       aria-label="Project sections"
       className="sticky top-14 z-10 -mx-4 mt-3 border-b border-stone-200 bg-white px-4 sm:-mx-6 sm:px-6 lg:-top-6 lg:-mx-8 lg:px-8"
     >
-      <ul ref={listRef} className="-mb-px flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <ul ref={listRef} className="-mb-px flex gap-1 overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden">
         {tabs.map(({ key, label, Icon, def }) => {
           const place = { projectId, section: key };
           const active = key === current;
