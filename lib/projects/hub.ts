@@ -10,6 +10,7 @@ export interface ProjectHub {
   boqs: { id: string; title: string; boqNumber: string; status: "DRAFT" | "FINAL"; grandTotal: number; itemCount: number; updatedAt: string }[] | null;
   drawings: { count: number } | null;
   attendance: { entriesThisWeek: number; amountThisWeek: number; lastDate: string | null; lastAmount: number | null } | null;
+  equipment?: { items: number; hireThisMonth: number } | null;
 }
 
 export const hubApi = {
