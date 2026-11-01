@@ -8,8 +8,8 @@ import { parsePlace, placeSearch, samePlace, type Place, type SectionKey } from 
  * history.pushState. No page load, no server round trip, no Next.js navigation: the screen swaps at once.
  * The back and forward buttons fire "popstate", which every reader listens to.
  *
- * Readers subscribe to one value each (the project, or the section), so changing section re-renders only
- * the parts that show the section, never the whole page.
+ * Readers subscribe to one value each (the project, the section, or the item inside it), so changing section
+ * re-renders only the parts that show the section, and opening a material tile only the Materials section.
  */
 
 const listeners = new Set<() => void>();
@@ -26,7 +26,7 @@ function subscribe(fn: () => void) {
 
 // Parse once per address, not once per reader per render
 let lastSearch: string | null = null;
-let lastPlace: Place = { projectId: null, section: "overview" };
+let lastPlace: Place = { projectId: null, section: "overview", item: null };
 function current(): Place {
   const search = window.location.search;
   if (search !== lastSearch) {
@@ -38,11 +38,15 @@ function current(): Place {
 
 const getProjectId = () => current().projectId;
 const getSection = () => current().section;
+const getItem = () => current().item ?? null;
 const serverProjectId = () => null;
 const serverSection = (): SectionKey => "overview";
+const serverItem = () => null;
 
 export const useWorkspaceProjectId = () => useSyncExternalStore(subscribe, getProjectId, serverProjectId);
 export const useWorkspaceSection = () => useSyncExternalStore(subscribe, getSection, serverSection);
+/** The place inside the current section (e.g. a material tile), or null */
+export const useWorkspaceItem = () => useSyncExternalStore(subscribe, getItem, serverItem);
 
 /** Go somewhere in the workspace. `replace` changes the current history entry instead of adding one. */
 export function goTo(place: Place, { replace = false }: { replace?: boolean } = {}) {
