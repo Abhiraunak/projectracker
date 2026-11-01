@@ -1,8 +1,8 @@
 import type { IconType } from "react-icons";
-import { FiBox, FiUsers, FiFileText, FiGrid, FiPenTool, FiShield } from "react-icons/fi";
+import { FiBox, FiUsers, FiFileText, FiGrid, FiPenTool, FiShield, FiUserCheck } from "react-icons/fi";
 import type { Permission } from "@/lib/access/types";
 import { activeHref } from "./Routematch";
- 
+
 
 export interface AppRoute {
   title: string;
@@ -22,6 +22,7 @@ export const ROUTES: AppRoute[] = [
   { title: "Drawing", href: "/dashboard/drawing", Icon: FiPenTool, needs: "drawings.use" },
   { title: "Labour", href: "/dashboard/labour", Icon: FiUsers, needs: "project.view" },
   { title: "Inventory", href: "/dashboard/inventory", Icon: FiBox, needs: "materials.view" },
+  { title: "Clients", href: "/dashboard/clients", Icon: FiUserCheck, needs: "admin" },
   { title: "Admin", href: "/dashboard/admin", Icon: FiShield, needs: "admin" },
 ];
 

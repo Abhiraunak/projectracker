@@ -7,18 +7,17 @@ import { useRouter } from "next/navigation";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { describeError } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+import { homeFor, roleOf, safeNext } from "@/lib/auth/home";
 import { Heading, SubHeading } from "@/components/utilites/Label";
 
 const inputClass =
     "w-full rounded-lg border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 " +
     "transition-colors focus:border-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900/20 disabled:opacity-60";
 
-/** Where to go after signing in: ?next=/dashboard/boq if it is a page of this app, else the dashboard */
-function nextPath(): string {
-    if (typeof window === "undefined") return "/dashboard";
-    const next = new URLSearchParams(window.location.search).get("next");
-    // Only paths on this site: "/x" yes, "//evil.com" or "https://..." no
-    return next && next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+/** The ?next= page asked for, if it is a page of this app */
+function requestedNext(): string | null {
+    if (typeof window === "undefined") return null;
+    return safeNext(new URLSearchParams(window.location.search).get("next"));
 }
 
 export default function LoginPage() {
@@ -27,10 +26,16 @@ export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
+    const [justSignedUp, setJustSignedUp] = useState(false);
 
-    // Already signed in: skip the form
+    // Arriving from the sign-up page (?created=1): say the account is ready
     useEffect(() => {
-        if (!isUserLoading && user) router.replace(nextPath());
+        setJustSignedUp(new URLSearchParams(window.location.search).get("created") === "1");
+    }, []);
+
+    // Already signed in: skip the form, to this account's own area (clients to the portal, staff to the dashboard)
+    useEffect(() => {
+        if (!isUserLoading && user) router.replace(homeFor(roleOf(user), requestedNext()));
     }, [isUserLoading, user, router]);
 
     const handleSignIn = (event: FormEvent<HTMLFormElement>) => {
@@ -39,7 +44,8 @@ export default function LoginPage() {
         login.mutate(
             { email: email.trim(), password },
             // replace, not push: Back shouldn't return to the sign-in form
-            { onSuccess: () => router.replace(nextPath()) }
+            // A client account goes to the client portal, never to the staff dashboard (which would refuse it with 403)
+            { onSuccess: (data: unknown) => router.replace(homeFor(roleOf(data) ?? roleOf(user), requestedNext())) }
         );
     };
 
@@ -54,6 +60,12 @@ export default function LoginPage() {
                     <Heading className="text-3xl font-extrabold tracking-tight text-stone-900">Welcome back</Heading>
                     <SubHeading className="text-sm text-stone-500">Enter your email and password to sign in</SubHeading>
                 </div>
+
+                {justSignedUp && !login.isError && (
+                    <p role="status" className="mb-5 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-center text-sm text-green-800">
+                        Your account is ready. Sign in to continue.
+                    </p>
+                )}
 
                 <form onSubmit={handleSignIn} className="space-y-5">
                     <div className="flex flex-col gap-1.5">

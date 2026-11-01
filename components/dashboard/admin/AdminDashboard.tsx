@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAdminOverview } from "@/hooks/useAdminOverview";
 import { describeError } from "@/lib/api";
 import type { AdminOverview, Period } from "@/lib/dashboard/types";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { KpiCards, MetricStrip } from "./KpiCards";
 import { SpendChart } from "./SpendChart";
 import { BudgetByProject, NeedsYou, ProjectsTable, RecentActivity } from "./AdminPanels";
@@ -84,6 +85,7 @@ export function AdminDashboard() {
                 </button>
               ))}
             </div>
+            <NotificationBell />
             <button
               type="button"
               onClick={() => overview.refetch()}

@@ -3,7 +3,6 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import { useAccess } from "@/hooks/useProjectAccess";
-
 import { NoAccess } from "./NoAccess";
 import { WelcomePage } from "./WelcomePage";
 import { currentRoute, routeAllowed } from "../dashboard/Sidebar/Routes";
@@ -19,7 +18,8 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
   const access = useAccess();
   const pathname = usePathname();
 
-  if (access.isLoading) {
+  // A client account (the server refused the check with 403): the layout is sending it to the client portal
+  if (access.isLoading || access.isClientAccount) {
     return <div aria-busy="true" className="h-64 animate-pulse rounded bg-stone-200/60 motion-reduce:animate-none" />;
   }
   if (access.isError) {

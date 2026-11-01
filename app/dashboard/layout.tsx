@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { FiMenu, FiX } from "react-icons/fi";
 import { SideBar } from "@/components/dashboard/Sidebar/SideBar";
 import { ProjectAccessProvider, useMyAccess } from "@/hooks/useProjectAccess";
 import { AccessGate } from "@/components/access/AccessGate";
+import { useAuth } from "@/hooks/useAuth";
+import { roleOf } from "@/lib/auth/home";
 
 /**
  * Hides the scrollbar itself. Scrolling still works the normal ways: mouse wheel, trackpad, touch, and the
@@ -22,7 +24,14 @@ function sectionTitle(pathname: string): string {
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const access = useMyAccess(); // what this person may do (company-wide): decides the menu, the pages and the buttons
+  const router = useRouter();
+  const { user } = useAuth();
+  // Client accounts have their own portal; the staff app (and its menus) is never shown to them.
+  // Known from the role when "who am I" carries it; otherwise from the server refusing the staff access check (403).
+  const roleSaysClient = roleOf(user) === "CLIENT";
+  // What this person may do (company-wide): decides the menu, the pages and the buttons. Not asked for a client.
+  const access = useMyAccess({ enabled: !roleSaysClient });
+  const isClient = roleSaysClient || access.isClientAccount;
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -51,6 +60,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       document.body.style.overflow = previousOverflow;
     };
   }, [open, closeMenu]);
+
+  // replace, not push: the back button shouldn't return to a page the account can't use
+  useEffect(() => {
+    if (isClient) router.replace("/client");
+  }, [isClient, router]);
+
+  if (isClient) return <div aria-busy="true" className="min-h-dvh bg-[#f4f1ec]" />;
 
   return (
     <ProjectAccessProvider value={access}>

@@ -2,7 +2,7 @@
 
 import { memo, type ReactNode } from "react";
 import Link from "next/link";
-import { FiAlertTriangle, FiChevronRight, FiClock, FiDollarSign, FiInbox, FiTruck, FiUserPlus } from "react-icons/fi";
+import { FiAlertTriangle, FiChevronRight, FiClock, FiCreditCard, FiDollarSign, FiInbox, FiTruck, FiUserPlus } from "react-icons/fi";
 import type { AdminOverview, NeedItem, ProjectStatus } from "@/lib/dashboard/types";
 import { ago, inrShort, pct } from "@/lib/dashboard/format";
 
@@ -45,7 +45,7 @@ export const BudgetByProject = memo(function BudgetByProject({ data }: { data: A
         </p>
       </div>
       {total > 0 && (
-        <div aria-hidden className="flex h-3 gap-0.5 overflow-hidden rounded-full bg-stone-100">
+        <div aria-hidden className="flex h-3 gap-[2px] overflow-hidden rounded-full bg-stone-100">
           {data.projects.map((p, i) =>
             p.budget ? <span key={p.id} style={{ width: `${Math.min(100, (p.spent / total) * 100)}%`, background: colorOf(i) }} /> : null
           )}
@@ -91,7 +91,7 @@ export const ProjectsTable = memo(function ProjectsTable({ data }: { data: Admin
         <p className="p-6 text-center text-sm text-stone-500">No ongoing projects.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-160 text-sm">
+          <table className="w-full min-w-[640px] text-sm">
             <thead className="text-left text-xs text-stone-500">
               <tr>
                 <th className="px-4 py-2.5 font-medium">Project</th>
@@ -144,6 +144,7 @@ const NEED_LOOK: Record<NeedItem["kind"], { Icon: typeof FiInbox; cls: string }>
   late: { Icon: FiTruck, cls: "bg-red-100 text-red-800" },
   budget: { Icon: FiAlertTriangle, cls: "bg-red-100 text-red-800" },
   rates: { Icon: FiDollarSign, cls: "bg-stone-100 text-stone-700" },
+  payments: { Icon: FiCreditCard, cls: "bg-green-100 text-green-800" },
 };
 
 export const NeedsYou = memo(function NeedsYou({ data }: { data: AdminOverview }) {
