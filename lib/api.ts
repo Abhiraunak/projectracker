@@ -33,6 +33,8 @@ export interface ApiProject {
 export interface ProjectSummary {
   id: string;
   title: string;
+  /** The firm or client name on the project tile (optional: older API versions don't send it) */
+  firmName?: string | null;
   status: ProjectStatus;
   taskCount: number;
   attendanceCount: number;
