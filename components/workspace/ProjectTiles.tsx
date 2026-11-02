@@ -1,13 +1,13 @@
 "use client";
 
-import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
-import { FiSearch } from "react-icons/fi";
+import { useDeferredValue, useMemo, useState } from "react";
+import { FiPlus, FiSearch } from "react-icons/fi";
+import { useCan } from "@/hooks/useProjectAccess";
 import { useProjects } from "@/hooks/useLabourProjects";
 import { usePrefetchProject } from "@/hooks/useProjectHub";
-import { hrefFor, onPlaceClick } from "@/hooks/useWorkspacePlace";
-import { rupeesShort, shortDate } from "@/lib/projects/hub";
-import type { ProjectSummary } from "@/lib/api";
-import { EmptyState, ProgressRing, SectionError } from "./ui";
+import { EmptyState, SectionError } from "./ui";
+import { ProjectTile } from "./ProjectTile";
+import { NewProjectDialog } from "./NewProjectDialog";
 
 type Filter = "ONGOING" | "COMPLETED";
 const SEARCH_FROM = 7; // a search box only once there are enough projects to need one
@@ -18,6 +18,8 @@ export function ProjectTiles() {
   const [search, setSearch] = useState("");
   const projects = useProjects(filter);
   const prefetch = usePrefetchProject();
+  const canCreate = useCan("project.manage");
+  const [creating, setCreating] = useState(false);
 
   // Typing stays instant: the list filters a moment behind the keystrokes when there are many projects
   const query = useDeferredValue(search.trim().toLowerCase());
@@ -45,6 +47,7 @@ export function ProjectTiles() {
             </button>
           ))}
         </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         {all && all.length >= SEARCH_FROM && (
           <label className="relative block sm:w-72">
             <span className="sr-only">Find a project</span>
@@ -58,12 +61,23 @@ export function ProjectTiles() {
             />
           </label>
         )}
+        {canCreate && (
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-stone-900 px-4 text-sm font-medium text-white hover:bg-stone-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2"
+          >
+            <FiPlus aria-hidden /> New project
+          </button>
+        )}
+        </div>
       </div>
+      {creating && <NewProjectDialog onClose={() => setCreating(false)} />}
 
       {projects.isPending ? (
         <TileGrid>
           {[0, 1, 2].map((i) => (
-            <li key={i} aria-hidden className="h-40 animate-pulse rounded-xl bg-stone-100 motion-reduce:animate-none" />
+            <li key={i} aria-hidden className="h-80 animate-pulse rounded-xl bg-stone-100 motion-reduce:animate-none" />
           ))}
         </TileGrid>
       ) : projects.isError ? (
@@ -71,8 +85,7 @@ export function ProjectTiles() {
       ) : shown.length === 0 ? (
         <EmptyState
           title={query ? "No project matches that" : filter === "ONGOING" ? "No ongoing projects" : "No completed projects"}
-          hint={query ? "Try part of the name or the firm." : filter === "ONGOING" ? "Projects are created on the Project page." : undefined}
-          action={!query && filter === "ONGOING" ? { href: "/dashboard/labour", label: "Go to Project page" } : undefined}
+          hint={query ? "Try part of the name or the firm." : filter === "ONGOING" && canCreate ? "Use New project to start one." : undefined}
         />
       ) : (
         <TileGrid>
@@ -88,48 +101,3 @@ export function ProjectTiles() {
 const TileGrid = ({ children }: { children: React.ReactNode }) => (
   <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">{children}</ul>
 );
-
-/**
- * One project. Memoised, so a tile re-renders only when its own project's figures change, not when the filter,
- * the search box or another tile does. It is a real link, so "open in new tab" works too.
- */
-const ProjectTile = memo(function ProjectTile({ project: p, onIntent }: { project: ProjectSummary; onIntent: (id: string) => void }) {
-  const place = useMemo(() => ({ projectId: p.id, section: "overview" as const }), [p.id]);
-  const intent = useCallback(() => onIntent(p.id), [onIntent, p.id]);
-  const budget = p.projectCost ?? p.budget;
-  const usedPct = budget > 0 ? Math.min(100, Math.round((p.spent / budget) * 100)) : 0;
-  const over = budget > 0 && p.spent > budget;
-
-  return (
-    <li className="[content-visibility:auto] [contain-intrinsic-size:auto_160px]">
-      <a
-        href={hrefFor(place)}
-        onClick={onPlaceClick(place)}
-        onPointerEnter={intent}
-        onTouchStart={intent}
-        onFocus={intent}
-        className="group flex h-full flex-col gap-4 rounded-xl border border-stone-200 bg-white p-4 transition-[border-color,box-shadow] hover:border-stone-400 hover:shadow-sm focus-visible:border-stone-900 focus-visible:outline-none active:bg-stone-50 sm:p-5"
-      >
-        <div className="flex items-start gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-medium uppercase tracking-wide text-stone-500">{p.firmName || " "}</p>
-            <h2 className="mt-0.5 line-clamp-2 text-base font-semibold leading-snug text-stone-900">{p.title}</h2>
-          </div>
-          <ProgressRing percent={p.progress} />
-        </div>
-
-        <div className="mt-auto">
-          <div className="flex items-baseline justify-between gap-2 text-sm">
-            <span className="text-stone-500">
-              <span className={`font-semibold tabular-nums ${over ? "text-red-700" : "text-stone-900"}`}>{rupeesShort(p.spent)}</span> of {rupeesShort(budget)}
-            </span>
-            {p.endDate && <span className="shrink-0 text-xs text-stone-500">ends {shortDate(p.endDate)}</span>}
-          </div>
-          <div aria-hidden className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-100">
-            <div className={`h-full rounded-full ${over ? "bg-red-600" : "bg-stone-800"}`} style={{ width: `${usedPct}%` }} />
-          </div>
-        </div>
-      </a>
-    </li>
-  );
-});

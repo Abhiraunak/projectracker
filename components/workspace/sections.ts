@@ -1,6 +1,6 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 import type { IconType } from "react-icons";
-import { FiBox, FiClipboard, FiCreditCard, FiFileText, FiPenTool, FiTrendingUp, FiTruck } from "react-icons/fi";
+import { FiBarChart2, FiBox, FiPaperclip, FiClipboard, FiCreditCard, FiFileText, FiPenTool, FiTrendingUp, FiTruck } from "react-icons/fi";
 import type { Permission } from "@/lib/access/types";
 import type { SectionKey } from "@/lib/projects/place";
 import { plural, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
@@ -86,6 +86,27 @@ export const SECTIONS: SectionDef[] = [
         : l.paidAhead > 0.5
           ? { text: `${rupeesShort(l.paidAhead)} paid ahead of work`, tone: "warn" }
           : { text: `Up to date · ${rupeesShort(l.paid)} paid`, tone: "good" },
+  }),
+  def({
+    key: "rates",
+    label: "Rate comparison",
+    Icon: FiBarChart2,
+    needs: "project.view",
+    load: () => import("./sections/RatesSection"),
+    summary: ({ rates: r }) =>
+      !r || r.compared === 0
+        ? { text: "No rates to compare yet" }
+        : Math.abs(r.saving) < 0.5
+          ? { text: "Contractor and in-house cost the same" }
+          : { text: `${r.saving > 0 ? "In-house" : "Contractor"} saves ${rupeesShort(Math.abs(r.saving))}`, tone: "good" },
+  }),
+  def({
+    key: "expenses",
+    label: "Expenditure",
+    Icon: FiPaperclip,
+    needs: "project.view",
+    load: () => import("./sections/ExpensesSection"),
+    summary: () => ({ text: "Daily payments and bills" }),
   }),
   def({
     key: "attendance",

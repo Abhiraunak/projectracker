@@ -1,10 +1,10 @@
 import type { IconType } from "react-icons";
-import { FiBox, FiBriefcase, FiClock, FiFileText, FiGrid, FiLayers, FiPenTool, FiShield, FiTruck, FiUserCheck, FiUsers } from "react-icons/fi";
+import { FiBox, FiBriefcase,  FiFileText, FiGrid, FiLayers, FiPenTool, FiShield,  FiUserCheck } from "react-icons/fi";
 import type { Permission } from "@/lib/access/types";
 import { isFeatureOn, type Feature } from "@/lib/features";
-import { activeHref } from "./Routematch";
+import { activeHref } from "./Routematch"; // must match the file's name exactly, capitals included
 
-
+// FiClock, FiTruck,  FiUsers
 export interface AppRoute {
   title: string;
   href: string;
@@ -24,11 +24,11 @@ const ALL_ROUTES: AppRoute[] = [
   { title: "Projects", href: "/dashboard/projects", Icon: FiLayers, needs: "project.view", feature: "projectHub" },
   { title: "BOQ", href: "/dashboard/boq", Icon: FiFileText, needs: "boq.use" },
   { title: "Drawing", href: "/dashboard/drawing", Icon: FiPenTool, needs: "drawings.use" },
-  { title: "Project", href: "/dashboard/labour", Icon: FiBriefcase, needs: "project.view" },
+  { title: "Labour", href: "/dashboard/labour", Icon: FiBriefcase, needs: "project.view" },
   { title: "Inventory", href: "/dashboard/inventory", Icon: FiBox, needs: "materials.view" },
-  { title: "Deliveries", href: "/dashboard/deliveries", Icon: FiTruck, needs: ["stock.receive", "deliveries.approve"] },
-  { title: "Attendance", href: "/dashboard/attendance", Icon: FiClock, needs: "attendance.punch" },
-  { title: "Team attendance", href: "/dashboard/attendance/team", Icon: FiUsers, needs: "attendance.team" },
+  // { title: "Deliveries", href: "/dashboard/deliveries", Icon: FiTruck, needs: ["stock.receive", "deliveries.approve"] },
+  // { title: "Attendance", href: "/dashboard/attendance", Icon: FiClock, needs: "attendance.punch" },
+  // { title: "Team attendance", href: "/dashboard/attendance/team", Icon: FiUsers, needs: "attendance.team" },
   { title: "Clients", href: "/dashboard/clients", Icon: FiUserCheck, needs: "admin" },
   { title: "Admin", href: "/dashboard/admin", Icon: FiShield, needs: "admin" },
 ];
