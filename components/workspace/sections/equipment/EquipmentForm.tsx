@@ -5,6 +5,7 @@ import { ModalDialog } from "@/components/utilites/ModalDialog";
 import { describeError } from "@/lib/api";
 import type { CategoryKey, EquipmentChanges, RegisterItem } from "@/lib/equipment/api";
 import { useAddEquipment, useUpdateEquipment } from "@/hooks/useEquipment";
+import { rupees } from "@/lib/projects/hub";
 import { goTo } from "@/hooks/useWorkspacePlace";
 import { CATEGORY_LABEL, Choice, field, Label, primaryBtn, quietBtn, todayLocal } from "./shared";
 
@@ -19,11 +20,14 @@ export function EquipmentForm({
   projectId,
   projects,
   item,
+  nextNumber,
   onClose,
 }: {
   projectId: string;
   projects: { id: string; title: string }[];
   item?: RegisterItem;
+  /** The number a new item will most likely get, e.g. "EQ-0008" */
+  nextNumber?: string;
   onClose: () => void;
 }) {
   const add = useAddEquipment();
@@ -41,12 +45,17 @@ export function EquipmentForm({
   const [code, setCode] = useState(item?.code ?? "");
   const [serviceDue, setServiceDue] = useState(item?.serviceDue ?? "");
   const [notes, setNotes] = useState(item?.notes ?? "");
+  const [unitCost, setUnitCost] = useState(item?.unitCost?.toString() ?? "");
+  const [marketValue, setMarketValue] = useState(item?.marketValue?.toString() ?? "");
   const [quantity, setQuantity] = useState("");
   const [where, setWhere] = useState<string>(() => (projects.some((p) => p.id === projectId) ? projectId : "")); // "" = the yard
   const [date, setDate] = useState(todayLocal());
   const [more, setMore] = useState(Boolean(item?.code || item?.serviceDue || item?.notes));
 
   const qtyNum = Number(quantity);
+  // How many the totals are for: what's being added, or what the item has now
+  const units = item ? item.total : qtyNum > 0 ? qtyNum : 0;
+  const unitWord = unit === "nos" ? "piece" : unit || "unit";
   const valid = name.trim() && unit.trim() && (item || qtyNum > 0) && (ownership === "owned" || hireRate === "" || Number(hireRate) >= 0);
 
   const submit = async (e: React.FormEvent) => {
@@ -63,6 +72,9 @@ export function EquipmentForm({
       code: code.trim() || null,
       serviceDue: serviceDue || null,
       notes: notes.trim(),
+      // Cost and value are for own equipment; a hired item keeps none
+      unitCost: ownership === "owned" && unitCost !== "" ? Number(unitCost) : null,
+      marketValue: ownership === "owned" && marketValue !== "" ? Number(marketValue) : null,
     };
     try {
       if (item) {
@@ -81,7 +93,15 @@ export function EquipmentForm({
   return (
     <ModalDialog open onClose={onClose} label={item ? `Edit ${item.name}` : "Add equipment"} size="lg" locked={busy}>
       <form onSubmit={submit} className="space-y-4 p-5">
-        <h2 className="text-lg font-semibold">{item ? `Edit ${item.name}` : "Add equipment"}</h2>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-lg font-semibold">{item ? `Edit ${item.name}` : "Add equipment"}</h2>
+          {/* Our own running number: given automatically, never typed */}
+          {(item?.number ?? nextNumber) && (
+            <span className="rounded bg-stone-100 px-2 py-0.5 font-mono text-sm text-stone-700" title={item ? "Equipment number" : "The number this item will get"}>
+              {item?.number ?? nextNumber}
+            </span>
+          )}
+        </div>
 
         <Label text="Name">
           <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={120} autoFocus placeholder="e.g. Steel plates 2×1 ft, Concrete mixer" className={field} />
@@ -142,6 +162,22 @@ export function EquipmentForm({
           ]}
           onChange={setOwnership}
         />
+        {ownership === "owned" && (
+          <div className="grid grid-cols-2 gap-3 rounded-lg bg-stone-50 p-3">
+            <Label text={`Cost per ${unitWord}`} optional>
+              <input value={unitCost} onChange={(e) => setUnitCost(e.target.value)} type="number" min="0" step="any" inputMode="decimal" placeholder="₹" className={`${field} tabular-nums`} />
+            </Label>
+            <Label text={`Market value per ${unitWord}`} optional>
+              <input value={marketValue} onChange={(e) => setMarketValue(e.target.value)} type="number" min="0" step="any" inputMode="decimal" placeholder="₹ today" className={`${field} tabular-nums`} />
+            </Label>
+            {units > 0 && (unitCost !== "" || marketValue !== "") && (
+              <p className="col-span-2 text-xs text-stone-600">
+                For {units.toLocaleString("en-IN")} {unit}:{" "}
+                {[unitCost !== "" && `cost ${rupees(units * Number(unitCost))}`, marketValue !== "" && `worth ${rupees(units * Number(marketValue))} today`].filter(Boolean).join(" · ")}
+              </p>
+            )}
+          </div>
+        )}
         {ownership === "hired" && (
           <div className="grid grid-cols-2 gap-3 rounded-lg bg-stone-50 p-3">
             <Label text={`Rate per ${unit === "nos" ? "piece" : unit || "unit"}`} optional>
@@ -163,7 +199,7 @@ export function EquipmentForm({
 
         {more ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Label text="Tag or serial no." optional>
+            <Label text="Maker's serial no." optional>
               <input value={code} onChange={(e) => setCode(e.target.value)} maxLength={60} className={field} />
             </Label>
             <Label text="Next service" optional>
@@ -184,7 +220,7 @@ export function EquipmentForm({
           </div>
         ) : (
           <button type="button" onClick={() => setMore(true)} className="min-h-10 text-sm font-medium text-stone-600 underline">
-            More details: serial no., service date, notes
+            More details: maker&apos;s serial no., service date, notes
           </button>
         )}
 

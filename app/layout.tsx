@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { NoWheelOnNumberInputs } from "@/components/utilites/NoWheelOnNumberInputs";
 
 const outfit = Outfit({
   subsets: ['latin'],
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <Providers>
+          <NoWheelOnNumberInputs />
           {children}
         </Providers>
       </body>

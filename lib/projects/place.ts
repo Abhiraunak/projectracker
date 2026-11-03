@@ -3,7 +3,7 @@
  * The item is a place inside a section, such as one material tile ("steel") on the Materials section.
  * So the back button, a refresh, a bookmark or a shared link all land on the same screen.
  */
-export const SECTION_KEYS = ["overview", "progress", "drawings", "boq", "materials", "payments", "attendance", "equipment"] as const;
+export const SECTION_KEYS = ["overview", "progress", "drawings", "boq", "materials", "payments", "rates", "expenses", "attendance", "equipment"] as const;
 export type SectionKey = (typeof SECTION_KEYS)[number];
 
 export interface Place {

@@ -35,7 +35,7 @@ export function ProjectWorkspace() {
         <ProjectHub key={projectId} projectId={projectId} />
       ) : (
         <>
-          <h1 className="mb-5 text-xl font-semibold tracking-tight sm:text-2xl">Streat House projects</h1>
+          <h1 className="mb-5 text-xl font-semibold tracking-tight sm:text-2xl">street-house projects</h1>
           <ProjectTiles />
         </>
       )}

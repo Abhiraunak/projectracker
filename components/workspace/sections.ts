@@ -4,7 +4,6 @@ import { FiBarChart2, FiBox, FiPaperclip, FiClipboard, FiCreditCard, FiFileText,
 import type { Permission } from "@/lib/access/types";
 import type { SectionKey } from "@/lib/projects/place";
 import { plural, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
-import { isFeatureOn } from "@/lib/features";
 
 type SectionProps = { projectId: string };
 type Loader = () => Promise<{ default: ComponentType<SectionProps> }>;
@@ -34,8 +33,7 @@ export const SECTIONS: SectionDef[] = [
     label: "Progress",
     Icon: FiTrendingUp,
     needs: "project.view",
-    // Phase 2: the Progress page (budget, time, time-line) when switched on; until then, today's tracker
-    load: isFeatureOn("progress") ? () => import("./sections/ProgressPage") : () => import("./sections/ProgressSection"),
+    load: () => import("./sections/ProgressPage"),
     summary: ({ progress: p }) =>
       p.items === 0
         ? { text: "No work items yet" }
@@ -48,8 +46,7 @@ export const SECTIONS: SectionDef[] = [
     label: "Drawings",
     Icon: FiPenTool,
     needs: "drawings.use",
-    // Phase 4: drawings by number, with revisions, when switched on; until then, today's gallery
-    load: isFeatureOn("drawingsByProject") ? () => import("./sections/DrawingsBook") : () => import("./sections/DrawingsSection"),
+    load: () => import("./sections/DrawingsBook"),
     summary: ({ drawings }) => ({ text: drawings ? plural(drawings.count, "drawing") : "" }),
   }),
   def({
@@ -66,8 +63,7 @@ export const SECTIONS: SectionDef[] = [
     label: "Materials",
     Icon: FiBox,
     needs: "materials.view",
-    // Phase 3: material tiles and sheets when switched on; until then, today's inventory screen
-    load: isFeatureOn("materialSheet") ? () => import("./sections/MaterialsBook") : () => import("./sections/MaterialsSection"),
+    load: () => import("./sections/MaterialsBook"),
     summary: ({ materials: m }) => {
       if (!m) return { text: "" };
       const waiting = [m.openAlerts && plural(m.openAlerts, "alert"), m.pendingRequests && `${plural(m.pendingRequests, "request")} waiting`].filter(Boolean);
@@ -92,6 +88,7 @@ export const SECTIONS: SectionDef[] = [
     label: "Rate comparison",
     Icon: FiBarChart2,
     needs: "project.view",
+    // The Project page's contractor vs in-house grid (components/labour/ComparisonGrid)
     load: () => import("./sections/RatesSection"),
     summary: ({ rates: r }) =>
       !r || r.compared === 0
@@ -119,22 +116,17 @@ export const SECTIONS: SectionDef[] = [
         ? { text: "Nothing recorded yet" }
         : { text: `Last ${shortDate(a.lastDate)} · ${rupeesShort(a.amountThisWeek)} this week` },
   }),
-  // Phase 6: shuttering, machinery and the rest at this site (FEATURES=equipment)
-  ...(isFeatureOn("equipment")
-    ? [
-        def({
-          key: "equipment",
-          label: "Equipment",
-          Icon: FiTruck,
-          needs: "equipment.view",
-          load: () => import("./sections/EquipmentBook"),
-          summary: ({ equipment: e }) =>
-            !e || e.items === 0
-              ? { text: "Nothing here yet" }
-              : { text: `${plural(e.items, "item")} here${e.hireThisMonth > 0 ? ` · ${rupeesShort(e.hireThisMonth)} hire this month` : ""}` },
-        }),
-      ]
-    : []),
+  def({
+    key: "equipment",
+    label: "Equipment",
+    Icon: FiTruck,
+    needs: "equipment.view",
+    load: () => import("./sections/EquipmentBook"),
+    summary: ({ equipment: e }) =>
+      !e || e.items === 0
+        ? { text: "Nothing here yet" }
+        : { text: `${plural(e.items, "item")} here${e.hireThisMonth > 0 ? ` · ${rupeesShort(e.hireThisMonth)} hire this month` : ""}` },
+  }),
 ];
 
 export const sectionByKey = new Map(SECTIONS.map((s) => [s.key, s]));

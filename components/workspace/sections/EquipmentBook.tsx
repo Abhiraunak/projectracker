@@ -1,16 +1,18 @@
 "use client";
 
 import { memo, useMemo, useState } from "react";
-import { FiAlertTriangle, FiArrowLeft, FiChevronRight, FiCornerDownLeft, FiEdit2, FiMinusCircle, FiPlus, FiSearch, FiTool, FiTruck } from "react-icons/fi";
+import { FiAlertTriangle, FiArrowLeft, FiChevronRight, FiCornerDownLeft, FiEdit2, FiMinusCircle, FiPlus, FiPrinter, FiSearch, FiTool, FiTruck } from "react-icons/fi";
 import { useCan } from "@/hooks/useProjectAccess";
 import { useEquipmentItem, useEquipmentRegister, useSiteEquipment, useUndoMove } from "@/hooks/useEquipment";
+import { useProjectHub } from "@/hooks/useProjectHub";
 import { hrefFor, onPlaceClick, useWorkspaceItem } from "@/hooks/useWorkspacePlace";
 import { describeError } from "@/lib/api";
-import { CONDITION_LABEL, hireLabel, qty, type CategoryKey, type EquipmentDetail, type HistoryEntry, type MoveKind, type RegisterItem, type SiteItem } from "@/lib/equipment/api";
+import { CONDITION_LABEL, hireLabel, qty, totalAt, type CategoryKey, type EquipmentDetail, type HistoryEntry, type MoveKind, type RegisterItem, type SiteItem } from "@/lib/equipment/api";
 import { rupees, rupeesShort } from "@/lib/projects/hub";
 import { EmptyState, SectionError, SectionSkeleton } from "../ui";
 import { EquipmentForm } from "./equipment/EquipmentForm";
 import { BringDialog, MoveDialog, type Movable } from "./equipment/MoveDialog";
+import { PrintRegister, PrintSite } from "./equipment/EquipmentPrint";
 import { CATEGORY_LABEL, ConditionBadge, daysSince, field, longDate, outlineBtn, primaryBtn, todayLocal } from "./equipment/shared";
 
 const REGISTER = "register"; // ?i=register: every item, at every site and in the yard
@@ -41,7 +43,7 @@ function Dialogs({ projectId, dialog, onClose }: { projectId: string; dialog: Di
   if (!register.data) return register.isError ? <p role="alert" className="text-sm text-red-700">{describeError(register.error)}</p> : null;
   const projects = register.data.projects;
   if (dialog.type === "bring") return <BringDialog projectId={projectId} register={register.data} onClose={onClose} />;
-  if (dialog.type === "new") return <EquipmentForm projectId={projectId} projects={projects} onClose={onClose} />;
+  if (dialog.type === "new") return <EquipmentForm projectId={projectId} projects={projects} nextNumber={register.data.nextNumber} onClose={onClose} />;
   if (dialog.type === "edit") return <EquipmentForm projectId={projectId} projects={projects} item={dialog.item} onClose={onClose} />;
   return <MoveDialog item={dialog.item} kind={dialog.kind} projects={projects} from={dialog.from} to={dialog.to} onClose={onClose} />;
 }
@@ -72,6 +74,8 @@ function SiteView({ projectId }: { projectId: string }) {
   const site = useSiteEquipment(projectId);
   const canManage = useCan("equipment.manage");
   const [dialog, setDialog] = useState<Dialog | null>(null);
+  const [printing, setPrinting] = useState(false);
+  const siteName = useProjectHub(projectId).data?.project.title ?? "this site"; // already loaded by the project page
   const [category, setCategory] = useState<CategoryKey | null>(null);
   const all = { projectId, section: "equipment" as const, item: REGISTER };
 
@@ -99,6 +103,16 @@ function SiteView({ projectId }: { projectId: string }) {
           {canManage && (
             <button type="button" onClick={() => setDialog({ type: "bring" })} className={`${primaryBtn} inline-flex items-center gap-2`}>
               <FiTruck aria-hidden /> Bring equipment here
+            </button>
+          )}
+          {canManage && (
+            <button type="button" onClick={() => setDialog({ type: "new" })} className={outlineBtn}>
+              <FiPlus aria-hidden /> Add equipment
+            </button>
+          )}
+          {data.items.length > 0 && (
+            <button type="button" onClick={() => setPrinting(true)} className={outlineBtn}>
+              <FiPrinter aria-hidden /> Print
             </button>
           )}
           <a href={hrefFor(all)} onClick={onPlaceClick(all)} className={outlineBtn}>
@@ -152,7 +166,27 @@ function SiteView({ projectId }: { projectId: string }) {
       )}
 
       <Dialogs projectId={projectId} dialog={dialog} onClose={() => setDialog(null)} />
+      {printing && <PrintSite items={shown} site={siteName} onDone={() => setPrinting(false)} />}
     </div>
+  );
+}
+
+/** What the listed equipment cost and what it is worth today (own equipment with those amounts set) */
+function ValueTotals({ items }: { items: RegisterItem[] }) {
+  const cost = items.reduce((s, i) => s + (totalAt(i.total, i.unitCost) ?? 0), 0);
+  const value = items.reduce((s, i) => s + (totalAt(i.total, i.marketValue) ?? 0), 0);
+  if (!cost && !value) return null;
+  return (
+    <dl className="flex flex-wrap gap-x-8 gap-y-1 text-sm text-stone-600">
+      <div>
+        <dt className="inline">Cost </dt>
+        <dd className="inline font-semibold tabular-nums text-stone-900">{rupees(cost)}</dd>
+      </div>
+      <div>
+        <dt className="inline">Current market value </dt>
+        <dd className="inline font-semibold tabular-nums text-stone-900">{rupees(value)}</dd>
+      </div>
+    </dl>
   );
 }
 
@@ -188,6 +222,7 @@ const SiteRow = memo(function SiteRow({
     <li className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:gap-4">
       <a href={hrefFor(place)} onClick={onPlaceClick(place)} className="min-w-0 flex-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500">
         <span className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-xs text-stone-500">{i.number}</span>
           <span className="font-medium text-stone-900 hover:underline">{i.name}</span>
           <ConditionBadge condition={i.condition} />
           {due && (
@@ -229,6 +264,7 @@ function RegisterView({ projectId }: { projectId: string }) {
   const register = useEquipmentRegister();
   const canManage = useCan("equipment.manage");
   const [dialog, setDialog] = useState<Dialog | null>(null);
+  const [printing, setPrinting] = useState(false);
   const [q, setQ] = useState("");
   const [category, setCategory] = useState<CategoryKey | null>(null);
   const [retired, setRetired] = useState(false);
@@ -236,7 +272,7 @@ function RegisterView({ projectId }: { projectId: string }) {
   const list = useMemo(() => {
     const words = q.trim().toLowerCase();
     return (register.data?.items ?? [])
-      .filter((i) => (retired || !i.retired) && (!category || i.category === category) && (!words || `${i.name} ${i.code ?? ""} ${i.supplier ?? ""}`.toLowerCase().includes(words)))
+      .filter((i) => (retired || !i.retired) && (!category || i.category === category) && (!words || `${i.number} ${i.name} ${i.code ?? ""} ${i.supplier ?? ""}`.toLowerCase().includes(words)))
       .sort((x, y) => Number(y.total > 0) - Number(x.total > 0)); // none left: at the end
   }, [register.data, q, category, retired]);
 
@@ -255,12 +291,19 @@ function RegisterView({ projectId }: { projectId: string }) {
           <FiSearch aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
           <input value={q} onChange={(e) => setQ(e.target.value)} type="search" aria-label="Find equipment" placeholder="Find equipment" className={`${field} mt-0 pl-9`} />
         </div>
+        {list.length > 0 && (
+          <button type="button" onClick={() => setPrinting(true)} className={`${outlineBtn} justify-center`}>
+            <FiPrinter aria-hidden /> Print list
+          </button>
+        )}
         {canManage && (
           <button type="button" onClick={() => setDialog({ type: "new" })} className={`${primaryBtn} inline-flex items-center justify-center gap-2`}>
             <FiPlus aria-hidden /> Add equipment
           </button>
         )}
       </div>
+
+      <ValueTotals items={list} />
 
       {present.length > 1 && (
         <div role="group" aria-label="Kind" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
@@ -289,6 +332,13 @@ function RegisterView({ projectId }: { projectId: string }) {
       )}
 
       <Dialogs projectId={projectId} dialog={dialog} onClose={() => setDialog(null)} />
+      {printing && (
+        <PrintRegister
+          items={list}
+          heading={[category ? data.categories.find((c) => c.key === category)?.label : "All kinds", q.trim() && `matching "${q.trim()}"`].filter(Boolean).join(" · ")}
+          onDone={() => setPrinting(false)}
+        />
+      )}
     </div>
   );
 }
@@ -301,6 +351,7 @@ const RegisterRow = memo(function RegisterRow({ projectId, item: i }: { projectI
       <a href={hrefFor(place)} onClick={onPlaceClick(place)} className={`flex min-h-16 items-center gap-3 px-4 py-3 hover:bg-stone-50 ${i.retired ? "opacity-60" : ""}`}>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
+            <span className="font-mono text-xs text-stone-500">{i.number}</span>
             <span className="font-medium text-stone-900">{i.name}</span>
             {i.retired && <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">Retired</span>}
             {here > 0 && <span className="rounded bg-orange-50 px-1.5 py-0.5 text-xs font-medium text-orange-800">{qty(here)} here</span>}
@@ -313,7 +364,9 @@ const RegisterRow = memo(function RegisterRow({ projectId, item: i }: { projectI
           <span className="block font-semibold tabular-nums text-stone-900">
             {qty(i.total)} <span className="font-normal text-stone-500">{i.unit}</span>
           </span>
-          <span className="block text-xs text-stone-500">{i.ownership === "hired" ? "Hired" : CATEGORY_LABEL[i.category]}</span>
+          <span className="block text-xs text-stone-500">
+            {i.ownership === "hired" ? "Hired" : totalAt(i.total, i.marketValue) !== null ? `worth ${rupeesShort(totalAt(i.total, i.marketValue)!)}` : CATEGORY_LABEL[i.category]}
+          </span>
         </span>
         <FiChevronRight aria-hidden className="shrink-0 text-stone-300" />
       </a>
@@ -346,14 +399,36 @@ function ItemView({ projectId, id }: { projectId: string; id: string }) {
 
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
+          <p className="font-mono text-sm text-stone-500">{d.number}</p>
           <h2 className="text-xl font-semibold">{d.name}</h2>
           <p className="mt-0.5 text-sm text-stone-500">
-            {[CATEGORY_LABEL[d.category], hireLabel(d), d.supplier && `${d.ownership === "hired" ? "from" : "bought from"} ${d.supplier}`, d.code && `No. ${d.code}`].filter(Boolean).join(" · ")}
+            {[CATEGORY_LABEL[d.category], hireLabel(d), d.supplier && `${d.ownership === "hired" ? "from" : "bought from"} ${d.supplier}`, d.code && `Maker's serial ${d.code}`].filter(Boolean).join(" · ")}
           </p>
           {d.serviceDue && (
             <p className={`mt-1 inline-flex items-center gap-1 text-sm ${d.serviceDue <= today ? "font-medium text-amber-800" : "text-stone-500"}`}>
               <FiTool aria-hidden /> {d.serviceDue <= today ? "Service due since" : "Next service"} {longDate(d.serviceDue)}
             </p>
+          )}
+          {(d.unitCost !== null || d.marketValue !== null) && (
+            <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+              {d.unitCost !== null && (
+                <div>
+                  <dt className="inline text-stone-500">Cost </dt>
+                  <dd className="inline tabular-nums text-stone-900">
+                    {rupees(d.unitCost)} each · <span className="font-semibold">{rupees(totalAt(d.total, d.unitCost)!)}</span> for {qty(d.total)}
+                  </dd>
+                </div>
+              )}
+              {d.marketValue !== null && (
+                <div>
+                  <dt className="inline text-stone-500">Market value </dt>
+                  <dd className="inline tabular-nums text-stone-900">
+                    {rupees(d.marketValue)} each · <span className="font-semibold">{rupees(totalAt(d.total, d.marketValue)!)}</span> for {qty(d.total)}
+                    {d.marketValueOn && <span className="text-stone-500"> (as of {longDate(d.marketValueOn)})</span>}
+                  </dd>
+                </div>
+              )}
+            </dl>
           )}
           {d.notes && <p className="mt-2 max-w-prose whitespace-pre-line text-sm text-stone-600">{d.notes}</p>}
         </div>
@@ -516,4 +591,3 @@ function History({ item, canManage }: { item: EquipmentDetail; canManage: boolea
     </section>
   );
 }
-

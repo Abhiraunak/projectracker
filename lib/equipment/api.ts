@@ -1,5 +1,6 @@
 import { request } from "@/lib/api";
 
+/* Phase 6: the equipment register. The same shapes the API sends. */
 
 export type CategoryKey = "shuttering" | "scaffolding" | "machinery" | "tools" | "other";
 export type MoveKind = "add" | "move" | "write_off";
@@ -12,6 +13,9 @@ export interface Category {
 
 interface ItemDetails {
   id: string;
+  /** Our running number, 1, 2, 3…, and how it reads: "EQ-0001" */
+  serialNo: number;
+  number: string;
   name: string;
   category: CategoryKey;
   unit: string;
@@ -22,6 +26,11 @@ interface ItemDetails {
   supplier: string | null;
   serviceDue: string | null;
   notes: string;
+  /** Per unit, in ₹: what one cost to buy, and what one is worth today (own equipment) */
+  unitCost: number | null;
+  marketValue: number | null;
+  /** When the market value was last set (YYYY-MM-DD) */
+  marketValueOn: string | null;
   retired: boolean;
   updatedAt: string;
 }
@@ -40,6 +49,8 @@ export interface RegisterItem extends ItemDetails {
 }
 
 export interface Register {
+  /** The number the next item added will most likely get, e.g. "EQ-0008" */
+  nextNumber?: string;
   categories: Category[];
   projects: { id: string; title: string }[];
   items: RegisterItem[];
@@ -92,6 +103,8 @@ export interface NewEquipment {
   supplier: string | null;
   serviceDue: string | null;
   notes: string;
+  unitCost: number | null;
+  marketValue: number | null;
   quantity: number;
   to: string | null; // null: the yard
   date: string;
@@ -115,13 +128,16 @@ export const equipmentApi = {
   register: () => request<Register>("/equipment"),
   get: (id: string) => request<EquipmentDetail>(`/equipment/${enc(id)}`),
   atSite: (projectId: string) => request<SiteEquipment>(`/projects/${enc(projectId)}/equipment`),
-  create: (body: NewEquipment) => request<{ id: string }>("/equipment", { method: "POST", body: JSON.stringify(body) }),
+  create: (body: NewEquipment) => request<{ id: string; number: string }>("/equipment", { method: "POST", body: JSON.stringify(body) }),
   update: (id: string, body: EquipmentChanges) => request<{ id: string }>(`/equipment/${enc(id)}`, { method: "PATCH", body: JSON.stringify(body) }),
   move: (id: string, body: NewMove) => request<{ id: string }>(`/equipment/${enc(id)}/moves`, { method: "POST", body: JSON.stringify(body) }),
   undo: (id: string, moveId: string) => request<{ ok: true }>(`/equipment/${enc(id)}/moves/${enc(moveId)}`, { method: "DELETE" }),
 };
 
 /* ---------------------------------------- formatting ---------------------------------------- */
+
+/** Total for a number of units at a per-unit amount; null when the amount isn't known */
+export const totalAt = (units: number, each: number | null) => (each === null ? null : Math.round(units * each * 100) / 100);
 
 export const qty = (n: number) => (Number.isInteger(n) ? n.toLocaleString("en-IN") : n.toLocaleString("en-IN", { maximumFractionDigits: 2 }));
 export const CONDITION_LABEL: Record<Condition, string> = { good: "Good", repair: "Needs repair", damaged: "Damaged" };
