@@ -9,7 +9,7 @@ import { WorkerRows } from "./WorkerRows";
 export function LabourDetails({ api }: { api: AttendanceFormApi }) {
   const { form, severalDays } = api;
   return (
-    <fieldset className="rounded border border-stone-300 p-4">
+    <fieldset className="min-w-0 rounded border border-stone-300 p-4">
       <legend className="sr-only">Labour details</legend>
       <div className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
