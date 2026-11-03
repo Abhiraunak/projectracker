@@ -70,19 +70,19 @@ export const SECTIONS: SectionDef[] = [
       return waiting.length ? { text: waiting.join(" · "), tone: "warn" } : { text: `${rupeesShort(m.spent)} received · all in order`, tone: "good" };
     },
   }),
-  def({
-    key: "payments",
-    label: "Labour payment",
-    Icon: FiCreditCard,
-    needs: "project.view",
-    load: () => import("./sections/PaymentsSection"),
-    summary: ({ labour: l }) =>
-      l.due > 0.5
-        ? { text: `${rupeesShort(l.due)} due for work done`, tone: "warn" }
-        : l.paidAhead > 0.5
-          ? { text: `${rupeesShort(l.paidAhead)} paid ahead of work`, tone: "warn" }
-          : { text: `Up to date · ${rupeesShort(l.paid)} paid`, tone: "good" },
-  }),
+  // def({
+  //   key: "payments",
+  //   label: "Labour payment",
+  //   Icon: FiCreditCard,
+  //   needs: "project.view",
+  //   load: () => import("./sections/PaymentsSection"),
+  //   summary: ({ labour: l }) =>
+  //     l.due > 0.5
+  //       ? { text: `${rupeesShort(l.due)} due for work done`, tone: "warn" }
+  //       : l.paidAhead > 0.5
+  //         ? { text: `${rupeesShort(l.paidAhead)} paid ahead of work`, tone: "warn" }
+  //         : { text: `Up to date · ${rupeesShort(l.paid)} paid`, tone: "good" },
+  // }),
   def({
     key: "rates",
     label: "Rate comparison",
@@ -107,7 +107,7 @@ export const SECTIONS: SectionDef[] = [
   }),
   def({
     key: "attendance",
-    label: "Labour attendance",
+    label: "Labour",
     Icon: FiClipboard,
     needs: "attendance.view",
     load: () => import("./sections/AttendanceSection"),

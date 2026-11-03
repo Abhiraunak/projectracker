@@ -10,6 +10,7 @@ import { rupees, shortDate } from "@/lib/projects/hub";
 import { EXPENSE_SECTIONS, type ExpenseCategory } from "@/lib/projects/expenses";
 import { EmptyState, SectionError, SectionSkeleton } from "../ui";
 
+const ALL: ExpenseCategory[] = ["general", "labour", "material"];
 const field = "mt-1 min-h-11 w-full rounded-lg border border-stone-300 bg-white px-3 text-sm focus:border-stone-900 focus:outline-none";
 
 /** Local date: toISOString() would give yesterday early in the morning in India */
@@ -21,37 +22,51 @@ const todayLocal = () => {
 /**
  * Expenditure: money paid each day, in three sections (General, Labour, Material), each with its purpose,
  * a remark and the bill. The switch at the top picks the section; the totals, the list and the form follow it.
+ *
+ * `sections` picks which parts show, so other pages can reuse this:
+ *   <ExpensesSection projectId={id} />                          all three, with the switch (the Expenditure tab)
+ *   <ExpensesSection projectId={id} sections={["labour"]} />    only Labour, no switch (the Labour page)
+ *   <ExpensesSection projectId={id} sections={["material"]} />  only Material, no switch (Materials)
  */
-export default function ExpensesSection({ projectId }: { projectId: string }) {
+export default function ExpensesSection({ projectId, sections = ALL }: { projectId: string; sections?: ExpenseCategory[] }) {
   const book = useExpenses(projectId);
   const canAdd = useCan("project.manage");
   const remove = useRemoveExpense(projectId);
-  const [section, setSection] = useState<ExpenseCategory>("general");
+  const shown = EXPENSE_SECTIONS.filter((s) => sections.includes(s.key));
+  const parts = shown.length > 0 ? shown : EXPENSE_SECTIONS; // an empty list would show nothing: show all instead
+  const [picked, setSection] = useState<ExpenseCategory>(parts[0]!.key);
+  const section = parts.some((s) => s.key === picked) ? picked : parts[0]!.key; // the list changed: first one shown
 
   if (book.isPending) return <SectionSkeleton />;
   if (book.isError) return <SectionError error={book.error} onRetry={() => void book.refetch()} />;
-  const current = EXPENSE_SECTIONS.find((s) => s.key === section)!;
+  const current = parts.find((s) => s.key === section)!;
   // An older API sends no sections: everything then counts as General
   const items = book.data.items.filter((e) => (e.category ?? "general") === section);
   const totals = book.data.byCategory?.[section] ?? (section === "general" ? book.data : { total: 0, thisMonth: 0 });
+  const many = parts.length > 1;
+  // "All sections this month": only the sections shown here
+  const shownThisMonth = parts.reduce((sum, s) => sum + (book.data.byCategory?.[s.key]?.thisMonth ?? 0), 0);
 
   return (
     <div className="space-y-4">
-      <div role="group" aria-label="Expenditure section" className="flex rounded-lg bg-stone-100 p-1 text-sm sm:inline-flex">
-        {EXPENSE_SECTIONS.map((s, i) => (
-          <button
-            key={s.key}
-            type="button"
-            aria-pressed={section === s.key}
-            onClick={() => setSection(s.key)}
-            className={`min-h-10 flex-1 rounded-md px-4 font-medium transition-colors sm:flex-none ${
-              section === s.key ? "bg-white text-stone-900 shadow-sm" : "text-stone-600 hover:text-stone-900"
-            }`}
-          >
-            <span className="text-stone-400">{i + 1}.</span> {s.label}
-          </button>
-        ))}
-      </div>
+      {many && (
+        <div role="group" aria-label="Expenditure section" className="flex rounded-lg bg-stone-100 p-1 text-sm sm:inline-flex">
+          {parts.map((s, i) => (
+            <button
+              key={s.key}
+              type="button"
+              aria-pressed={section === s.key}
+              onClick={() => setSection(s.key)}
+              className={`min-h-10 flex-1 rounded-md px-4 font-medium transition-colors sm:flex-none ${
+                section === s.key ? "bg-white text-stone-900 shadow-sm" : "text-stone-600 hover:text-stone-900"
+              }`}
+            >
+              <span className="text-stone-400">{i + 1}.</span> {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {!many && <h3 className="text-sm font-semibold text-stone-900">{current.label} expenses</h3>}
 
       <div className="flex flex-wrap gap-x-8 gap-y-1 text-sm text-stone-600">
         <span>
@@ -60,9 +75,10 @@ export default function ExpensesSection({ projectId }: { projectId: string }) {
         <span>
           In all <span className="ml-1 font-semibold tabular-nums text-stone-900">{rupees(totals.total)}</span>
         </span>
-        {book.data.byCategory && (
+        {book.data.byCategory && many && (
           <span className="text-stone-500">
-            All three sections this month <span className="ml-1 font-medium tabular-nums text-stone-700">{rupees(book.data.thisMonth)}</span>
+            {parts.length === EXPENSE_SECTIONS.length ? "All three sections" : "These sections"} this month{" "}
+            <span className="ml-1 font-medium tabular-nums text-stone-700">{rupees(parts.length === EXPENSE_SECTIONS.length ? book.data.thisMonth : shownThisMonth)}</span>
           </span>
         )}
       </div>
