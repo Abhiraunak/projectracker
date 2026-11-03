@@ -1,28 +1,35 @@
 "use client";
 
-import { lazy, memo, Suspense, useEffect, useMemo } from "react";
-import { FiArrowLeft, FiChevronRight, FiList } from "react-icons/fi";
-import { useMaterialBook } from "@/hooks/useProjectPages";
+import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { FiArrowDown, FiArrowLeft, FiArrowUp, FiChevronDown, FiChevronRight, FiMoreHorizontal, FiPlus } from "react-icons/fi";
+import { useCan } from "@/hooks/useProjectAccess";
+import { useMaterialsOverview } from "@/hooks/useMaterialsTab";
 import { hrefFor, onPlaceClick, useWorkspaceItem } from "@/hooks/useWorkspacePlace";
-import { rupees, rupeesShort, shortDate } from "@/lib/projects/hub";
-import { quantity, type MaterialBook, type MaterialTile, type OrderState, type SheetMaterial } from "@/lib/projects/pages";
+import { rupees, rupeesShort } from "@/lib/projects/hub";
+import { qty, type MaterialsOverview, type TabMaterial } from "@/lib/inventory/materialsTab";
 import { EmptyState, SectionError, SectionSkeleton } from "../ui";
+import { BarChart, Legend } from "./materials/BarChart";
+import { MoveDialog, type MoveMode } from "./materials/MoveDialog";
 
-// The full inventory screen (stock entries, requests, orders, log) downloads only when someone opens it
-const FullInventory = lazy(() => import("./MaterialsSection"));
+// Heavier parts download only when someone opens them
+const FullInventory = lazy(() => import("./MaterialsSection")); // "More": orders, requests, reservations, log
+const MaterialDetailView = lazy(() => import("./materials/MaterialDetailView"));
+const AddMaterialDialog = lazy(() => import("./materials/AddMaterialDialog").then((m) => ({ default: m.AddMaterialDialog })));
+const ImportFromBoqDialog = lazy(() => import("@/components/inventory/ImportFromBoqDialog").then((m) => ({ default: m.ImportFromBoqDialog })));
+const ExpensesSection = lazy(() => import("./ExpensesSection"));
 
-const FULL = "all"; // ?i=all: the full inventory screen
+const MORE = "all"; // ?i=all: the full inventory screen (orders, requests, reservations…)
 
 /**
- * Phase 3: materials as tiles (Bricks, Steel, RMC / CC, Sand, Cement, then the rest), and a sheet per tile:
- * what's needed, each order with its vendor and amount, and the tally of used against still to come.
- *
- * One request brings the tiles and every sheet, so opening a tile is instant. Tile → sheet → back all happen
- * in place (the address changes to ?…&i=steel), and the back button works.
+ * The Materials tab, kept simple:
+ *  - Stock | Expenditure, and "Add materials" (import from the BOQ, or add by hand);
+ *  - a bar graph of received and issued by month (all materials by value, or one by quantity);
+ *  - one list grouped by section, each material with Received, Issued and its page (›).
+ * Orders, requests and reservations still work, under "More".
  */
 export default function MaterialsBook({ projectId }: { projectId: string }) {
-  const item = useWorkspaceItem(); // re-renders this section only, when a tile is opened or closed
-  const book = useMaterialBook(projectId);
+  const item = useWorkspaceItem(); // null: the list · "all": More · otherwise a material's page
+  const [tab, setTab] = useState<"stock" | "expenditure">("stock");
 
   // The Inventory page in the menu opens on this project next time too
   useEffect(() => {
@@ -35,32 +42,38 @@ export default function MaterialsBook({ projectId }: { projectId: string }) {
 
   const home = useMemo(() => ({ projectId, section: "materials" as const, item: null }), [projectId]);
 
-  if (item === FULL)
+  if (item === MORE)
     return (
       <div className="space-y-4">
-        <BackLink place={home} label="Material tiles" />
+        <BackLink place={home} label="Materials" />
         <Suspense fallback={<SectionSkeleton />}>
           <FullInventory projectId={projectId} />
         </Suspense>
       </div>
     );
 
-  if (book.isPending) return <SectionSkeleton />;
-  if (book.isError) return <SectionError error={book.error} onRetry={() => void book.refetch()} />;
-
-  const sheet = item ? book.data.sheets[item] : undefined;
-  if (item && sheet)
+  if (item)
     return (
       <div className="space-y-4">
         <BackLink place={home} label="All materials" />
-        <h2 className="text-lg font-semibold">{sheet.label}</h2>
-        {sheet.materials.map((m) => (
-          <MaterialSheet key={m.material.id} m={m} />
-        ))}
+        <Suspense fallback={<SectionSkeleton />}>
+          <MaterialDetailView projectId={projectId} materialId={item} />
+        </Suspense>
       </div>
     );
 
-  return <Tiles projectId={projectId} book={book.data} />;
+  return (
+    <div className="space-y-5">
+      <TopBar projectId={projectId} tab={tab} onTab={setTab} />
+      {tab === "stock" ? (
+        <StockView projectId={projectId} />
+      ) : (
+        <Suspense fallback={<SectionSkeleton />}>
+          <ExpensesSection projectId={projectId} sections={["material"]} />
+        </Suspense>
+      )}
+    </div>
+  );
 }
 
 function BackLink({ place, label }: { place: { projectId: string; section: "materials"; item: null }; label: string }) {
@@ -71,169 +84,260 @@ function BackLink({ place, label }: { place: { projectId: string; section: "mate
   );
 }
 
-/* ------------------------------------ tiles ------------------------------------ */
+/* ---------------------------------- top bar ---------------------------------- */
 
-const Tiles = memo(function Tiles({ projectId, book }: { projectId: string; book: MaterialBook }) {
-  const full = { projectId, section: "materials" as const, item: FULL };
+function TopBar({ projectId, tab, onTab }: { projectId: string; tab: "stock" | "expenditure"; onTab: (t: "stock" | "expenditure") => void }) {
+  const canAdd = useCan("requirements.create");
+  const [menu, setMenu] = useState(false);
+  const [open, setOpen] = useState<"boq" | "hand" | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const more = { projectId, section: "materials" as const, item: MORE };
+
+  // The little menu closes on a click anywhere else
+  useEffect(() => {
+    if (!menu) return;
+    const close = (e: PointerEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenu(false);
+    };
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [menu]);
+
   return (
-    <div className="space-y-4">
-      {book.tiles.length === 0 ? (
-        <EmptyState title="No materials planned yet" hint="Plan materials from the BOQ, or record an order or a delivery, and they'll show here." />
-      ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4">
-          {book.tiles.map((t) => (
-            <TileCard key={t.key} projectId={projectId} tile={t} />
-          ))}
-        </ul>
-      )}
-      <a
-        href={hrefFor(full)}
-        onClick={onPlaceClick(full)}
-        onPointerEnter={() => void import("./MaterialsSection")}
-        className="flex min-h-12 items-center gap-3 rounded-xl border border-stone-200 px-4 text-sm font-medium text-stone-700 hover:border-stone-400"
-      >
-        <FiList aria-hidden className="text-stone-400" />
-        <span className="flex-1">Full inventory: stock entries, requests, orders and log</span>
-        <FiChevronRight aria-hidden className="text-stone-400" />
-      </a>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div role="tablist" aria-label="Materials" className="inline-flex rounded-lg bg-stone-100 p-1 text-sm">
+        {(["stock", "expenditure"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={tab === t}
+            onClick={() => onTab(t)}
+            className={`min-h-10 rounded-md px-4 font-medium transition-colors ${tab === t ? "bg-white text-stone-900 shadow-sm" : "text-stone-600 hover:text-stone-900"}`}
+          >
+            {t === "stock" ? "Stock" : "Expenditure"}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <a
+          href={hrefFor(more)}
+          onClick={onPlaceClick(more)}
+          onPointerEnter={() => void import("./MaterialsSection")}
+          title="Orders, requests, reservations and the full log"
+          className="flex min-h-10 items-center gap-1.5 rounded-lg border border-stone-300 px-3 text-sm font-medium text-stone-700 hover:border-stone-500"
+        >
+          <FiMoreHorizontal aria-hidden /> More
+        </a>
+        {canAdd && (
+          <div ref={menuRef} className="relative">
+            <button
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={menu}
+              onClick={() => setMenu((v) => !v)}
+              onPointerEnter={() => void import("./materials/AddMaterialDialog")}
+              className="flex min-h-10 items-center gap-2 rounded-lg bg-stone-900 px-4 text-sm font-medium text-white hover:bg-stone-800"
+            >
+              <FiPlus aria-hidden /> Add materials <FiChevronDown aria-hidden className={`transition-transform ${menu ? "rotate-180" : ""}`} />
+            </button>
+            {menu && (
+              <div role="menu" className="absolute right-0 z-20 mt-1 w-60 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
+                <MenuItem title="Import from BOQ" hint="Pick sections or items of a BOQ" onClick={() => { setMenu(false); setOpen("boq"); }} />
+                <MenuItem title="Add by hand" hint="A material and how much is needed" onClick={() => { setMenu(false); setOpen("hand"); }} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <Suspense fallback={null}>
+        {open === "hand" && <AddMaterialDialog projectId={projectId} onClose={() => setOpen(null)} />}
+        {open === "boq" && <ImportFromBoqDialog projectId={projectId} open onClose={() => setOpen(null)} onImported={() => setOpen(null)} />}
+      </Suspense>
     </div>
+  );
+}
+
+function MenuItem({ title, hint, onClick }: { title: string; hint: string; onClick: () => void }) {
+  return (
+    <button type="button" role="menuitem" onClick={onClick} className="block w-full px-4 py-2.5 text-left hover:bg-stone-50 focus:bg-stone-50 focus:outline-none">
+      <span className="block text-sm font-medium text-stone-900">{title}</span>
+      <span className="block text-xs text-stone-500">{hint}</span>
+    </button>
+  );
+}
+
+/* ---------------------------------- stock view ---------------------------------- */
+
+function StockView({ projectId }: { projectId: string }) {
+  const data = useMaterialsOverview(projectId);
+  const [moving, setMoving] = useState<{ material: TabMaterial; mode: MoveMode } | null>(null);
+
+  if (data.isPending) return <SectionSkeleton />;
+  if (data.isError) return <SectionError error={data.error} onRetry={() => void data.refetch()} />;
+  const o = data.data;
+  const count = o.sections.reduce((n, s) => n + s.materials.length, 0);
+
+  return (
+    <div className="space-y-5">
+      <ChartCard overview={o} />
+
+      {count === 0 ? (
+        <EmptyState title="No materials yet" hint="Press Add materials to import them from the BOQ, or add them by hand with how much is needed." />
+      ) : (
+        <div className="space-y-5">
+          {o.sections.map((s) => (
+            <section key={s.name} aria-label={s.name}>
+              <h3 className="mb-2 px-1 text-sm font-semibold text-stone-900">
+                {s.name} <span className="ml-1 text-xs font-normal text-stone-400">{s.materials.length}</span>
+              </h3>
+              <ul className="divide-y divide-stone-100 overflow-hidden rounded-xl border border-stone-200">
+                {s.materials.map((m) => (
+                  <MaterialRow key={m.id} projectId={projectId} m={m} onMove={(mode) => setMoving({ material: m, mode })} />
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )}
+
+      {moving && <MoveDialog projectId={projectId} material={moving.material} mode={moving.mode} onClose={() => setMoving(null)} />}
+    </div>
+  );
+}
+
+/** The graph: all materials by value (₹), or tap a material to see its quantity */
+const ChartCard = memo(function ChartCard({ overview: o }: { overview: MaterialsOverview }) {
+  const [pick, setPick] = useState<string | null>(null);
+  const all = o.sections.flatMap((s) => s.materials);
+  const chosen = pick ? all.find((m) => m.id === pick) : undefined;
+  const series = chosen ? (o.chart.byMaterial[chosen.id] ?? { received: [], issued: [] }) : o.chart.all;
+  const unit = chosen?.unit ?? "";
+  const first = o.months[0];
+  const last = o.months[o.months.length - 1];
+  const period = first && last ? `${monthName(first)} – ${monthName(last)}` : "";
+
+  return (
+    <section aria-label="Received and issued by month" className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-stone-900">Received vs issued</h2>
+          <p className="text-xs text-stone-500">
+            {chosen ? `${chosen.name}, in ${unit}` : "All materials, by value (₹)"} · {period}
+          </p>
+        </div>
+        <Legend />
+      </div>
+
+      {all.length > 0 && (
+        // One row that scrolls sideways: a project can have many materials
+        <div className="-mx-1 mt-3 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]" aria-label="Show">
+          {[{ id: null as string | null, label: "All (₹)" }, ...all.map((m) => ({ id: m.id, label: `${m.name} (${m.unit})` }))].map((c) => (
+            <button
+              key={c.id ?? "all"}
+              type="button"
+              aria-pressed={pick === c.id}
+              onClick={() => setPick(c.id)}
+              className={`min-h-8 shrink-0 whitespace-nowrap rounded-full border px-3 text-xs font-medium transition-colors ${
+                pick === c.id ? "border-stone-900 bg-stone-900 text-white" : "border-stone-300 text-stone-600 hover:border-stone-500 hover:text-stone-900"
+              }`}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-3">
+        <BarChart
+          months={o.months}
+          series={series}
+          format={(n) => (chosen ? `${qty(n)} ${unit}` : rupees(n))}
+          axis={(n) => (chosen ? short(n) : `₹${short(n)}`)}
+        />
+      </div>
+
+      <dl className="mt-3 grid grid-cols-3 gap-2">
+        {chosen ? (
+          <>
+            <Stat label="Needed" value={`${qty(chosen.needed)} ${unit}`} />
+            <Stat label="In stock" value={`${qty(chosen.inStock)} ${unit}`} />
+            <Stat label="Issued" value={`${qty(chosen.issued)} ${unit}`} />
+          </>
+        ) : (
+          <>
+            <Stat label="Received this month" value={rupeesShort(o.totals.receivedThisMonth)} />
+            <Stat label="Issued this month" value={rupeesShort(o.totals.issuedThisMonth)} />
+            <Stat label="In stock now" value={rupeesShort(o.totals.stockValue)} />
+          </>
+        )}
+      </dl>
+    </section>
   );
 });
 
-const TileCard = memo(function TileCard({ projectId, tile: t }: { projectId: string; tile: MaterialTile }) {
-  const place = { projectId, section: "materials" as const, item: t.key };
-  const q = t.quantity;
-  const usedPct = q && q.required > 0 ? Math.min(100, Math.round((q.utilised / q.required) * 100)) : null;
-  const status =
-    t.lateOrders > 0
-      ? { text: `${t.lateOrders} ${t.lateOrders === 1 ? "order" : "orders"} late`, tone: "text-red-700" }
-      : t.toOrder > 0
-        ? { text: t.materials === 1 ? "More to order" : `${t.toOrder} of ${t.materials} to order`, tone: "text-amber-700" }
-        : t.arriving > 0
-          ? { text: `${t.arriving} ${t.arriving === 1 ? "order" : "orders"} on the way`, tone: "text-stone-500" }
-          : { text: "In order", tone: "text-emerald-700" };
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-stone-50 px-3 py-2">
+      <dt className="text-xs text-stone-500">{label}</dt>
+      <dd className="mt-0.5 truncate font-semibold tabular-nums text-stone-900">{value}</dd>
+    </div>
+  );
+}
+
+/** One material: what's needed, in stock and issued, a thin bar of how much of the need has been issued, and the actions */
+const MaterialRow = memo(function MaterialRow({ projectId, m, onMove }: { projectId: string; m: TabMaterial; onMove: (mode: MoveMode) => void }) {
+  const canReceive = useCan("stock.receive");
+  const canIssue = useCan("stock.issue");
+  const place = { projectId, section: "materials" as const, item: m.id };
+  const pct = m.needed > 0 ? Math.min(100, Math.round((m.issued / m.needed) * 100)) : null;
+  const btn = "flex min-h-10 items-center gap-1.5 rounded-lg border border-stone-300 px-3 text-sm font-medium text-stone-700 hover:border-stone-500 hover:text-stone-900";
 
   return (
-    <li>
-      <a
-        href={hrefFor(place)}
-        onClick={onPlaceClick(place)}
-        className="flex h-full min-h-36 flex-col justify-between gap-3 rounded-xl border border-stone-200 p-4 transition-colors hover:border-stone-400 focus-visible:border-stone-900 focus-visible:outline-none active:bg-stone-50"
-      >
-        <span>
-          <span className="flex items-center justify-between gap-2">
-            <span className="font-semibold text-stone-900">{t.label}</span>
-            {t.materials > 1 && <span className="text-xs text-stone-400">{t.materials} types</span>}
-          </span>
-          <span className={`mt-0.5 block text-xs ${status.tone}`}>{status.text}</span>
+    <li className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
+      <a href={hrefFor(place)} onClick={onPlaceClick(place)} className="group min-w-0 flex-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900">
+        <span className="flex items-center gap-2">
+          <span className="truncate font-medium text-stone-900 group-hover:underline">{m.name}</span>
+          <span className="shrink-0 text-xs text-stone-400">{m.unit}</span>
+          {m.low && <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800">Low stock</span>}
         </span>
-        <span>
-          {q ? (
-            <span className="block text-sm text-stone-600">
-              <span className="font-semibold tabular-nums text-stone-900">{quantity(q.utilised)}</span> of {quantity(q.required, q.unit)} used
-            </span>
-          ) : (
-            <span className="block text-sm text-stone-600">
-              <span className="font-semibold tabular-nums text-stone-900">{rupeesShort(t.spent)}</span> of {rupeesShort(t.budget)}
-            </span>
-          )}
-          <span aria-hidden className="mt-2 block h-1.5 overflow-hidden rounded-full bg-stone-100">
-            <span className="block h-full rounded-full bg-orange-500" style={{ width: `${usedPct ?? (t.budget > 0 ? Math.min(100, (t.spent / t.budget) * 100) : 0)}%` }} />
-          </span>
+        <span className="mt-0.5 block text-xs tabular-nums text-stone-500">
+          Needed {qty(m.needed)} · In stock <b className="font-semibold text-stone-800">{qty(m.inStock)}</b> · Issued {qty(m.issued)}
+          {m.alsoIn.length > 0 && <span className="hidden sm:inline"> · also in {m.alsoIn.join(", ")}</span>}
         </span>
+        {pct !== null && (
+          <span aria-hidden className="mt-2 block h-1.5 max-w-md overflow-hidden rounded-full bg-stone-100">
+            <span className="block h-full rounded-full bg-emerald-600" style={{ width: `${pct}%` }} />
+          </span>
+        )}
       </a>
+      <div className="flex shrink-0 items-center gap-2">
+        {canReceive && (
+          <button type="button" onClick={() => onMove("RECEIVED")} className={btn}>
+            <FiArrowDown aria-hidden className="text-emerald-700" /> Received
+          </button>
+        )}
+        {canIssue && (
+          <button type="button" onClick={() => onMove("ISSUED")} disabled={m.inStock <= 0} title={m.inStock <= 0 ? "Nothing in the store to issue" : undefined} className={`${btn} disabled:opacity-40`}>
+            <FiArrowUp aria-hidden className="text-rose-700" /> Issued
+          </button>
+        )}
+        <a href={hrefFor(place)} onClick={onPlaceClick(place)} aria-label={`View details of ${m.name}`} className="ml-auto flex h-10 w-10 items-center justify-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-900 sm:ml-0">
+          <FiChevronRight aria-hidden />
+        </a>
+      </div>
     </li>
   );
 });
 
-/* ------------------------------------ sheet ------------------------------------ */
+/* ---------------------------------- helpers ---------------------------------- */
 
-const STATE: Record<OrderState, { label: string; tone: string }> = {
-  received: { label: "Received", tone: "text-emerald-700" },
-  part: { label: "Part received", tone: "text-stone-600" },
-  waiting: { label: "On the way", tone: "text-stone-600" },
-  late: { label: "Late", tone: "text-red-700" },
+const monthName = (m: string) => {
+  const [y, mm] = m.split("-").map(Number);
+  return new Date(Date.UTC(y!, mm! - 1, 1)).toLocaleDateString("en-IN", { month: "short", year: "numeric", timeZone: "UTC" });
 };
 
-/** One material, laid out like the client's sketch: what's needed, the orders, then the tally */
-const MaterialSheet = memo(function MaterialSheet({ m }: { m: SheetMaterial }) {
-  const unit = m.material.unit;
-  return (
-    <article className="overflow-hidden rounded-xl border border-stone-200">
-      <header className="border-b border-stone-200 bg-stone-50 px-4 py-3 sm:px-5">
-        <h3 className="font-semibold text-stone-900">{m.material.name}</h3>
-        <p className="mt-0.5 text-sm text-stone-600">
-          Required <b className="font-semibold tabular-nums text-stone-900">{quantity(m.required, unit)}</b>
-          {m.rate > 0 && (
-            <>
-              {" "}
-              · {rupees(m.rate)}/{unit} · amount <b className="font-semibold tabular-nums text-stone-900">{rupeesShort(m.budget)}</b>
-            </>
-          )}
-        </p>
-        {m.vendors.length > 0 && <p className="mt-0.5 truncate text-xs text-stone-500">Vendor: {m.vendors.join(", ")}</p>}
-      </header>
-
-      {m.orders.length > 0 ? (
-        // A table on wider screens; on a phone each order folds into two lines, so nothing scrolls sideways
-        <div role="table" aria-label={`Orders for ${m.material.name}`} className="text-sm">
-          <div role="row" className="hidden grid-cols-[1fr_8rem_6rem_8rem_8rem] gap-2 border-b border-stone-100 px-5 py-2 text-xs text-stone-500 sm:grid">
-            <span role="columnheader">Order</span>
-            <span role="columnheader" className="text-right">Quantity</span>
-            <span role="columnheader" className="text-right">Rate</span>
-            <span role="columnheader" className="text-right">Amount</span>
-            <span role="columnheader" className="text-right">Status</span>
-          </div>
-          {m.orders.map((o) => (
-            <div
-              role="row"
-              key={o.id}
-              className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-0.5 border-b border-stone-100 px-4 py-2.5 last:border-b-0 sm:grid-cols-[1fr_8rem_6rem_8rem_8rem] sm:items-center sm:gap-2 sm:px-5"
-            >
-              <span role="cell" className="min-w-0">
-                <span className="font-medium">Order {String(o.number).padStart(2, "0")}</span>
-                <span className="block truncate text-xs text-stone-500">{[shortDate(o.createdAt), o.vendor, o.reference].filter(Boolean).join(" · ")}</span>
-              </span>
-              <span role="cell" className="text-right tabular-nums sm:order-none">
-                <span className="sm:hidden font-medium">{rupees(o.amount)}</span>
-                <span className="hidden sm:inline">{quantity(o.quantity, unit)}</span>
-              </span>
-              <span role="cell" className="text-xs tabular-nums text-stone-500 sm:text-right sm:text-sm sm:text-stone-900">
-                <span className="sm:hidden">
-                  {quantity(o.quantity, unit)} × {rupees(o.rate)}
-                </span>
-                <span className="hidden sm:inline">{rupees(o.rate)}</span>
-              </span>
-              <span role="cell" className="hidden text-right font-medium tabular-nums sm:block">
-                {rupees(o.amount)}
-              </span>
-              <span role="cell" className={`text-right text-xs ${STATE[o.state].tone}`}>
-                {STATE[o.state].label}
-                {o.state === "part" && <span className="text-stone-500"> · {quantity(o.receivedQty)} in</span>}
-                {(o.state === "waiting" || o.state === "late") && o.expectedDelivery && <span className="text-stone-500"> · due {shortDate(o.expectedDelivery)}</span>}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="px-4 py-3 text-sm text-stone-500 sm:px-5">No orders yet.</p>
-      )}
-
-      <dl className="grid grid-cols-2 border-t border-stone-200 sm:grid-cols-4">
-        <Tally label="Utilised" value={quantity(m.utilised, unit)} />
-        <Tally label="In store" value={quantity(m.inStore, unit)} />
-        <Tally label="Pending delivery" value={quantity(m.pendingDelivery, unit)} />
-        <Tally label="Still to order" value={quantity(m.pendingOrder, unit)} tone={m.pendingOrder > 0 ? "text-amber-700" : undefined} />
-      </dl>
-    </article>
-  );
-});
-
-function Tally({ label, value, tone }: { label: string; value: string; tone?: string }) {
-  return (
-    <div className="border-stone-200 px-4 py-3 even:border-l [&:nth-child(n+3)]:border-t sm:px-5 sm:[&:nth-child(n+2)]:border-l sm:[&:nth-child(n+3)]:border-t-0">
-      <dt className="text-xs text-stone-500">{label}</dt>
-      <dd className={`mt-0.5 font-semibold tabular-nums ${tone ?? "text-stone-900"}`}>{value}</dd>
-    </div>
-  );
-}
+/** Axis figures: 12k, 1.5 L */
+export const short = (n: number) => (n >= 1e5 ? `${(n / 1e5).toFixed(n >= 1e6 ? 0 : 1)} L` : n >= 1000 ? `${Math.round(n / 100) / 10}k` : qty(n));
