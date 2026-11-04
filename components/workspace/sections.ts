@@ -6,6 +6,10 @@ import type { SectionKey } from "@/lib/projects/place";
 import { plural, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
 
 type SectionProps = { projectId: string };
+
+/** Contractor vs in-house figures. Older versions of ProjectHub (and of the API) don't have them, so they're optional here. */
+type RateFigures = { compared: number; missing?: number; contractor: number; inHouse: number; saving: number };
+const ratesOf = (hub: ProjectHub): RateFigures | undefined => (hub as ProjectHub & { rates?: RateFigures }).rates;
 type Loader = () => Promise<{ default: ComponentType<SectionProps> }>;
 
 export interface SectionDef {
@@ -88,7 +92,8 @@ export const SECTIONS: SectionDef[] = [
     // The Project page's contractor vs in-house grid (components/labour/ComparisonGrid)
     load: () => import("./sections/RatesSection"),
     // The same figures and colours as the tab: green when in-house saves, red when it costs more
-    summary: ({ rates: r }) => {
+    summary: (hub) => {
+      const r = ratesOf(hub);
       if (!r || r.compared === 0) return { text: "No rates to compare yet" };
       const pct = Math.round((Math.abs(r.saving) / Math.max(r.contractor, r.inHouse, 1)) * 100);
       const items = ` · ${plural(r.compared, "item")}`;

@@ -27,25 +27,33 @@ const num = (s: string) => (s.trim() === "" ? NaN : Number(s));
 export function PurchaseDialog({
   projectId,
   names,
+  sections,
+  section: startSection = "",
   editing,
   onClose,
 }: {
   projectId: string;
   names: { name: string; unit: string }[];
+  /** Headings already used, to tap */
+  sections: string[];
+  /** Adding from a section's own button: start in that section */
+  section?: string;
   editing?: Purchase | null;
   onClose: () => void;
 }) {
+  const [section, setSection] = useState(editing?.section ?? startSection);
   const [name, setName] = useState(editing?.name ?? "");
   const [unit, setUnit] = useState(editing?.unit ?? "");
   const [quantity, setQuantity] = useState(editing ? String(editing.quantity) : "");
   const [rate, setRate] = useState(editing ? String(editing.rate) : "");
   const [date, setDate] = useState(editing?.date ?? todayLocal());
-  const [note] = useState(editing?.note ?? "");
+  const [note, setNote] = useState(editing?.note ?? "");
   const [bill, setBill] = useState<File | null>(null);
   const [removeBill, setRemoveBill] = useState(false);
   const [tried, setTried] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const listId = useId();
+  const sectionListId = useId();
   const save = useSavePurchase(projectId);
 
   const q = num(quantity);
@@ -68,7 +76,7 @@ export function PurchaseDialog({
     setTried(true);
     if (!okName || !okQty || !okRate || save.isPending) return;
     save.mutate(
-      { id: editing?.id, input: { name: name.trim(), unit: unit.trim(), quantity: q, rate: r, date, note: note.trim(), bill, removeBill: !!editing && removeBill } },
+      { id: editing?.id, input: { section: section.trim(), name: name.trim(), unit: unit.trim(), quantity: q, rate: r, date, note: note.trim(), bill, removeBill: !!editing && removeBill } },
       { onSuccess: onClose }
     );
   };
@@ -79,13 +87,37 @@ export function PurchaseDialog({
         <h2 className="text-lg font-semibold text-stone-900">{editing ? "Edit material" : "Add material"}</h2>
 
         <label className={label}>
+          Section <span className="font-normal text-stone-400">(optional)</span>
+          <input value={section} onChange={(e) => setSection(e.target.value)} list={sectionListId} maxLength={80} autoFocus={!editing && !startSection} placeholder="e.g. Flooring, Concrete" className={field} />
+          <datalist id={sectionListId}>
+            {sections.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+        </label>
+        {sections.length > 0 && (
+          <div className="-mt-2 flex flex-wrap gap-1.5" aria-label="Sections">
+            {sections.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSection(same(section, s) ? "" : s)}
+                className={`min-h-8 rounded-full border px-3 text-xs font-medium ${same(section, s) ? "border-stone-900 bg-stone-900 text-white" : "border-stone-300 text-stone-600 hover:border-stone-500"}`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <label className={label}>
           Material
           <input
             value={name}
             onChange={(e) => pickName(e.target.value)}
             list={listId}
             maxLength={120}
-            autoFocus={!editing}
+            autoFocus={!editing && !!startSection}
             placeholder="e.g. Bricks"
             aria-invalid={tried && !okName}
             className={field}
@@ -157,6 +189,11 @@ export function PurchaseDialog({
         <div className="flex items-baseline justify-between gap-3 rounded-lg bg-stone-50 px-4 py-3" aria-live="polite">
           <span className="text-sm text-stone-600">
             Total
+            {total !== null && (
+              <span className="block text-xs text-stone-500 tabular-nums">
+                {q.toLocaleString("en-IN")} {unit.trim()} × {money(r)}
+              </span>
+            )}
           </span>
           <span className="text-2xl font-semibold tabular-nums text-stone-900">{total !== null ? money(total) : "₹0"}</span>
         </div>
@@ -196,6 +233,11 @@ export function PurchaseDialog({
             )}
           </div>
         </div>
+
+        <label className={label}>
+          Note <span className="font-normal text-stone-400">(optional)</span>
+          <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} placeholder="Supplier, bill number…" className={field} />
+        </label>
 
         {save.isError && (
           <p role="alert" className="text-sm text-red-700">
