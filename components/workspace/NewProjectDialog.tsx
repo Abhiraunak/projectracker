@@ -20,9 +20,9 @@ const todayLocal = () => {
 /**
  * Start a project from the Projects page. Only what's needed to begin: name, firm, budget, dates and the first work
  * item (every project has at least one; more are added on the Project page, as before).
- * When it's saved, the new project opens.
+ * When it's saved, the new project opens (in the workspace, or wherever `onCreated` sends it, e.g. from the dashboard).
  */
-export function NewProjectDialog({ onClose }: { onClose: () => void }) {
+export function NewProjectDialog({ onClose, onCreated }: { onClose: () => void; onCreated?: (projectId: string) => void }) {
   const create = useCreateProject();
   const [title, setTitle] = useState("");
   const [firm, setFirm] = useState("");
@@ -68,7 +68,8 @@ export function NewProjectDialog({ onClose }: { onClose: () => void }) {
         }
       }
       onClose();
-      goTo({ projectId: project.id, section: "overview" });
+      if (onCreated) onCreated(project.id);
+      else goTo({ projectId: project.id, section: "overview" });
     } catch {
       /* shown below */
     }
@@ -102,7 +103,7 @@ export function NewProjectDialog({ onClose }: { onClose: () => void }) {
         </div>
         {datesBad && <p className="-mt-2 text-xs text-red-700">The end date is before the start.</p>}
 
-        {/* <fieldset className="rounded-lg border border-stone-200 p-3">
+        <fieldset className="rounded-lg border border-stone-200 p-3">
           <legend className="px-1 text-sm font-medium text-stone-700">First work item</legend>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Work" optional>
@@ -113,7 +114,7 @@ export function NewProjectDialog({ onClose }: { onClose: () => void }) {
             </Field>
           </div>
           <p className="mt-2 text-xs text-stone-500">It runs on the project&apos;s dates. Add more work items any time on the Project page.</p>
-        </fieldset> */}
+        </fieldset>
 
         {(create.isError || firmError) && (
           <p role="alert" className="text-sm text-red-700">

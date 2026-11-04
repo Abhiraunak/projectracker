@@ -12,8 +12,12 @@ import { NewProjectDialog } from "./NewProjectDialog";
 type Filter = "ONGOING" | "COMPLETED";
 const SEARCH_FROM = 7; // a search box only once there are enough projects to need one
 
-/** The workspace's first screen: one tile per project. Tap a tile to open it. */
-export function ProjectTiles() {
+/**
+ * The workspace's first screen: one tile per project. Tap a tile to open it.
+ * Also used on the simple dashboard: `linkBase` makes the tiles open the Projects page, and `showNew={false}` hides
+ * the New project button (the dashboard has its own).
+ */
+export function ProjectTiles({ linkBase, showNew = true }: { linkBase?: string; showNew?: boolean } = {}) {
   const [filter, setFilter] = useState<Filter>("ONGOING");
   const [search, setSearch] = useState("");
   const projects = useProjects(filter);
@@ -61,7 +65,7 @@ export function ProjectTiles() {
             />
           </label>
         )}
-        {canCreate && (
+        {canCreate && showNew && (
           <button
             type="button"
             onClick={() => setCreating(true)}
@@ -90,7 +94,7 @@ export function ProjectTiles() {
       ) : (
         <TileGrid>
           {shown.map((p) => (
-            <ProjectTile key={p.id} project={p} onIntent={prefetch} />
+            <ProjectTile key={p.id} project={p} onIntent={prefetch} linkBase={linkBase} />
           ))}
         </TileGrid>
       )}
