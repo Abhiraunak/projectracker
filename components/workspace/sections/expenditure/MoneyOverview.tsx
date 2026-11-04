@@ -1,217 +1,197 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useClientProject } from "@/hooks/useClientAdmin";
 import { useExpenses } from "@/hooks/useExpenses";
 import { labourSummaryKey } from "@/hooks/useLabour";
-import { materialPaymentsKey } from "@/hooks/useMaterialPayments";
-import { useMaterialPurchases } from "@/hooks/useMaterialPurchases";
+import { useProject } from "@/hooks/useLabourProjects";
 import { useAccess } from "@/hooks/useProjectAccess";
 import { useProjectHub } from "@/hooks/useProjectHub";
-import { rupees, rupeesShort } from "@/lib/projects/hub";
+import { rupees } from "@/lib/projects/hub";
 import { labourApi } from "@/lib/projects/labour";
-import { materialPaymentsApi } from "@/lib/inventory/materialPayments";
-import { RadarChart } from "./RadarChart";
 
-const COLORS = { labour: "#3b6fd8", materials: "#e08a1e", expenses: "#8a8780", spent: "#3b6fd8", paid: "#1d9e75" };
+const COLORS = { labour: "#378ADD", material: "#BA7517", general: "#888780" };
 
 /**
- * The top of the Expenditure tab, from figures the project already has (nothing new is saved):
- *  1. project cost against what's spent, and what's left (the profit if nothing more were spent);
- *  2. a radar of where the money goes: spent (earned / delivered) against paid out, by category;
- *  3. money in (from the client) against money out, and what's in hand (admins only: client payments are theirs).
- * Each part shows only what this person may see.
+ * The top of the Expenditure tab, kept simple and made only from figures the project already has:
+ *  1. what the project should cost (the project cost you set, and the BOQ amount) against what has been spent;
+ *  2. one bar each for where it went: labour, material, general;
+ *  3. work-wise: what was set for each work, what has been given, and what is left to pay.
  */
 export function MoneyOverview({ projectId }: { projectId: string }) {
   const access = useAccess();
   const hub = useProjectHub(projectId);
   const expenses = useExpenses(projectId);
-  // Same keys as the Labour and Materials pages, so their figures are shared and refresh together
+  const project = useProject(projectId); // the work items (Progress)
+  // Same key as the Labour page, so the figures are shared and refresh together
   const labour = useQuery({ queryKey: labourSummaryKey(projectId), queryFn: () => labourApi.summary(projectId), enabled: access.can("attendance.view"), staleTime: 30_000 });
-  const vendors = useQuery({ queryKey: materialPaymentsKey(projectId), queryFn: () => materialPaymentsApi.list(projectId), enabled: access.can("materials.view"), staleTime: 30_000 });
-  const client = useClientProject(access.isAdmin ? projectId : null);
-  // Materials added in the Materials tab (quantity × rate) count as bought and paid for
-  const purchases = useMaterialPurchases(projectId, access.can("materials.view"));
 
   if (!hub.data || !expenses.data) return <div aria-busy="true" className="h-72 animate-pulse rounded-xl bg-stone-100 motion-reduce:animate-none" />;
 
   const h = hub.data;
   const cat = expenses.data.byCategory;
-  const general = cat?.general.total ?? expenses.data.total;
-  const labourExp = cat?.labour.total ?? 0;
-  const materialExp = cat?.material.total ?? 0;
+  // Labour is the work done (attendance); labour and material expenses go into their own bar
+  const labourSpent = (labour.data?.labour ?? h.labour.earned) + (cat?.labour.total ?? 0);
+  const materialSpent = (h.materials?.spent ?? 0) + (cat?.material.total ?? 0);
+  const generalSpent = cat?.general.total ?? (cat ? 0 : expenses.data.total);
+  const spent = labourSpent + materialSpent + generalSpent;
 
-  // Spent: what the work has cost so far. Paid: what has actually gone out.
-  const labourSpent = labour.data?.labour ?? h.labour.earned;
-  const labourPaid = labour.data?.paid ?? h.labour.paid;
-  const materialSpent = h.materials?.spent ?? vendors.data?.totals.bought ?? 0;
-  const materialPaid = (vendors.data?.totals.paid ?? 0) + (purchases.data?.total ?? 0);
-  const expensesTotal = general + labourExp + materialExp;
-  const spent = labourSpent + materialSpent + expensesTotal;
-  const paidOut = labourPaid + materialPaid + expensesTotal;
-
-  const budget = h.money.budget;
-  const hasBudget = h.money.budgetIsSet && budget > 0;
-  const left = budget - spent;
-  const done = h.progress.percent;
-  const spentPct = hasBudget ? Math.round((spent / budget) * 100) : null;
-  // If spending keeps pace with the work, the project ends at about this
-  const likelyFinal = done >= 5 ? spent / (done / 100) : null;
-
-  const received = client.data?.payments.paid ?? null;
+  const projectCost = h.money.budgetIsSet ? h.money.budget : null;
+  const boqTotal = h.boqs && h.boqs.length > 0 ? h.boqs.reduce((s, b) => s + b.grandTotal, 0) : null;
+  // Spent is measured against the project cost you set; without one, against the BOQ
+  const against = projectCost ?? boqTotal;
+  const againstName = projectCost !== null ? "the project cost" : "the BOQ";
+  const pct = against ? Math.round((spent / against) * 100) : null;
+  const left = against !== null ? against - spent : null;
 
   return (
     <div className="space-y-4">
-      {/* 1 · project cost vs spent */}
-      <section aria-label="Project cost and spending" className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
-        <h2 className="text-sm font-semibold text-stone-900">Project cost vs spent</h2>
-        <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Stat label="Project cost" value={hasBudget ? rupeesShort(budget) : "Not set"} note={hasBudget ? undefined : "Set it in Edit project"} />
-          <Stat label="Spent so far" value={rupeesShort(spent)} note={spentPct !== null ? `${spentPct}% of the cost` : undefined} />
+      {/* 1 · what it should cost vs what has been spent */}
+      <section aria-label="Cost and spent" className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
+        <dl className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <Stat label="Project cost" value={projectCost !== null ? rupees(projectCost) : "Not set"} note={projectCost === null ? "Set it with Edit on the project" : undefined} />
+          <Stat label="Total BOQ amount" value={boqTotal !== null ? rupees(boqTotal) : "No BOQ linked"} note={h.boqs && h.boqs.length > 1 ? `${h.boqs.length} BOQs added up` : undefined} />
           <Stat
-            label={left >= 0 ? "Left (profit if no more spend)" : "Over the project cost"}
-            value={hasBudget ? rupeesShort(Math.abs(left)) : "–"}
-            tone={!hasBudget ? undefined : left >= 0 ? "text-green-700" : "text-red-700"}
+            label="Spent so far"
+            value={rupees(spent)}
+            note={pct !== null && left !== null ? (left >= 0 ? `${pct}% of ${againstName} · ${rupees(left)} left` : `${rupees(-left)} over ${againstName}`) : "Labour + material + general"}
+            tone={left !== null && left < 0 ? "text-red-700" : undefined}
           />
-          <Stat label="Work done" value={`${done}%`} note="from Progress" />
         </dl>
-
-        <Split
-          total={hasBudget ? Math.max(budget, spent) : spent}
-          parts={[
-            { label: "Labour", value: labourSpent, color: COLORS.labour },
-            { label: "Materials", value: materialSpent, color: COLORS.materials },
-            { label: "Expenses", value: expensesTotal, color: COLORS.expenses },
-          ]}
-          left={hasBudget ? Math.max(0, left) : 0}
-        />
-
-        {hasBudget && likelyFinal !== null && spent > 0 && (
-          <p className="mt-3 text-sm text-stone-600">
-            {spentPct}% spent at {done}% done. If spending keeps that pace, the project ends at about{" "}
-            <b className="font-semibold tabular-nums text-stone-900">{rupeesShort(likelyFinal)}</b>
-            {likelyFinal > budget ? (
-              <span className="text-red-700">: about {rupeesShort(likelyFinal - budget)} over the project cost.</span>
-            ) : (
-              <span className="text-green-700">: about {rupeesShort(budget - likelyFinal)} under the project cost.</span>
-            )}
-          </p>
+        {against !== null && against > 0 && (
+          <div
+            role="progressbar"
+            aria-label={`Spent: ${pct}% of ${againstName}`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.min(100, pct ?? 0)}
+            className="mt-4 h-2.5 overflow-hidden rounded-full bg-stone-100"
+          >
+            <div className={`h-full rounded-full ${left !== null && left < 0 ? "bg-red-600" : "bg-blue-600"}`} style={{ width: `${Math.min(100, pct ?? 0)}%` }} />
+          </div>
         )}
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-        {/* 2 · where the money goes */}
-        <section aria-label="Where the money goes" className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-stone-900">Where the money goes</h2>
-            <div className="flex gap-4 text-xs text-stone-600">
-              <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: COLORS.spent }} /> Spent
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-sm" style={{ background: COLORS.paid }} /> Paid out
-              </span>
-            </div>
-          </div>
-          <RadarChart
-            axes={["Labour", "Materials", "Labour exp.", "Material exp.", "General"]}
-            series={[
-              { key: "spent", label: "Spent", color: COLORS.spent, values: [labourSpent, materialSpent, labourExp, materialExp, general] },
-              { key: "paid", label: "Paid out", color: COLORS.paid, values: [labourPaid, materialPaid, labourExp, materialExp, general] },
-            ]}
-            format={rupees}
-          />
-          <table className="mt-2 w-full text-sm">
-            <thead className="text-xs text-stone-500">
-              <tr>
-                <th scope="col" className="py-1 text-left font-medium">
-                  <span className="sr-only">Category</span>
-                </th>
-                <th scope="col" className="py-1 text-right font-medium">Spent</th>
-                <th scope="col" className="py-1 text-right font-medium">Paid</th>
-                <th scope="col" className="py-1 text-right font-medium">To pay</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100 tabular-nums">
-              <Row label="Labour" spent={labourSpent} paid={labourPaid} />
-              <Row label="Materials" spent={materialSpent} paid={materialPaid} />
-              <Row label="Expenses" spent={expensesTotal} paid={expensesTotal} note="paid when entered" />
-            </tbody>
-          </table>
-        </section>
+      {/* 2 · where it went */}
+      <section aria-label="Where it went" className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
+        <h2 className="text-sm font-semibold text-stone-900">Where it went</h2>
+        <SpendBars
+          parts={[
+            { label: "Labour", value: labourSpent, color: COLORS.labour },
+            { label: "Material", value: materialSpent, color: COLORS.material },
+            { label: "General", value: generalSpent, color: COLORS.general },
+          ]}
+        />
+      </section>
 
-        {/* 3 · money in vs out */}
-        <section aria-label="Money in and out" className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
-          <h2 className="text-sm font-semibold text-stone-900">Money in vs money out</h2>
-          <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1">
-            {received !== null ? (
-              <Stat label="Received from client" value={rupeesShort(received)} note={client.data && client.data.payments.contract > 0 ? `of ${rupeesShort(client.data.payments.contract)} billed` : undefined} />
-            ) : (
-              <Stat label="Received from client" value="–" note={access.isAdmin ? "Loading…" : "Only admins see client payments"} />
-            )}
-            <Stat label="Paid out" value={rupeesShort(paidOut)} note="contractors, vendors, expenses" />
-            <Stat
-              label={received === null ? "In hand" : received - paidOut >= 0 ? "In hand" : "Paid from own pocket"}
-              value={received === null ? "–" : rupeesShort(Math.abs(received - paidOut))}
-              tone={received === null ? undefined : received - paidOut >= 0 ? "text-green-700" : "text-red-700"}
-            />
-          </dl>
-          <p className="mt-3 text-xs text-stone-500">Still owed: labour {rupeesShort(Math.max(0, labourSpent - labourPaid))}, materials {rupeesShort(Math.max(0, materialSpent - materialPaid))}.</p>
-        </section>
-      </div>
+      {/* 3 · work-wise */}
+      <WorkTable tasks={project.data?.tasks ?? null} loading={project.isPending} />
     </div>
   );
 }
 
 function Stat({ label, value, note, tone }: { label: string; value: string; note?: string; tone?: string }) {
   return (
-    <div className="rounded-lg bg-stone-50 px-3 py-2.5">
+    <div className="min-w-0 rounded-lg bg-stone-50 px-2 py-2.5 sm:px-3">
       <dt className="text-xs text-stone-500">{label}</dt>
-      <dd className={`mt-0.5 text-lg font-semibold tabular-nums ${tone ?? "text-stone-900"}`}>{value}</dd>
+      <dd className={`mt-0.5 truncate text-xl font-semibold tabular-nums ${tone ?? "text-stone-900"}`}>{value}</dd>
       {note && <dd className="text-xs text-stone-500">{note}</dd>}
     </div>
   );
 }
 
-/** One bar of the project cost: labour, materials, expenses, and what's left */
-function Split({ total, parts, left }: { total: number; parts: { label: string; value: number; color: string }[]; left: number }) {
-  const pct = (v: number) => (total > 0 ? (v / total) * 100 : 0);
+/** One bar each, tallest = the biggest spend, the amount on top */
+function SpendBars({ parts }: { parts: { label: string; value: number; color: string }[] }) {
+  const max = Math.max(1, ...parts.map((p) => p.value));
   return (
     <div className="mt-4">
-      <div className="flex h-3.5 overflow-hidden rounded-full bg-stone-100" aria-hidden>
+      <div className="flex h-44 items-end gap-4 border-b border-stone-300 px-2 sm:gap-10 sm:px-6" role="img" aria-label={parts.map((p) => `${p.label} ${rupees(p.value)}`).join(", ")}>
         {parts.map((p) => (
-          <span key={p.label} style={{ width: `${pct(p.value)}%`, background: p.color }} />
+          <div key={p.label} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end">
+            <span className="mb-1 truncate text-xs font-semibold tabular-nums text-stone-800">{rupees(p.value)}</span>
+            <span aria-hidden className="block w-full max-w-24 rounded-t-md" style={{ height: `${Math.max(p.value > 0 ? 2 : 0, (p.value / max) * 85)}%`, background: p.color }} />
+          </div>
         ))}
       </div>
-      <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-600">
+      <div className="flex gap-4 px-2 pt-1.5 text-center text-sm text-stone-700 sm:gap-10 sm:px-6">
         {parts.map((p) => (
-          <li key={p.label} className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm" style={{ background: p.color }} />
-            {p.label} <b className="font-semibold tabular-nums text-stone-900">{rupeesShort(p.value)}</b>
-          </li>
+          <span key={p.label} className="min-w-0 flex-1 truncate">
+            {p.label}
+          </span>
         ))}
-        {left > 0 && (
-          <li className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm border border-stone-300 bg-stone-100" />
-            Left <b className="font-semibold tabular-nums text-stone-900">{rupeesShort(left)}</b>
-          </li>
-        )}
-      </ul>
+      </div>
     </div>
   );
 }
 
-function Row({ label, spent, paid, note }: { label: string; spent: number; paid: number; note?: string }) {
-  const due = Math.max(0, spent - paid);
+/** Each work item: what was set for it (the agreed amount), what has been given, and what is left to pay */
+function WorkTable({ tasks, loading }: { tasks: { id: string; work: string; stipulated: number; paid: number }[] | null; loading: boolean }) {
+  const th = "px-2 py-2 text-xs sm:px-3 font-medium uppercase tracking-wide text-stone-500";
+  const rows = (tasks ?? []).filter((t) => t.work.trim() || t.stipulated > 0 || t.paid > 0);
+  const set = rows.reduce((s, t) => s + t.stipulated, 0);
+  const given = rows.reduce((s, t) => s + t.paid, 0);
+  const leftAll = rows.reduce((s, t) => s + Math.max(0, t.stipulated - t.paid), 0);
+
   return (
-    <tr>
-      <th scope="row" className="py-1.5 text-left font-medium text-stone-700">
-        {label}
-        {note && <span className="block text-xs font-normal text-stone-400">{note}</span>}
-      </th>
-      <td className="py-1.5 text-right">{rupeesShort(spent)}</td>
-      <td className="py-1.5 text-right">{rupeesShort(paid)}</td>
-      <td className={`py-1.5 text-right ${due > 0 ? "font-semibold text-amber-700" : "text-stone-400"}`}>{due > 0 ? rupeesShort(due) : "–"}</td>
-    </tr>
+    <section aria-label="Work-wise" className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+      <h2 className="border-b border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-semibold text-stone-900">Work-wise</h2>
+      {loading ? (
+        <div aria-busy="true" className="m-4 h-24 animate-pulse rounded-lg bg-stone-100 motion-reduce:animate-none" />
+      ) : rows.length === 0 ? (
+        <p className="px-4 py-8 text-center text-sm text-stone-500">No work items yet. Add them in Progress.</p>
+      ) : (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-stone-100">
+              <th scope="col" className={`${th} text-left`}>
+                Work
+              </th>
+              <th scope="col" className={`${th} hidden text-right sm:table-cell`}>
+                Set for it
+              </th>
+              <th scope="col" className={`${th} text-right`}>
+                Given<span className="sm:hidden"> of set</span>
+              </th>
+              <th scope="col" className={`${th} text-right`}>
+                Left to pay
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-stone-100 tabular-nums">
+            {rows.map((t) => {
+              const left = t.stipulated - t.paid;
+              return (
+                <tr key={t.id}>
+                  <th scope="row" className="px-2 py-2.5 sm:px-3 text-left font-medium text-stone-900">
+                    {t.work.trim() || "Work item"}
+                  </th>
+                  <td className="hidden whitespace-nowrap px-2 py-2.5 sm:px-3 text-right text-stone-700 sm:table-cell">{rupees(t.stipulated)}</td>
+                  <td className="whitespace-nowrap px-2 py-2.5 sm:px-3 text-right text-stone-700">
+                    {t.paid > 0 ? rupees(t.paid) : "–"}
+                    {/* phone: what was set sits under what was given */}
+                    <span className="block text-xs text-stone-500 sm:hidden">of {rupees(t.stipulated)}</span>
+                  </td>
+                  <td className={`whitespace-nowrap px-2 py-2.5 sm:px-3 text-right font-semibold ${left > 0.5 ? "text-amber-700" : left < -0.5 ? "text-red-700" : "text-emerald-700"}`}>
+                    {left > 0.5 ? rupees(left) : left < -0.5 ? `${rupees(-left)} extra` : "Paid"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-stone-300 bg-stone-50 font-semibold tabular-nums text-stone-900">
+              <th scope="row" className="px-2 py-2.5 sm:px-3 text-left">
+                Total
+              </th>
+              <td className="hidden whitespace-nowrap px-2 py-2.5 sm:px-3 text-right sm:table-cell">{rupees(set)}</td>
+              <td className="whitespace-nowrap px-2 py-2.5 sm:px-3 text-right">
+                {rupees(given)}
+                <span className="block text-xs font-normal text-stone-500 sm:hidden">of {rupees(set)}</span>
+              </td>
+              <td className="whitespace-nowrap px-2 py-2.5 sm:px-3 text-right">{rupees(leftAll)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      )}
+    </section>
   );
 }

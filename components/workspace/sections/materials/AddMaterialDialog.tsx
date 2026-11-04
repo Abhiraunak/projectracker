@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { FiCheck, FiPlus, FiTrash2 } from "react-icons/fi";
 import { ModalDialog } from "@/components/utilites/ModalDialog";
@@ -54,7 +54,8 @@ const METHODS: { key: EstimateMethod; label: string; hint: string }[] = [
 export function AddMaterialDialog({ projectId, editing, onClose }: { projectId: string; editing?: MaterialEstimate | null; onClose: () => void }) {
   const catalog = useMaterialCatalog();
   const save = useSaveEstimate(projectId);
-  const materials = useMemo(() => catalog.data?.materials ?? [], [catalog.data]);
+  // React Compiler memoizes these automatically, so no manual useMemo is needed.
+  const materials = catalog.data?.materials ?? [];
 
   const [materialId, setMaterialId] = useState(editing?.material.id ?? "");
   const [query, setQuery] = useState(editing?.material.name ?? "");
@@ -80,11 +81,11 @@ export function AddMaterialDialog({ projectId, editing, onClose }: { projectId: 
   const isNew = !picked && typed.length > 0 && !exact;
   const unit = picked?.unit ?? (exact ? exact.unit : newUnit.trim());
 
-  const matches = useMemo(() => {
-    const q = typed.toLowerCase();
-    const list = q ? materials.filter((m) => m.name.toLowerCase().includes(q) || m.category.toLowerCase().includes(q)) : materials;
-    return list.slice(0, 10);
-  }, [materials, typed]);
+  const q = typed.toLowerCase();
+  const matches = (q
+    ? materials.filter((m) => m.name.toLowerCase().includes(q) || m.category.toLowerCase().includes(q))
+    : materials
+  ).slice(0, 10);
 
   const input = {
     method,
@@ -159,41 +160,41 @@ export function AddMaterialDialog({ projectId, editing, onClose }: { projectId: 
                 className={field}
               />
             </Field>
-          {!picked && (
-            <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label="Materials on the list">
-              {matches.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => choose(m.id, m.name)}
-                  className="min-h-8 rounded-full border border-stone-300 bg-white px-3 text-xs font-medium text-stone-700 hover:border-stone-500"
-                >
-                  {m.name} <span className="text-stone-400">· {m.unit}</span>
+            {!picked && (
+              <div className="mt-2 flex flex-wrap items-center gap-1.5" aria-label="Materials on the list">
+                {matches.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => choose(m.id, m.name)}
+                    className="min-h-8 rounded-full border border-stone-300 bg-white px-3 text-xs font-medium text-stone-700 hover:border-stone-500"
+                  >
+                    {m.name} <span className="text-stone-400">· {m.unit}</span>
+                  </button>
+                ))}
+                {catalog.isPending && <span className="text-xs text-stone-400">Loading the material list…</span>}
+              </div>
+            )}
+            {picked && (
+              <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-600">
+                <FiCheck aria-hidden className="text-green-700" /> {picked.name} · counted in <b className="font-semibold">{picked.unit}</b>
+                {picked.category ? ` · ${picked.category}` : ""}
+                <button type="button" onClick={() => { setMaterialId(""); setQuery(""); }} className="font-medium text-stone-700 underline underline-offset-2">
+                  Change
                 </button>
-              ))}
-              {catalog.isPending && <span className="text-xs text-stone-400">Loading the material list…</span>}
-            </div>
-          )}
-          {picked && (
-            <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-600">
-              <FiCheck aria-hidden className="text-green-700" /> {picked.name} · counted in <b className="font-semibold">{picked.unit}</b>
-              {picked.category ? ` · ${picked.category}` : ""}
-              <button type="button" onClick={() => { setMaterialId(""); setQuery(""); }} className="font-medium text-stone-700 underline underline-offset-2">
-                Change
-              </button>
-            </p>
-          )}
-          {isNew && (
-            <div className="mt-2 grid grid-cols-[minmax(0,1fr)_8rem] items-end gap-3 rounded-lg border border-dashed border-stone-300 bg-stone-50 p-3">
-              <p className="text-sm text-stone-700">
-                <b className="font-semibold">{typed}</b> isn&apos;t on the material list. It will be added with this unit.
               </p>
-              <label className="text-sm">
-                <span className="font-medium text-stone-700">Unit</span>
-                <input id="am-unit" value={newUnit} onChange={(e) => setNewUnit(e.target.value)} maxLength={20} placeholder="kg, nos, cft…" className={field} />
-              </label>
-            </div>
-          )}
+            )}
+            {isNew && (
+              <div className="mt-2 grid grid-cols-[minmax(0,1fr)_8rem] items-end gap-3 rounded-lg border border-dashed border-stone-300 bg-stone-50 p-3">
+                <p className="text-sm text-stone-700">
+                  <b className="font-semibold">{typed}</b> isn&apos;t on the material list. It will be added with this unit.
+                </p>
+                <label className="text-sm">
+                  <span className="font-medium text-stone-700">Unit</span>
+                  <input id="am-unit" value={newUnit} onChange={(e) => setNewUnit(e.target.value)} maxLength={20} placeholder="kg, nos, cft…" className={field} />
+                </label>
+              </div>
+            )}
           </div>
           <Field label="What it's for" optional>
             <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} placeholder="e.g. Footing reinforcement, Ground floor walls" className={field} />
