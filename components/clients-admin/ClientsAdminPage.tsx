@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FiCheck, FiRefreshCw, FiX } from "react-icons/fi";
+import { FiCheck, FiChevronRight, FiRefreshCw, FiX } from "react-icons/fi";
 import { describeError } from "@/lib/api";
 import { ago, inrShort, pct } from "@/lib/dashboard/format";
 import type { AdvanceStatus, ClientOverview } from "@/lib/client/types";
@@ -11,6 +11,7 @@ import { ProofRow } from "@/components/client/PaymentSchedule";
 import { Card, Empty, ErrorBox, Pill, focusRing, inr, type Tone } from "@/components/client/ui";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { RejectDialog } from "./Dialogs";
+import { SHOW_CLIENT_LOGINS, SHOW_PAYMENT_CHECKS } from "./flags";
 import { ProjectPanel } from "./ProjectPanel";
 
 const ADVANCE_TONE: Record<AdvanceStatus, Tone> = { "No advance": "grey", "Waiting for advance": "orange", "Advance paid": "green", "Started without advance": "grey" };
@@ -28,7 +29,7 @@ export function ClientsAdminPage() {
         <div className="mx-auto mb-3 flex max-w-7xl flex-col gap-3 sm:mb-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0 space-y-0.5">
             <h1 className="text-2xl font-semibold tracking-tight">Clients and payments</h1>
-            <p className="text-sm text-stone-500">Check payments clients send, ask for what&apos;s due, and keep them posted on the schedule.</p>
+            <p className="text-sm text-stone-500">{SHOW_PAYMENT_CHECKS ? "Check payments clients send, ask for what\u2019s due, and keep them posted on the schedule." : "What each client has paid, what\u2019s due, and the schedule."}</p>
           </div>
           <div className="flex items-center gap-2">
             <NotificationBell />
@@ -50,10 +51,18 @@ export function ClientsAdminPage() {
         {data && (
           <>
             <Kpis data={data} />
-            <ToCheck data={data} />
-            <Projects data={data} selected={selected} onSelect={setPicked} />
+            {SHOW_PAYMENT_CHECKS && <ToCheck data={data} />}
+            <Projects
+              data={data}
+              selected={selected}
+              onSelect={(id) => {
+                setPicked(id);
+                // The project's details open below the table: bring them into view
+                requestAnimationFrame(() => document.getElementById("selected-project")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+              }}
+            />
             {selected && (
-              <section aria-label="Selected project" className="space-y-3">
+              <section id="selected-project" aria-label="Selected project" className="scroll-mt-32 space-y-3">
                 <h2 className="text-lg font-semibold">{data.projects.find((p) => p.id === selected)?.title}</h2>
                 <ProjectPanel key={selected} projectId={selected} />
               </section>
@@ -70,16 +79,18 @@ export function ClientsAdminPage() {
 function Kpis({ data }: { data: ClientOverview }) {
   const k = data.kpis;
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <KpiCard
-        label="Payments to check"
-        side={k.toCheck.oldest ? `Oldest ${ago(k.toCheck.oldest)}` : "Nothing waiting"}
-        value={String(k.toCheck.count)}
-        of={k.toCheck.count === 1 ? "payment" : "payments"}
-        note={k.toCheck.count ? `${inrShort(k.toCheck.amount)} sent with screenshots` : "Clients' uploads show here"}
-        tag={k.toCheck.count ? "Review" : "Clear"}
-        tagTone={k.toCheck.count ? "warn" : "good"}
-      />
+    <div className={`grid grid-cols-1 gap-3 ${SHOW_PAYMENT_CHECKS ? "sm:grid-cols-2 xl:grid-cols-4" : "sm:grid-cols-3"}`}>
+      {SHOW_PAYMENT_CHECKS && (
+        <KpiCard
+          label="Payments to check"
+          side={k.toCheck.oldest ? `Oldest ${ago(k.toCheck.oldest)}` : "Nothing waiting"}
+          value={String(k.toCheck.count)}
+          of={k.toCheck.count === 1 ? "payment" : "payments"}
+          note={k.toCheck.count ? `${inrShort(k.toCheck.amount)} sent with screenshots` : "Clients' uploads show here"}
+          tag={k.toCheck.count ? "Review" : "Clear"}
+          tagTone={k.toCheck.count ? "warn" : "good"}
+        />
+      )}
       <KpiCard
         label="Overdue from clients"
         side={`${k.overdue.projects} ${k.overdue.projects === 1 ? "project" : "projects"}`}
@@ -101,7 +112,15 @@ function Kpis({ data }: { data: ClientOverview }) {
         label="Received from clients"
         side="Last 30 days"
         value={inrShort(k.received30)}
-        note={k.noSchedule || k.noClient ? `${k.noSchedule} without a schedule · ${k.noClient} without a client login` : "Every project is set up"}
+        note={
+          SHOW_CLIENT_LOGINS
+            ? k.noSchedule || k.noClient
+              ? `${k.noSchedule} without a schedule · ${k.noClient} without a client login`
+              : "Every project is set up"
+            : k.noSchedule
+              ? `${k.noSchedule} without a payment schedule`
+              : "Every project has a schedule"
+        }
         tag="Confirmed"
       />
     </div>
@@ -165,12 +184,12 @@ function ToCheck({ data }: { data: ClientOverview }) {
 
 function Projects({ data, selected, onSelect }: { data: ClientOverview; selected: string | null; onSelect: (id: string) => void }) {
   return (
-    <Card title="Projects" sub="Pick one to manage its clients, payments and schedule">
+    <Card title="Projects" sub={SHOW_CLIENT_LOGINS ? "Tap a project to manage its clients, payments and schedule" : "Tap a project to manage its payments and schedule"}>
       {data.projects.length === 0 ? (
         <Empty>No ongoing projects.</Empty>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
+          <table className="w-full min-w-210 text-sm">
             <thead className="text-left text-xs text-stone-500">
               <tr>
                 <th className="px-4 py-2 font-medium">Project</th>
@@ -178,21 +197,37 @@ function Projects({ data, selected, onSelect }: { data: ClientOverview; selected
                 <th className="px-4 py-2 text-right font-medium">Due now</th>
                 <th className="px-4 py-2 font-medium">Work</th>
                 <th className="px-4 py-2 font-medium">Advance</th>
+                <th className="w-32 px-4 py-2">
+                  <span className="sr-only">Open</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
               {data.projects.map((p) => {
                 const active = p.id === selected;
                 return (
-                  <tr key={p.id} className={active ? "bg-orange-50/60" : "hover:bg-stone-50"}>
+                  // The whole row opens the project (the name stays a real button for the keyboard and screen readers)
+                  <tr
+                    key={p.id}
+                    onClick={() => onSelect(p.id)}
+                    className={`group cursor-pointer transition-colors ${active ? "bg-orange-50 shadow-[inset_3px_0_0_#ea580c]" : "hover:bg-stone-50"}`}
+                  >
                     <td className="px-4 py-2.5">
-                      <button type="button" aria-pressed={active} onClick={() => onSelect(p.id)} className={`text-left font-semibold hover:underline ${focusRing}`}>
+                      <button
+                        type="button"
+                        aria-pressed={active}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelect(p.id);
+                        }}
+                        className={`text-left font-semibold text-stone-900 ${focusRing}`}
+                      >
                         {p.title}
                       </button>
                       <p className="text-xs text-stone-500">
-                        {p.clients ? `${p.clients} client ${p.clients === 1 ? "login" : "logins"}` : "No client login"}
-                        {!p.hasSchedule && " · no payment schedule"}
-                        {p.checking > 0 && ` · ${inr(p.checking)} to check`}
+                        {SHOW_CLIENT_LOGINS && (p.clients ? `${p.clients} client ${p.clients === 1 ? "login" : "logins"}` : "No client login")}
+                        {!p.hasSchedule && `${SHOW_CLIENT_LOGINS ? " · " : ""}no payment schedule`}
+                        {SHOW_PAYMENT_CHECKS && p.checking > 0 && ` · ${inr(p.checking)} to check`}
                       </p>
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums">
@@ -217,6 +252,15 @@ function Projects({ data, selected, onSelect }: { data: ClientOverview; selected
                     </td>
                     <td className="px-4 py-2.5">
                       <Pill tone={ADVANCE_TONE[p.advance]}>{p.advance === "Waiting for advance" ? "Waiting" : p.advance === "Started without advance" ? "Started anyway" : p.advance === "Advance paid" ? "Paid" : "None"}</Pill>
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      {active ? (
+                        <span className="whitespace-nowrap text-xs font-semibold text-orange-700">Showing below</span>
+                      ) : (
+                        <span aria-hidden className="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-2.5 py-1 text-xs font-semibold text-stone-700 group-hover:border-stone-400">
+                          Open <FiChevronRight />
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );

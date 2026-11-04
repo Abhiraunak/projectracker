@@ -6,15 +6,17 @@ import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 import { useAccess } from "@/hooks/useProjectAccess";
 import { useInventoryBadge } from "@/hooks/useInventory";
-import { AppRoute, ROUTES, currentRoute, routeAllowed } from "./Routes";
+import { MENU_ROUTES, currentRoute, routeAllowed, type AppRoute } from "./Routes";
 
 /** The main menu: only the pages this person may open */
 export const RouteSelect = () => {
   const pathname = usePathname();
   const access = useAccess();
-  const visible = ROUTES.filter((route) => routeAllowed(route, access));
-  // Open stock alerts, plus requests waiting for my approval: shown on the Inventory item
-  const inventoryCount = useInventoryBadge(access.can("materials.view"), access.can("requests.approve"));
+  const visible = MENU_ROUTES.filter((route) => routeAllowed(route, access));
+  // Open stock alerts, plus requests waiting for my approval: shown on the Inventory item, so only fetched while
+  // Inventory is in the menu
+  const showsInventory = visible.some((r) => r.href === "/dashboard/inventory");
+  const inventoryCount = useInventoryBadge(showsInventory && access.can("materials.view"), showsInventory && access.can("requests.approve"));
   const active = currentRoute(pathname)?.href;
 
   return (
@@ -37,9 +39,8 @@ function RouteLink({ route: { title, href, Icon }, selected, badge = 0 }: { rout
     <Link
       href={href}
       aria-current={selected ? "page" : undefined}
-      className={`relative flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 lg:py-1.5 ${
-        selected ? "font-medium text-stone-950" : "text-stone-500 hover:bg-stone-200 hover:text-stone-900"
-      }`}
+      className={`relative flex w-full items-center gap-2.5 rounded px-2.5 py-2 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 lg:py-1.5 ${selected ? "font-medium text-stone-950" : "text-stone-500 hover:bg-stone-200 hover:text-stone-900"
+        }`}
     >
       {selected && (
         // The white card slides from item to item (instantly, if the person prefers less motion)

@@ -1,7 +1,10 @@
 "use client";
 
 import { memo, useEffect, useState } from "react";
-import { FiArrowLeft, FiChevronLeft, FiChevronRight, FiDownload, FiExternalLink, FiUpload } from "react-icons/fi";
+import { useQueryClient } from "@tanstack/react-query";
+import { FiArrowLeft, FiChevronLeft, FiChevronRight, FiDownload, FiExternalLink, FiTrash2, FiUpload } from "react-icons/fi";
+import { useDeleteDrawing } from "@/hooks/useDrawings";
+import { describeError } from "@/lib/api";
 import { useDrawingRevisions } from "@/hooks/useProjectDrawings";
 import { goTo, hrefFor, onPlaceClick } from "@/hooks/useWorkspacePlace";
 import { downloadName, formatBytes, formatDate } from "@/lib/drawings/format";
@@ -34,6 +37,29 @@ export const DrawingDetail = memo(function DrawingDetail({
   const shown: NumberedDrawing = (shownId !== drawing.id && history.data?.revisions.find((r) => r.id === shownId)) || drawing;
   const place = (d: ProjectDrawing | null) => (d ? { projectId, section: "drawings" as const, item: d.id } : null);
   const grid = { projectId, section: "drawings" as const, item: null };
+  const qc = useQueryClient();
+  const remove = useDeleteDrawing();
+
+  /**
+   * Delete one revision straight away (no confirmation). Deleting the latest: the one before it becomes the latest
+   * and is shown; the only one: back to all drawings. Deleting an earlier revision: the latest is shown again.
+   * Only the person who uploaded a file can delete it (the server checks).
+   */
+  const deleteRevision = (id: string) => {
+    const others = (history.data?.revisions ?? []).filter((r) => r.id !== id);
+    remove.mutate(id, {
+      onSuccess: () => {
+        void qc.invalidateQueries({ queryKey: ["drawings"] });
+        void qc.invalidateQueries({ queryKey: ["projects", "hub", projectId] }); // the overview's count
+        if (id === drawing.id) {
+          const newest = others[0]; // revisions come newest first
+          goTo(newest ? { projectId, section: "drawings", item: newest.id } : grid, { replace: true });
+        } else {
+          setShownId(drawing.id);
+        }
+      },
+    });
+  };
 
   // Arrow keys move between drawings (not while typing in a field)
   useEffect(() => {
@@ -101,7 +127,22 @@ export const DrawingDetail = memo(function DrawingDetail({
         <button type="button" onClick={() => onRevise(drawing.number)} className={button}>
           <FiUpload aria-hidden /> Upload new revision
         </button>
+        {shown.isOwner && (
+          <button
+            type="button"
+            disabled={remove.isPending}
+            onClick={() => deleteRevision(shown.id)}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-red-200 px-4 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 sm:ml-auto"
+          >
+            <FiTrash2 aria-hidden /> {remove.isPending ? "Deleting…" : drawing.revisions > 1 ? `Delete R${shown.revision}` : "Delete"}
+          </button>
+        )}
       </div>
+      {remove.isError && (
+        <p role="alert" className="text-sm text-red-700">
+          {describeError(remove.error)}
+        </p>
+      )}
 
       {drawing.revisions > 1 && (
         <section aria-labelledby="revisions-title" className="rounded-xl border border-stone-200">
@@ -115,12 +156,12 @@ export const DrawingDetail = memo(function DrawingDetail({
           ) : (
             <ul className="divide-y divide-stone-100">
               {history.data.revisions.map((r) => (
-                <li key={r.id}>
+                <li key={r.id} className={`flex items-center ${r.id === shown.id ? "bg-orange-50" : ""}`}>
                   <button
                     type="button"
                     onClick={() => setShownId(r.id)}
                     aria-pressed={r.id === shown.id}
-                    className={`flex min-h-12 w-full items-center gap-3 px-4 text-left text-sm hover:bg-stone-50 ${r.id === shown.id ? "bg-orange-50" : ""}`}
+                    className="flex min-h-12 min-w-0 flex-1 items-center gap-3 px-4 text-left text-sm hover:bg-stone-50"
                   >
                     <span className="w-9 font-semibold tabular-nums">R{r.revision}</span>
                     <span className="min-w-0 flex-1 truncate">{r.title}</span>
@@ -129,6 +170,18 @@ export const DrawingDetail = memo(function DrawingDetail({
                       {r.id === drawing.id && " · latest"}
                     </span>
                   </button>
+                  {r.isOwner && (
+                    <button
+                      type="button"
+                      disabled={remove.isPending}
+                      onClick={() => deleteRevision(r.id)}
+                      aria-label={`Delete R${r.revision}`}
+                      title={`Delete R${r.revision}`}
+                      className="mr-2 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-stone-400 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                    >
+                      <FiTrash2 aria-hidden />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

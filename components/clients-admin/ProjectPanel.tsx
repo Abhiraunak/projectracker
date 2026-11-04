@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import Link from "next/link";
-import { FiCalendar, FiCheck, FiCopy, FiEdit2, FiFileText, FiKey, FiPlus, FiSend, FiTrash2, FiX } from "react-icons/fi";
+import { FiCalendar, FiCheck, FiCopy, FiEdit2, FiKey, FiPlus, FiSend, FiTrash2, FiX } from "react-icons/fi";
 import { describeError } from "@/lib/api";
 import { pct } from "@/lib/dashboard/format";
 import { REASON_LABEL, type ClientProject, type Instalment } from "@/lib/client/types";
@@ -19,6 +18,7 @@ import {
 import { PaymentSchedule } from "@/components/client/PaymentSchedule";
 import { Card, Empty, ErrorBox, Pill, dayLabel, focusRing, inputClass, inr, primaryButton, secondaryButton } from "@/components/client/ui";
 import { DelayDialog, InstalmentDialog, RecordPaymentDialog, RejectDialog } from "./Dialogs";
+import { SHOW_CLIENT_LOGINS, SHOW_PAYMENT_CHECKS } from "./flags";
 
 const small = `inline-flex h-9 items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-3 text-sm font-semibold text-stone-800 hover:bg-stone-50 disabled:opacity-50 ${focusRing}`;
 
@@ -35,7 +35,7 @@ export function ProjectPanel({ projectId }: { projectId: string }) {
           <Schedule data={query.data} />
         </div>
         <div className="flex flex-col gap-4">
-          <Clients data={query.data} />
+          {SHOW_CLIENT_LOGINS && <Clients data={query.data} />}
           <Delays data={query.data} />
         </div>
       </div>
@@ -64,7 +64,7 @@ function AdvanceBanner({ data }: { data: ClientProject }) {
       <div className="min-w-0 flex-1">
         <p className="font-semibold">{waiting ? "Waiting for the advance before work starts" : "Work started without the advance"}</p>
         <p className="text-sm opacity-80">
-          {advance ? `${advance.invoiceNo} · ${inr(advance.remaining)} still to come${advance.checking > 0 ? `, ${inr(advance.checking)} being checked` : ""}` : ""}
+          {advance ? `${inr(advance.remaining)} still to come${advance.checking > 0 ? `, ${inr(advance.checking)} being checked` : ""}` : ""}
         </p>
       </div>
       <button type="button" disabled={set.isPending} onClick={() => set.mutate(waiting)} className={waiting ? primaryButton : secondaryButton}>
@@ -103,9 +103,6 @@ function Schedule({ data }: { data: ClientProject }) {
         emptyText="No payments yet. Add the advance first, then the instalments."
         actions={(i) => (
           <>
-            <Link href={`/invoice/${i.id}`} target="_blank" className={small} aria-label={`Invoice ${i.invoiceNo}`}>
-              <FiFileText aria-hidden />
-            </Link>
             {i.status !== "Paid" && (
               <>
                 {!i.isDue && (
@@ -118,16 +115,16 @@ function Schedule({ data }: { data: ClientProject }) {
                 </button>
               </>
             )}
-            <button type="button" onClick={() => setEditing(i)} className={small} aria-label={`Edit ${i.invoiceNo}`}>
+            <button type="button" onClick={() => setEditing(i)} className={small} aria-label={`Edit ${i.label}`}>
               <FiEdit2 aria-hidden />
             </button>
             {i.proofs.every((x) => x.status === "REJECTED") && (
               <button
                 type="button"
                 disabled={remove.isPending}
-                onClick={() => window.confirm(`Remove ${i.invoiceNo} · ${i.label}?`) && remove.mutate(i.id)}
+                onClick={() => window.confirm(`Remove the payment "${i.label}"?`) && remove.mutate(i.id)}
                 className={small}
-                aria-label={`Remove ${i.invoiceNo}`}
+                aria-label={`Remove ${i.label}`}
               >
                 <FiTrash2 aria-hidden />
               </button>
@@ -135,7 +132,7 @@ function Schedule({ data }: { data: ClientProject }) {
           </>
         )}
         proofActions={(proof) =>
-          proof.status === "PENDING" ? (
+          SHOW_PAYMENT_CHECKS && proof.status === "PENDING" ? (
             <>
               <button type="button" disabled={decide.isPending} onClick={() => setRejecting(proof.id)} className={small}>
                 <FiX aria-hidden /> Reject

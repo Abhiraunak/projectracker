@@ -18,8 +18,9 @@ const todayLocal = () => {
 };
 
 /**
- * Start a project from the Projects page. Only what's needed to begin: name, firm, budget, dates and the first work
- * item (every project has at least one; more are added on the Project page, as before).
+ * Start a project. Only what's needed to begin: name, firm, project cost and dates. One plain work item
+ * ("General work", on the project's dates) is created behind the scenes, because the dates live on the work items;
+ * the real work items are added later on the Project page, as before.
  * When it's saved, the new project opens (in the workspace, or wherever `onCreated` sends it, e.g. from the dashboard).
  */
 export function NewProjectDialog({ onClose, onCreated }: { onClose: () => void; onCreated?: (projectId: string) => void }) {
@@ -29,8 +30,6 @@ export function NewProjectDialog({ onClose, onCreated }: { onClose: () => void; 
   const [cost, setCost] = useState<number | "">("");
   const [start, setStart] = useState(todayLocal());
   const [end, setEnd] = useState("");
-  const [work, setWork] = useState("");
-  const [agreed, setAgreed] = useState<number | "">("");
   const [firmError, setFirmError] = useState<string | null>(null);
 
   const datesBad = !!end && end < start;
@@ -46,12 +45,14 @@ export function NewProjectDialog({ onClose, onCreated }: { onClose: () => void; 
         tasks: [
           {
             id: "new",
-            work: work.trim() || "General work",
+            // Not asked for: the project's dates live on its work items, and every project needs one to start.
+            // Real work items are added later in Progress (rename or remove this one there).
+            work: "General work",
             area: "",
             contractorRate: "",
             inHouseRate: "",
             progress: 0,
-            stipulated: agreed,
+            stipulated: "",
             paid: "",
             startDate: start,
             endDate: end,
@@ -103,18 +104,6 @@ export function NewProjectDialog({ onClose, onCreated }: { onClose: () => void; 
         </div>
         {datesBad && <p className="-mt-2 text-xs text-red-700">The end date is before the start.</p>}
 
-        <fieldset className="rounded-lg border border-stone-200 p-3">
-          <legend className="px-1 text-sm font-medium text-stone-700">First work item</legend>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Work" optional>
-              <input value={work} onChange={(e) => setWork(e.target.value)} maxLength={120} placeholder="General work" className={field} />
-            </Field>
-            <Field label="Agreed labour amount" optional>
-              <MoneyInput value={agreed} onChange={setAgreed} wrapperClassName="mt-1" className="min-h-11" />
-            </Field>
-          </div>
-          <p className="mt-2 text-xs text-stone-500">It runs on the project&apos;s dates. Add more work items any time on the Project page.</p>
-        </fieldset>
 
         {(create.isError || firmError) && (
           <p role="alert" className="text-sm text-red-700">
