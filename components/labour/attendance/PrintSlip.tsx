@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { describeDays, weekday } from "@/lib/attendance/days";
-import { dayTotal, formatDay, num, rupees, workerTotal, type AttendanceForm } from "@/lib/attendance/form";
+import { dayTotal, formatDay, num, rupees, workerHours, workerTotal, type AttendanceForm } from "@/lib/attendance/form";
 
 /*
  * Rendered into <body> and shown only when printing. While printing, every other part of the page is hidden,
@@ -36,14 +36,19 @@ const PRINT_CSS = `
   }
 `;
 
+/** True in the browser, false while rendering on the server: the portal needs document.body.
+ *  useSyncExternalStore gives the right answer on the first browser render, without an effect or a second render. */
+const noSubscription = () => () => {};
+const useIsBrowser = () => useSyncExternalStore(noSubscription, () => true, () => false);
+
 /** The payment slip for what is in the form now. `days` is the chosen days in several-days mode, else null. */
 export function PrintSlip({ title, form, total, days }: { title: string; form: AttendanceForm; total: number; days: string[] | null }) {
-  const [mounted, setMounted] = useState(false); // the portal needs document.body
-  useEffect(() => setMounted(true), []);
+  const mounted = useIsBrowser();
   if (!mounted) return null;
 
   // Only rows that actually have an amount, so empty rows don't print
-  const rows = form.workers.filter((w) => workerTotal(w, days) > 0);
+  const mode = form.payMode;
+  const rows = form.workers.filter((w) => workerTotal(w, days, mode) > 0);
   const extras = num(form.extras) * (days ? days.length : 1);
 
   return (
@@ -78,8 +83,11 @@ export function PrintSlip({ title, form, total, days }: { title: string; form: A
                 rows.map((w, i) => (
                   <tr key={w.id} className="border-b border-stone-300">
                     <td className="py-2 pr-2">{i + 1}</td>
-                    <td className="py-2">{w.label.trim() || "Labour"}</td>
-                    <td className="py-2 text-right tabular-nums">{rupees(workerTotal(w, days))}</td>
+                    <td className="py-2">
+                      {w.label.trim() || "Labour"}
+                      {mode === "hourly" && <HoursNote hours={workerHours(w, days).hours} ot={workerHours(w, days).ot} dayRate={num(w.dayRate)} />}
+                    </td>
+                    <td className="py-2 text-right tabular-nums">{rupees(workerTotal(w, days, mode))}</td>
                   </tr>
                 ))
               )}
@@ -114,7 +122,7 @@ export function PrintSlip({ title, form, total, days }: { title: string; form: A
                     <td className="py-1.5">
                       {weekday(d)} {formatDay(d)}
                     </td>
-                    <td className="py-1.5 text-right tabular-nums">{rupees(dayTotal(form.workers, d, form.extras))}</td>
+                    <td className="py-1.5 text-right tabular-nums">{rupees(dayTotal(form.workers, d, form.extras, mode))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -130,6 +138,15 @@ export function PrintSlip({ title, form, total, days }: { title: string; form: A
         document.body
       )}
     </>
+  );
+}
+
+/** Paid hourly: "224 h + 97 h OT at ₹1,300 a day" */
+function HoursNote({ hours, ot, dayRate }: { hours: number; ot: number; dayRate: number }) {
+  return (
+    <span className="ml-2 text-xs">
+      ({hours} h{ot ? ` + ${ot} h OT` : ""} at {rupees(dayRate)} a day)
+    </span>
   );
 }
 

@@ -20,11 +20,12 @@ export function useSaveAttendance() {
   });
 }
 
-/** One entry for each chosen day, saved together */
+/** One entry for each chosen day, saved together; with a batchId, days saved together earlier are edited in one go */
 export function useSaveAttendanceDays() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: AttendanceManyPayload) => attendanceApi.createMany(data),
+    mutationFn: ({ batchId, data }: { batchId?: string; data: AttendanceManyPayload }) =>
+      batchId ? attendanceApi.updateMany(batchId, data) : attendanceApi.createMany(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance"] }),
   });
 }
@@ -33,6 +34,15 @@ export function useDeleteAttendance() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => attendanceApi.remove(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance"] }),
+  });
+}
+
+/** Every day saved together, deleted in one go */
+export function useDeleteAttendanceBatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (batchId: string) => attendanceApi.removeBatch(batchId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance"] }),
   });
 }
@@ -49,3 +59,28 @@ export function useSetContractorTrade() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance"] }),
   });
 }
+
+/** A contractor's labourers and day rates (hourly attendance). Under "attendance": saving hourly attendance updates it. */
+export const useTeam = (projectId: string, contractor: string) =>
+  useQuery({
+    queryKey: ["attendance", "team", projectId, contractor.trim().toLowerCase()],
+    queryFn: () => attendanceApi.team(projectId, contractor.trim()),
+    enabled: contractor.trim().length > 0,
+    staleTime: 60_000,
+  });
+
+export function useSaveTeam() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof attendanceApi.saveTeam>[0]) => attendanceApi.saveTeam(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance"] }),
+  });
+}
+
+/** One contractor's month sheet and account; keeps the last month on screen while the next loads */
+export const useMonthSheet = (projectId: string, month: string, contractor?: string) =>
+  useQuery({
+    queryKey: ["attendance", "month", projectId, month, contractor?.trim().toLowerCase() ?? ""],
+    queryFn: () => attendanceApi.month(projectId, month, contractor?.trim() || undefined),
+    placeholderData: keepPreviousData,
+  });

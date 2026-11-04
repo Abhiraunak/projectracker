@@ -5,7 +5,7 @@ import type { FormEvent } from "react";
 import { useEditorShortcuts } from "@/hooks/useEditorShortcuts";
 import { useAttendanceTrades, useSaveAttendance, useSaveAttendanceDays } from "@/hooks/useAttendance";
 import { describeError } from "@/lib/api";
-import type { AttendanceRecord } from "@/lib/attendanceApi";
+import type { AttendanceListItem } from "@/lib/attendanceApi";
 import { checkForm, DEFAULT_TRADES, formTotal, savedManyNote, toManyPayload, toPayload } from "@/lib/attendance/form";
 import { printWithTitle } from "@/lib/print";
 import { TradeCards } from "./TradeCards";
@@ -14,6 +14,8 @@ import { EntryForm } from "./attendance/EntryForm";
 import { PrintSlip } from "./attendance/PrintSlip";
 import { RecordsPanel } from "./attendance/RecordsPanel";
 import { useAttendanceForm } from "./attendance/useAttendanceForm";
+import { useTeamPrefill } from "./attendance/useTeamPrefill";
+import { MonthSheet } from "./attendance/MonthSheet";
 
 /**
  * Labour attendance for one project: trade cards, the entry form, and saved records.
@@ -21,9 +23,10 @@ import { useAttendanceForm } from "./attendance/useAttendanceForm";
  */
 export function AttendanceManager({ projectId }: { projectId: string }) {
   const api = useAttendanceForm();
-  const { form, severalDays, editingId } = api;
+  const { form, severalDays, editingId, editingBatchId } = api;
 
   const trades = useAttendanceTrades(projectId);
+  const team = useTeamPrefill(api, projectId); // paid hourly: the contractor's team fills the rows
   const save = useSaveAttendance();
   const saveDays = useSaveAttendanceDays();
   const saving = save.isPending || saveDays.isPending;
@@ -55,8 +58,8 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
     setSavedNote(null);
     try {
       if (severalDays) {
-        const result = await saveDays.mutateAsync(toManyPayload(form, projectId));
-        setSavedNote(savedManyNote(result.count, form));
+        const result = await saveDays.mutateAsync({ batchId: editingBatchId ?? undefined, data: toManyPayload(form, projectId) });
+        setSavedNote(savedManyNote(result.count, form, editingBatchId !== null));
       } else {
         await save.mutateAsync({ id: editingId ?? undefined, data: toPayload(form, projectId) });
       }
@@ -70,15 +73,17 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
     document.getElementById("contractorNameInput")?.focus();
   };
 
+  // Days saved together open together, in the day grid; a single day opens on its own
   const startEdit = useCallback(
-    (r: AttendanceRecord) => {
-      api.startEdit(r);
+    (r: AttendanceListItem) => {
+      if (r.batch && r.batch.days.length > 0) api.startEditBatch(r.batch);
+      else api.startEdit(r);
       setSavedNote(null);
       setError(null);
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [api.startEdit]
+    [api.startEdit, api.startEditBatch]
   );
 
   const cancelEdit = () => {
@@ -88,7 +93,7 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
   };
 
   const onDeleted = (id: string) => {
-    if (editingId === id) cancelEdit();
+    if (editingId === id || editingBatchId === id) cancelEdit();
   };
 
   return (
@@ -100,6 +105,8 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
 
       <EntryForm
         api={api}
+        projectId={projectId}
+        team={team}
         choices={trades.data?.choices ?? DEFAULT_TRADES}
         usual={trades.data?.usual}
         total={total}
@@ -107,11 +114,14 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
         error={error}
         savedNote={savedNote}
         submitRef={submitRef}
+        tradeStorageKey={`attendance-trades:${projectId}`}
         onSubmit={handleSubmit}
         onCancelEdit={cancelEdit}
       />
 
       <RecordsPanel projectId={projectId} trade={tradeFilter} onClearTrade={() => setTradeFilter(undefined)} onEdit={startEdit} onDeleted={onDeleted} resetKey={savedCount} />
+
+      <MonthSheet projectId={projectId} />
     </div>
   );
 }

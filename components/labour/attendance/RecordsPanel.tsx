@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { FiX } from "react-icons/fi";
 import { SearchInput } from "@/components/utilites/SearchInput";
 import { useDebounced } from "@/hooks/useDebounced";
-import { useAttendanceList, useDeleteAttendance } from "@/hooks/useAttendance";
+import { useAttendanceList, useDeleteAttendance, useDeleteAttendanceBatch } from "@/hooks/useAttendance";
 import { describeError } from "@/lib/api";
-import type { AttendanceRecord } from "@/lib/attendanceApi";
+import type { AttendanceListItem } from "@/lib/attendanceApi";
 import { formatDay } from "@/lib/attendance/form";
 import { Pagination } from "../Pagination";
 import { RecordsTable } from "./RecordsTable";
@@ -18,44 +18,73 @@ interface Props {
   /** Only one trade's entries ("-" = not set); undefined = all */
   trade?: string;
   onClearTrade: () => void;
-  onEdit: (r: AttendanceRecord) => void;
-  /** Told after a delete, so an entry being edited can be closed */
+  /** A row to edit: one day, or (with `batch`) days saved together */
+  onEdit: (r: AttendanceListItem) => void;
+  /** Told after a delete (the entry's id, or the batch's), so an entry being edited can be closed */
   onDeleted?: (id: string) => void;
   /** Changes after each save: the panel goes back to page 1 with the search cleared, to show the new entry */
   resetKey?: number;
 }
 
 /**
- * Saved records: search, paging and deleting, all from the server. Owns its own search and page, so the form above
- * doesn't re-render while someone types in the search box.
+ * Saved records: search, paging and deleting, all from the server.
+ *
+ * A new `resetKey` (after a save) starts the panel afresh, with the search cleared and page 1: the `key` below
+ * does that without an effect.
  */
-export function RecordsPanel({ projectId, trade, onClearTrade, onEdit, onDeleted, resetKey = 0 }: Props) {
-  const [page, setPage] = useState(1);
+export function RecordsPanel(props: Props) {
+  return <Panel key={props.resetKey ?? 0} {...props} />;
+}
+
+/** Owns its own search and page, so the form above doesn't re-render while someone types in the search box */
+function Panel({ projectId, trade, onClearTrade, onEdit, onDeleted }: Props) {
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const query = useDebounced(search.trim(), 300);
-  const list = useAttendanceList({ projectId, q: query || undefined, trade, page, pageSize: PAGE_SIZE });
-  const remove = useDeleteAttendance();
 
-  useEffect(() => setPage(1), [query, trade]); // a new search or trade starts on page 1
-  useEffect(() => {
-    if (resetKey === 0) return;
-    setSearch("");
-    setPage(1);
-  }, [resetKey]);
-  // After deleting the last row of the last page, step back instead of showing an empty page
-  useEffect(() => {
-    if (list.data && page > list.data.totalPages) setPage(list.data.totalPages);
-  }, [list.data, page]);
+  // The page belongs to the search and trade it was picked for: a new search or trade is back on page 1,
+  // worked out here while rendering instead of reset in an effect
+  const filterKey = `${query}\u0000${trade ?? ""}`;
+  const [paging, setPaging] = useState({ key: filterKey, page: 1 });
+  const page = paging.key === filterKey ? paging.page : 1;
+  const setPage = useCallback((p: number) => setPaging({ key: filterKey, page: Math.max(1, p) }), [filterKey]);
+  // Typing a search (or clearing it) goes back to page 1, done in the handler rather than an effect
+  const onSearch = (v: string) => {
+    setSearch(v);
+    setPaging((old) => ({ ...old, page: 1 }));
+  };
+
+  // grouped: days saved together come back as one row
+  const list = useAttendanceList({ projectId, q: query || undefined, trade, page, pageSize: PAGE_SIZE, grouped: true });
+  const remove = useDeleteAttendance();
+  const removeBatch = useDeleteAttendanceBatch();
+
+  // A page that no longer exists (entries deleted elsewhere) offers the last page instead of an empty table
+  const totalPages = Math.max(1, list.data?.totalPages ?? 1);
+  const pastTheEnd = !!list.data && list.data.total > 0 && list.data.items.length === 0 && page > totalPages;
+
+  // Deleting the only row on a page (not the first) steps back a page, so an empty page is never shown
+  const onlyRowOnPage = (list.data?.items.length ?? 0) === 1 && page > 1;
 
   const handleDelete = useCallback(
-    (r: AttendanceRecord) => {
+    (r: AttendanceListItem) => {
+      const done = (id: string) => {
+        onDeleted?.(id);
+        if (onlyRowOnPage) setPage(page - 1);
+      };
+      const batch = r.batch;
+      if (batch && batch.from && batch.to) {
+        if (!window.confirm(`Delete all ${batch.count} days for ${r.contractorName} (${formatDay(batch.from)} to ${formatDay(batch.to)})?`)) return;
+        setError(null);
+        removeBatch.mutate(batch.id, { onSuccess: () => done(batch.id), onError: (err: unknown) => setError(describeError(err)) });
+        return;
+      }
       if (!window.confirm(`Delete the entry for ${r.contractorName} on ${formatDay(r.date)}?`)) return;
       setError(null);
-      remove.mutate(r.id, { onSuccess: () => onDeleted?.(r.id), onError: (err: unknown) => setError(describeError(err)) });
+      remove.mutate(r.id, { onSuccess: () => done(r.id), onError: (err: unknown) => setError(describeError(err)) });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [remove.mutate, onDeleted]
+    [remove.mutate, removeBatch.mutate, onDeleted, onlyRowOnPage, page, setPage]
   );
 
   return (
@@ -74,7 +103,7 @@ export function RecordsPanel({ projectId, trade, onClearTrade, onEdit, onDeleted
             </button>
           )}
         </div>
-        <SearchInput value={search} onChange={setSearch} label="Search contractor or notes" className="w-full sm:w-64" />
+        <SearchInput value={search} onChange={onSearch} label="Search contractor or notes" className="w-full sm:w-64" />
       </div>
 
       {error && (
@@ -106,8 +135,17 @@ export function RecordsPanel({ projectId, trade, onClearTrade, onEdit, onDeleted
         </p>
       ) : (
         <>
-          <RecordsTable records={list.data.items} dimmed={list.isPlaceholderData} onEdit={onEdit} onDelete={handleDelete} />
-          <Pagination page={page} totalPages={list.data.totalPages} total={list.data.total} pageSize={PAGE_SIZE} onPageChange={setPage} />
+          {pastTheEnd ? (
+            <p className="p-8 text-center text-sm text-stone-500">
+              This page is empty now.{" "}
+              <button type="button" onClick={() => setPage(totalPages)} className="font-medium text-stone-800 underline">
+                Go to page {totalPages}
+              </button>
+            </p>
+          ) : (
+            <RecordsTable records={list.data.items} dimmed={list.isPlaceholderData} onEdit={onEdit} onDelete={handleDelete} />
+          )}
+          <Pagination page={Math.min(page, totalPages)} totalPages={list.data.totalPages} total={list.data.total} pageSize={PAGE_SIZE} onPageChange={setPage} />
         </>
       )}
     </section>

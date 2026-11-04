@@ -7,13 +7,17 @@ import { fieldLabel, iconBtn, inputBase } from "@/components/utilites/fieldStyle
 import { FormMessage } from "@/components/utilites/FormMessage";
 import { MoneyInput } from "@/components/utilites/MoneyInput";
 import { describeDays } from "@/lib/attendance/days";
-import { rupees } from "@/lib/attendance/form";
+import { rupees, type PayMode } from "@/lib/attendance/form";
+import type { TeamMember } from "@/lib/attendanceApi";
 import { AttendanceDays } from "../AttendanceDays";
 import { LabourDetails } from "./LabourDetails";
 import type { AttendanceFormApi } from "./useAttendanceForm";
 
 interface Props {
   api: AttendanceFormApi;
+  projectId: string;
+  /** Paid hourly: the contractor's team (names and day rates) */
+  team?: TeamMember[];
   /** Trades to offer, and each contractor's usual trade (filled in when the contractor is known) */
   choices: string[];
   usual?: Record<string, string>;
@@ -22,21 +26,23 @@ interface Props {
   error: string | null;
   savedNote: string | null;
   submitRef: RefObject<HTMLButtonElement | null>;
+  /** Where trades people add are remembered on this device (e.g. per project) */
+  tradeStorageKey?: string;
   onSubmit: (e: FormEvent) => void;
   onCancelEdit: () => void;
 }
 
 /** The "New entry" / "Editing entry" card: trade, contractor, day(s), labourers, extras, notes, total, save */
-export function EntryForm({ api, choices, usual, total, saving, error, savedNote, submitRef, onSubmit, onCancelEdit }: Props) {
-  const { form, update, editingId, severalDays, multiDay } = api;
+export function EntryForm({ api, projectId, team, choices, usual, total, saving, error, savedNote, submitRef, tradeStorageKey, onSubmit, onCancelEdit }: Props) {
+  const { form, update, editing, editingBatchId, severalDays, multiDay } = api;
   const dayCount = severalDays ? form.days.length : 1;
 
   return (
-    <section className={`rounded border ${editingId ? "border-stone-900" : "border-stone-300"}`} aria-label={editingId ? "Edit attendance entry" : "New attendance entry"}>
+    <section className={`rounded border ${editing ? "border-stone-900" : "border-stone-300"}`} aria-label={editing ? "Edit attendance entry" : "New attendance entry"}>
       <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3">
         <h2 className="flex items-center gap-2 text-base font-semibold">
-          {editingId ? "Editing entry" : "New entry"}
-          {editingId && (
+          {editingBatchId ? `Editing ${dayCount} days` : editing ? "Editing entry" : "New entry"}
+          {editing && (
             <span className="flex items-center gap-1 rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">
               <FiEdit2 aria-hidden /> Editing
             </span>
@@ -49,7 +55,7 @@ export function EntryForm({ api, choices, usual, total, saving, error, savedNote
           <button type="button" onClick={api.redo} title="Redo (Ctrl+Y)" aria-label="Redo" className={iconBtn}>
             <FiCornerUpRight aria-hidden />
           </button>
-          {editingId && (
+          {editing && (
             <>
               <span className="mx-2 h-4 w-px bg-stone-300" />
               <button
@@ -65,11 +71,13 @@ export function EntryForm({ api, choices, usual, total, saving, error, savedNote
       </div>
 
       <form onSubmit={onSubmit} className="space-y-6 p-4 sm:p-6">
+        <PayModeSwitch value={form.payMode} onChange={api.setPayMode} locked={editing} />
+
         <div>
-          <label htmlFor="tradeInput" className={fieldLabel}>
+          <p id="tradeLabel" className={fieldLabel}>
             Trade
-          </label>
-          <ChipInput id="tradeInput" value={form.trade} onChange={(trade) => update({ trade })} choices={choices} placeholder="e.g. Civil" groupLabel="Pick a trade" />
+          </p>
+          <ChipInput id="tradeInput" labelledBy="tradeLabel" noun="trade" value={form.trade} onChange={(trade) => update({ trade })} choices={choices} storageKey={tradeStorageKey} />
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -98,7 +106,7 @@ export function EntryForm({ api, choices, usual, total, saving, error, savedNote
               <label htmlFor="attendanceDate" className="block text-sm text-stone-500">
                 {severalDays ? "Days" : "Date"}
               </label>
-              {!editingId && (
+              {!editing && (
                 <button
                   type="button"
                   onClick={api.toggleMultiDay}
@@ -122,11 +130,11 @@ export function EntryForm({ api, choices, usual, total, saving, error, savedNote
         {severalDays && (
           <div>
             <AttendanceDays days={form.days} onChange={(days) => update({ days })} />
-            <p className="mt-2 text-xs text-stone-500">Enter what each labourer is paid on each day below. Each day is saved as its own entry, which you can edit or delete on its own.</p>
+            <p className="mt-2 text-xs text-stone-500">Enter what each labourer is paid on each day below. Each day counts on its own date. Days saved together stay together in Saved records, and open together to edit.</p>
           </div>
         )}
 
-        <LabourDetails api={api} />
+        <LabourDetails api={api} projectId={projectId} team={team} />
 
         <div className="grid grid-cols-1 gap-4 border-t border-stone-200 pt-6 md:grid-cols-2">
           <div>
@@ -159,10 +167,46 @@ export function EntryForm({ api, choices, usual, total, saving, error, savedNote
             className="flex items-center gap-2 rounded bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-stone-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <FiSave aria-hidden />
-            {saving ? "Saving…" : editingId ? "Update entry" : severalDays ? `Save ${dayCount} ${dayCount === 1 ? "entry" : "entries"} (Ctrl+S)` : "Save entry (Ctrl+S)"}
+            {saving ? "Saving…" : editingBatchId ? `Update ${dayCount} ${dayCount === 1 ? "day" : "days"} (Ctrl+S)` : editing ? "Update entry" : severalDays ? `Save ${dayCount} ${dayCount === 1 ? "entry" : "entries"} (Ctrl+S)` : "Save entry (Ctrl+S)"}
           </button>
         </div>
       </form>
     </section>
+  );
+}
+
+const PAY_MODES: { key: PayMode; label: string; hint: string }[] = [
+  { key: "amount", label: "Paid monthly", hint: "Type each labourer's amount" },
+  { key: "hourly", label: "Paid hourly", hint: "Hours + OT × each labourer's rate" },
+];
+
+/**
+ * How this contractor's team is paid. Paid monthly: the amounts are typed, as before. Paid hourly: names and day
+ * rates come from the team, hours and overtime are entered, and the pay is worked out. A saved entry keeps its own.
+ */
+function PayModeSwitch({ value, onChange, locked }: { value: PayMode; onChange: (mode: PayMode) => void; locked: boolean }) {
+  return (
+    <div>
+      <div role="group" aria-label="How this team is paid" className="grid grid-cols-2 gap-1 rounded-lg bg-stone-100 p-1 sm:inline-grid sm:min-w-md">
+        {PAY_MODES.map((m) => {
+          const on = value === m.key;
+          return (
+            <button
+              key={m.key}
+              type="button"
+              aria-pressed={on}
+              disabled={locked && !on}
+              onClick={() => onChange(m.key)}
+              className={`rounded-md px-3 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 disabled:cursor-not-allowed disabled:opacity-40 ${on ? "bg-white text-stone-900 shadow-sm" : "text-stone-600 hover:text-stone-900"
+                }`}
+            >
+              <span className="block text-sm font-semibold">{m.label}</span>
+              <span className="block text-xs text-stone-500">{m.hint}</span>
+            </button>
+          );
+        })}
+      </div>
+      {locked && <p className="mt-1.5 text-xs text-stone-500">A saved entry keeps how it was paid.</p>}
+    </div>
   );
 }
