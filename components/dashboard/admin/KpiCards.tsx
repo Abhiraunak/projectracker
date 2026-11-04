@@ -11,9 +11,9 @@ export function TickBar({ filled, color, marker }: { filled: number; color: stri
   const on = Math.round((Math.max(0, Math.min(100, filled)) / 100) * TICKS);
   const mark = marker === undefined ? -1 : Math.min(TICKS - 1, Math.round((Math.max(0, Math.min(100, marker)) / 100) * TICKS));
   return (
-    <div aria-hidden className="grid h-6 grid-cols-[repeat(40,minmax(0,1fr))] gap-[2px]">
+    <div aria-hidden className="grid h-6 grid-cols-40 gap-0.5">
       {Array.from({ length: TICKS }, (_, i) => (
-        <span key={i} className="rounded-[2px]" style={{ background: i === mark ? "#1c1917" : i < on ? color : "#efeee9" }} />
+        <span key={i} className="rounded-xs" style={{ background: i === mark ? "#1c1917" : i < on ? color : "#efeee9" }} />
       ))}
     </div>
   );
@@ -58,7 +58,9 @@ export const KpiCards = memo(function KpiCards({ data }: { data: AdminOverview }
   const { budget, work, labour, approvals } = data.kpis;
   const used = budget.budget > 0 ? (budget.spent / budget.budget) * 100 : 0;
   const paidShare = labour.earned > 0 ? (labour.paid / labour.earned) * 100 : 100;
-  const waiting = approvals.requests + approvals.people + approvals.lateDeliveries + (approvals.payments ?? 0);
+  // Client payments to check: only sent by newer versions of the API, so read as optional
+  const payments = (approvals as typeof approvals & { payments?: number }).payments ?? 0;
+  const waiting = approvals.requests + approvals.people + approvals.lateDeliveries + payments;
   const behind = work.done + 5 < work.time;
 
   return (
@@ -98,7 +100,7 @@ export const KpiCards = memo(function KpiCards({ data }: { data: AdminOverview }
         value={String(waiting)}
         of={waiting === 1 ? "item" : "items"}
         bar={{ filled: Math.min(100, (waiting / 20) * 100), color: "#ea580c" }}
-        note={`${approvals.requests} requests · ${approvals.payments ?? 0} payments · ${approvals.people} sign-ins · ${approvals.lateDeliveries} late`}
+        note={`${approvals.requests} requests · ${payments} payments · ${approvals.people} sign-ins · ${approvals.lateDeliveries} late`}
         tag={waiting ? "Review" : "Clear"}
         tagTone={waiting ? "warn" : "good"}
       />
