@@ -1,6 +1,6 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 import type { IconType } from "react-icons";
-import { FiBarChart2, FiBox, FiPaperclip, FiClipboard, FiFileText, FiPenTool, FiTrendingUp, FiTruck } from "react-icons/fi";
+import { FiBarChart2, FiBox, FiPaperclip, FiClipboard, FiFileText, FiPenTool, FiTruck } from "react-icons/fi";
 import type { Permission } from "@/lib/access/types";
 import type { SectionKey } from "@/lib/projects/place";
 import { plural, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
@@ -31,20 +31,9 @@ export interface SectionDef {
  */
 const def = (d: Omit<SectionDef, "Section">): SectionDef => ({ ...d, Section: lazy(d.load) });
 
+// Progress now sits on the Overview, and Labour payment is covered by the Labour tab, so neither has a tile or a tab.
+// Old links to them (?s=progress, ?s=payments) open the Overview.
 export const SECTIONS: SectionDef[] = [
-  def({
-    key: "progress",
-    label: "Progress",
-    Icon: FiTrendingUp,
-    needs: "project.view",
-    load: () => import("./sections/ProgressPage"),
-    summary: ({ progress: p }) =>
-      p.items === 0
-        ? { text: "No work items yet" }
-        : p.late
-          ? { text: `${p.percent}% done · ${-p.daysLeft!} days past the end`, tone: "warn" }
-          : { text: `${p.percent}% done${p.daysLeft !== null ? ` · ${plural(p.daysLeft, "day")} left` : ""}` },
-  }),
   def({
     key: "drawings",
     label: "Drawings",
@@ -71,7 +60,6 @@ export const SECTIONS: SectionDef[] = [
     load: () => import("./sections/MaterialsSimple"),
     summary: ({ materials: m }) => (!m ? { text: "" } : m.spent > 0 ? { text: `${rupeesShort(m.spent)} spent on materials` } : { text: "Nothing added yet" }),
   }),
-
   def({
     key: "rates",
     label: "Rate comparison",

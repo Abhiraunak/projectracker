@@ -24,7 +24,7 @@ const PACE: Record<Pace, { label: string; text: string; bar: string }> = {
  * Phase 2: the project's progress on one page. Three answers at the top (how much work is done, how much time
  * has gone, how much money has gone), then every work item on a time-line. One request; editing is one tap away.
  */
-export default function ProgressPage({ projectId }: { projectId: string }) {
+export default function ProgressPage({ projectId, compact = false }: { projectId: string; compact?: boolean }) {
   const progress = useProjectProgress(projectId);
   const access = useAccess();
   const [editing, setEditing] = useState(false);
@@ -36,11 +36,16 @@ export default function ProgressPage({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
-        <WorkCard time={p.time} />
-        <TimeCard time={p.time} />
-        <MoneyCard cost={p.cost} />
-      </div>
+      {compact ? (
+        // On the Overview: just work done against time used (the money is already above)
+        <WorkVsTime time={p.time} />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+          <WorkCard time={p.time} />
+          <TimeCard time={p.time} />
+          <MoneyCard cost={p.cost} />
+        </div>
+      )}
 
       <section aria-labelledby="timeline-title" className="rounded-xl border border-stone-200">
         <header className="flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3 sm:px-5">
@@ -79,6 +84,38 @@ export default function ProgressPage({ projectId }: { projectId: string }) {
 }
 
 /* ------------------------------- the three answers ------------------------------- */
+
+/** Two bars, one under the other: how much work is done, and how much of the time has gone. Work behind time = behind. */
+const WorkVsTime = memo(function WorkVsTime({ time: t }: { time: ProjectProgress["time"] }) {
+  const pace = PACE[t.pace];
+  const line = (label: string, pct: number, bar: string) => (
+    <div className="grid grid-cols-[6.5rem_minmax(0,1fr)_3rem] items-center gap-3 text-sm">
+      <span className="text-stone-600">{label}</span>
+      <span aria-hidden className="h-2.5 overflow-hidden rounded-full bg-stone-100">
+        <span className={`block h-full rounded-full ${bar}`} style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} />
+      </span>
+      <span className="text-right font-semibold tabular-nums text-stone-900">{pct}%</span>
+    </div>
+  );
+  return (
+    <section aria-label="Work done and time used" className="space-y-2.5 rounded-xl border border-stone-200 p-4 sm:p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-sm font-semibold text-stone-900">Progress</h2>
+        <span className={`text-sm font-medium ${pace.text}`}>
+          {pace.label}
+          {(t.pace === "behind" || t.pace === "ahead") && ` · ${Math.abs(t.gap)} points`}
+        </span>
+      </div>
+      {line("Work done", t.workPct, pace.bar)}
+      {t.start && t.end ? line("Time used", t.timePct, t.daysLeft !== null && t.daysLeft < 0 ? "bg-red-600" : "bg-stone-500") : <p className="text-sm text-stone-500">No dates yet</p>}
+      {t.start && t.end && (
+        <p className="text-xs text-stone-500">
+          Day {t.daysUsed} of {t.totalDays} · {t.daysLeft !== null && t.daysLeft < 0 ? `${plural(-t.daysLeft, "day")} past the end` : `${plural(t.daysLeft ?? 0, "day")} left`} · ends {shortDate(t.end)}
+        </p>
+      )}
+    </section>
+  );
+});
 
 const Card = ({ title, children }: { title: string; children: React.ReactNode }) => (
   <section className="rounded-xl border border-stone-200 p-4 sm:p-5">

@@ -1,13 +1,8 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { useExpenses } from "@/hooks/useExpenses";
-import { labourSummaryKey } from "@/hooks/useLabour";
 import { useProject } from "@/hooks/useLabourProjects";
-import { useAccess } from "@/hooks/useProjectAccess";
-import { useProjectHub } from "@/hooks/useProjectHub";
 import { rupees } from "@/lib/projects/hub";
-import { labourApi } from "@/lib/projects/labour";
+import { useSpend } from "./useSpend";
 
 const COLORS = { labour: "#378ADD", material: "#BA7517", general: "#888780" };
 
@@ -18,30 +13,12 @@ const COLORS = { labour: "#378ADD", material: "#BA7517", general: "#888780" };
  *  3. work-wise: what was set for each work, what has been given, and what is left to pay.
  */
 export function MoneyOverview({ projectId }: { projectId: string }) {
-  const access = useAccess();
-  const hub = useProjectHub(projectId);
-  const expenses = useExpenses(projectId);
+  const money = useSpend(projectId); // the same figures as the Overview
   const project = useProject(projectId); // the work items (Progress)
-  // Same key as the Labour page, so the figures are shared and refresh together
-  const labour = useQuery({ queryKey: labourSummaryKey(projectId), queryFn: () => labourApi.summary(projectId), enabled: access.can("attendance.view"), staleTime: 30_000 });
 
-  if (!hub.data || !expenses.data) return <div aria-busy="true" className="h-72 animate-pulse rounded-xl bg-stone-100 motion-reduce:animate-none" />;
-
-  const h = hub.data;
-  const cat = expenses.data.byCategory;
-  // Labour is the work done (attendance); labour and material expenses go into their own bar
-  const labourSpent = (labour.data?.labour ?? h.labour.earned) + (cat?.labour.total ?? 0);
-  const materialSpent = (h.materials?.spent ?? 0) + (cat?.material.total ?? 0);
-  const generalSpent = cat?.general.total ?? (cat ? 0 : expenses.data.total);
-  const spent = labourSpent + materialSpent + generalSpent;
-
-  const projectCost = h.money.budgetIsSet ? h.money.budget : null;
-  const boqTotal = h.boqs && h.boqs.length > 0 ? h.boqs.reduce((s, b) => s + b.grandTotal, 0) : null;
-  // Spent is measured against the project cost you set; without one, against the BOQ
-  const against = projectCost ?? boqTotal;
-  const againstName = projectCost !== null ? "the project cost" : "the BOQ";
-  const pct = against ? Math.round((spent / against) * 100) : null;
-  const left = against !== null ? against - spent : null;
+  if (!money) return <div aria-busy="true" className="h-72 animate-pulse rounded-xl bg-stone-100 motion-reduce:animate-none" />;
+  const { hub: h, labour: labourSpent, material: materialSpent, general: generalSpent, spent, projectCost, boqTotal, againstName, pct, left } = money;
+  const against = money.against;
 
   return (
     <div className="space-y-4">
