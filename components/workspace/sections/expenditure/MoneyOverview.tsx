@@ -5,6 +5,7 @@ import { useClientProject } from "@/hooks/useClientAdmin";
 import { useExpenses } from "@/hooks/useExpenses";
 import { labourSummaryKey } from "@/hooks/useLabour";
 import { materialPaymentsKey } from "@/hooks/useMaterialPayments";
+import { useMaterialPurchases } from "@/hooks/useMaterialPurchases";
 import { useAccess } from "@/hooks/useProjectAccess";
 import { useProjectHub } from "@/hooks/useProjectHub";
 import { rupees, rupeesShort } from "@/lib/projects/hub";
@@ -29,6 +30,8 @@ export function MoneyOverview({ projectId }: { projectId: string }) {
   const labour = useQuery({ queryKey: labourSummaryKey(projectId), queryFn: () => labourApi.summary(projectId), enabled: access.can("attendance.view"), staleTime: 30_000 });
   const vendors = useQuery({ queryKey: materialPaymentsKey(projectId), queryFn: () => materialPaymentsApi.list(projectId), enabled: access.can("materials.view"), staleTime: 30_000 });
   const client = useClientProject(access.isAdmin ? projectId : null);
+  // Materials added in the Materials tab (quantity × rate) count as bought and paid for
+  const purchases = useMaterialPurchases(projectId, access.can("materials.view"));
 
   if (!hub.data || !expenses.data) return <div aria-busy="true" className="h-72 animate-pulse rounded-xl bg-stone-100 motion-reduce:animate-none" />;
 
@@ -42,7 +45,7 @@ export function MoneyOverview({ projectId }: { projectId: string }) {
   const labourSpent = labour.data?.labour ?? h.labour.earned;
   const labourPaid = labour.data?.paid ?? h.labour.paid;
   const materialSpent = h.materials?.spent ?? vendors.data?.totals.bought ?? 0;
-  const materialPaid = vendors.data?.totals.paid ?? 0;
+  const materialPaid = (vendors.data?.totals.paid ?? 0) + (purchases.data?.total ?? 0);
   const expensesTotal = general + labourExp + materialExp;
   const spent = labourSpent + materialSpent + expensesTotal;
   const paidOut = labourPaid + materialPaid + expensesTotal;

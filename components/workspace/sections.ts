@@ -1,6 +1,6 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 import type { IconType } from "react-icons";
-import { FiBarChart2, FiBox, FiPaperclip, FiClipboard, FiFileText, FiPenTool, FiTrendingUp, FiTruck } from "react-icons/fi";
+import { FiBarChart2, FiBox, FiPaperclip, FiClipboard, FiCreditCard, FiFileText, FiPenTool, FiTrendingUp, FiTruck } from "react-icons/fi";
 import type { Permission } from "@/lib/access/types";
 import type { SectionKey } from "@/lib/projects/place";
 import { plural, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
@@ -63,26 +63,23 @@ export const SECTIONS: SectionDef[] = [
     label: "Materials",
     Icon: FiBox,
     needs: "materials.view",
-    load: () => import("./sections/MaterialsBook"),
-    summary: ({ materials: m }) => {
-      if (!m) return { text: "" };
-      const waiting = [m.openAlerts && plural(m.openAlerts, "alert"), m.pendingRequests && `${plural(m.pendingRequests, "request")} waiting`].filter(Boolean);
-      return waiting.length ? { text: waiting.join(" · "), tone: "warn" } : { text: `${rupeesShort(m.spent)} received · all in order`, tone: "good" };
-    },
+    // The simple list: material, quantity × rate, bill. (The full stock screens are still in ./sections/MaterialsBook.)
+    load: () => import("./sections/MaterialsSimple"),
+    summary: ({ materials: m }) => (!m ? { text: "" } : m.spent > 0 ? { text: `${rupeesShort(m.spent)} spent on materials` } : { text: "Nothing added yet" }),
   }),
-  // def({
-  //   key: "payments",
-  //   label: "Labour payment",
-  //   Icon: FiCreditCard,
-  //   needs: "project.view",
-  //   load: () => import("./sections/PaymentsSection"),
-  //   summary: ({ labour: l }) =>
-  //     l.due > 0.5
-  //       ? { text: `${rupeesShort(l.due)} due for work done`, tone: "warn" }
-  //       : l.paidAhead > 0.5
-  //         ? { text: `${rupeesShort(l.paidAhead)} paid ahead of work`, tone: "warn" }
-  //         : { text: `Up to date · ${rupeesShort(l.paid)} paid`, tone: "good" },
-  // }),
+  def({
+    key: "payments",
+    label: "Labour payment",
+    Icon: FiCreditCard,
+    needs: "project.view",
+    load: () => import("./sections/PaymentsSection"),
+    summary: ({ labour: l }) =>
+      l.due > 0.5
+        ? { text: `${rupeesShort(l.due)} due for work done`, tone: "warn" }
+        : l.paidAhead > 0.5
+          ? { text: `${rupeesShort(l.paidAhead)} paid ahead of work`, tone: "warn" }
+          : { text: `Up to date · ${rupeesShort(l.paid)} paid`, tone: "good" },
+  }),
   def({
     key: "rates",
     label: "Rate comparison",

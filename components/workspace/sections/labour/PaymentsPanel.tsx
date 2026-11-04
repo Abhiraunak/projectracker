@@ -125,7 +125,14 @@ function PaymentForm({ projectId, book, prefill }: { projectId: string; book: Pa
           Trade <span className="font-normal text-stone-400">(optional)</span>
         </span>
         <div className="mt-1.5">
-          <ChipInput id="pay-trade" value={trade} onChange={setTrade} choices={book.trades} storageKey={`attendance-trades:${projectId}`} labelledBy="pay-trade-label" size="sm" />
+          <ChipInput
+            id="pay-trade"
+            value={trade}
+            onChange={setTrade}
+            choices={book.trades}
+            labelledBy="pay-trade-label"
+            size="sm"
+          />
         </div>
       </div>
 
@@ -151,9 +158,8 @@ function PaymentForm({ projectId, book, prefill }: { projectId: string; book: Pa
                 type="button"
                 aria-pressed={same(p, name)}
                 onClick={() => setName(p)}
-                className={`min-h-8 rounded-full border px-3 text-xs font-medium transition-colors ${
-                  same(p, name) ? "border-stone-900 bg-stone-900 text-white" : "border-stone-300 text-stone-600 hover:border-stone-500 hover:text-stone-900"
-                }`}
+                className={`min-h-8 rounded-full border px-3 text-xs font-medium transition-colors ${same(p, name) ? "border-stone-900 bg-stone-900 text-white" : "border-stone-300 text-stone-600 hover:border-stone-500 hover:text-stone-900"
+                  }`}
               >
                 {p}
               </button>
