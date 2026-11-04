@@ -312,8 +312,8 @@ function SteelRows({ rows, setRows }: { rows: SteelForm[]; setRows: (f: (r: Stee
   const head = "px-1 pb-1 text-right text-xs font-medium text-stone-500";
   return (
     <div className="min-w-0">
-      <div className="relative overflow-x-auto [scrollbar-width:thin]">
-        <table className="w-full min-w-[46rem] border-separate border-spacing-y-1 text-sm">
+      <div className="relative overflow-x-auto scrollbar-thin">
+        <table className="w-full min-w-184 border-separate border-spacing-y-1 text-sm">
           <thead>
             <tr>
               <th scope="col" className={`${head} text-left`}>Name <span className="font-normal text-stone-400">(optional)</span></th>
@@ -401,8 +401,8 @@ function VolumeRows({ rows, setRows }: { rows: VolumeForm[]; setRows: (f: (r: Vo
   const head = "px-1 pb-1 text-right text-xs font-medium text-stone-500";
   return (
     <div className="min-w-0">
-      <div className="relative overflow-x-auto [scrollbar-width:thin]">
-        <table className="w-full min-w-[32rem] border-separate border-spacing-y-1 text-sm">
+      <div className="relative overflow-x-auto scrollbar-thin">
+        <table className="w-full min-w-lg border-separate border-spacing-y-1 text-sm">
           <thead>
             <tr>
               <th scope="col" className={`${head} text-left`}>Name <span className="font-normal text-stone-400">(optional)</span></th>

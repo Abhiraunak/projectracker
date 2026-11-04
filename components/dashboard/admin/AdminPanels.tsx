@@ -144,7 +144,7 @@ const NEED_LOOK: Record<NeedItem["kind"], { Icon: typeof FiInbox; cls: string }>
   late: { Icon: FiTruck, cls: "bg-red-100 text-red-800" },
   budget: { Icon: FiAlertTriangle, cls: "bg-red-100 text-red-800" },
   rates: { Icon: FiDollarSign, cls: "bg-stone-100 text-stone-700" },
-  payments: { Icon: FiCreditCard, cls: "bg-green-100 text-green-800" },
+  // payments: { Icon: FiCreditCard, cls: "bg-green-100 text-green-800" },
 };
 
 export const NeedsYou = memo(function NeedsYou({ data }: { data: AdminOverview }) {

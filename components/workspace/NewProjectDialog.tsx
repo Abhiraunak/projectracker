@@ -102,7 +102,7 @@ export function NewProjectDialog({ onClose }: { onClose: () => void }) {
         </div>
         {datesBad && <p className="-mt-2 text-xs text-red-700">The end date is before the start.</p>}
 
-        <fieldset className="rounded-lg border border-stone-200 p-3">
+        {/* <fieldset className="rounded-lg border border-stone-200 p-3">
           <legend className="px-1 text-sm font-medium text-stone-700">First work item</legend>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field label="Work" optional>
@@ -113,7 +113,7 @@ export function NewProjectDialog({ onClose }: { onClose: () => void }) {
             </Field>
           </div>
           <p className="mt-2 text-xs text-stone-500">It runs on the project&apos;s dates. Add more work items any time on the Project page.</p>
-        </fieldset>
+        </fieldset> */}
 
         {(create.isError || firmError) && (
           <p role="alert" className="text-sm text-red-700">

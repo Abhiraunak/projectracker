@@ -1,6 +1,6 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 import type { IconType } from "react-icons";
-import { FiBarChart2, FiBox, FiPaperclip, FiClipboard, FiCreditCard, FiFileText, FiPenTool, FiTrendingUp, FiTruck } from "react-icons/fi";
+import { FiBarChart2, FiBox, FiPaperclip, FiClipboard, FiFileText, FiPenTool, FiTrendingUp, FiTruck } from "react-icons/fi";
 import type { Permission } from "@/lib/access/types";
 import type { SectionKey } from "@/lib/projects/place";
 import { plural, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
@@ -18,7 +18,7 @@ export interface SectionDef {
   load: Loader;
   Section: LazyExoticComponent<ComponentType<SectionProps>>;
   /** One line for the tile, from the hub's figures */
-  summary: (hub: ProjectHub) => { text: string; tone?: "warn" | "good" };
+  summary: (hub: ProjectHub) => { text: string; tone?: "warn" | "good" | "bad" };
 }
 
 /*
@@ -90,20 +90,22 @@ export const SECTIONS: SectionDef[] = [
     needs: "project.view",
     // The Project page's contractor vs in-house grid (components/labour/ComparisonGrid)
     load: () => import("./sections/RatesSection"),
-    summary: ({ rates: r }) =>
-      !r || r.compared === 0
-        ? { text: "No rates to compare yet" }
-        : Math.abs(r.saving) < 0.5
-          ? { text: "Contractor and in-house cost the same" }
-          : { text: `${r.saving > 0 ? "In-house" : "Contractor"} saves ${rupeesShort(Math.abs(r.saving))}`, tone: "good" },
+    // The same figures and colours as the tab: green when in-house saves, red when it costs more
+    summary: ({ rates: r }) => {
+      if (!r || r.compared === 0) return { text: "No rates to compare yet" };
+      const pct = Math.round((Math.abs(r.saving) / Math.max(r.contractor, r.inHouse, 1)) * 100);
+      const items = ` · ${plural(r.compared, "item")}`;
+      if (r.saving >= 0) return { text: `In-house saves ${rupeesShort(r.saving)}${pct ? ` (${pct}%)` : ""}${items}`, tone: "good" };
+      return { text: `In-house costs ${rupeesShort(-r.saving)} more (${pct}%)${items}`, tone: "bad" };
+    },
   }),
   def({
     key: "expenses",
     label: "Expenditure",
     Icon: FiPaperclip,
     needs: "project.view",
-    load: () => import("./sections/ExpensesSection"),
-    summary: () => ({ text: "Daily payments and bills" }),
+    load: () => import("./sections/ExpenditureSection"), // money at a glance, then the daily expenses
+    summary: () => ({ text: "Cost vs spent, and daily expenses" }),
   }),
   def({
     key: "attendance",

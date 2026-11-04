@@ -1,7 +1,8 @@
 "use client";
 
 import { lazy, memo, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { FiArrowDown, FiArrowLeft, FiArrowUp, FiChevronDown, FiChevronRight, FiMoreHorizontal, FiPlus } from "react-icons/fi";
+import type { IconType } from "react-icons";
+import { FiArrowDown, FiArrowLeft, FiArrowUp, FiBox, FiChevronDown, FiChevronRight, FiCreditCard, FiMoreHorizontal, FiPaperclip, FiPlus } from "react-icons/fi";
 import { useCan } from "@/hooks/useProjectAccess";
 import { useMaterialsOverview } from "@/hooks/useMaterialsTab";
 import { hrefFor, onPlaceClick, useWorkspaceItem } from "@/hooks/useWorkspacePlace";
@@ -17,19 +18,32 @@ const MaterialDetailView = lazy(() => import("./materials/MaterialDetailView"));
 const AddMaterialDialog = lazy(() => import("./materials/AddMaterialDialog").then((m) => ({ default: m.AddMaterialDialog })));
 const ImportFromBoqDialog = lazy(() => import("@/components/inventory/ImportFromBoqDialog").then((m) => ({ default: m.ImportFromBoqDialog })));
 const ExpensesSection = lazy(() => import("./ExpensesSection"));
+const VendorPaymentsPanel = lazy(() => import("./materials/VendorPaymentsPanel").then((m) => ({ default: m.VendorPaymentsPanel })));
+
+type View = "stock" | "payments" | "expenses";
+const VIEWS: { key: View; label: string; hint: string; Icon: IconType }[] = [
+  { key: "stock", label: "Stock", hint: "Received and issued", Icon: FiBox },
+  { key: "payments", label: "Payments", hint: "Paid to vendors", Icon: FiCreditCard },
+  { key: "expenses", label: "Expenses", hint: "Material expenses", Icon: FiPaperclip },
+];
 
 const MORE = "all"; // ?i=all: the full inventory screen (orders, requests, reservations…)
 
 /**
  * The Materials tab, kept simple:
- *  - Stock | Expenditure, and "Add materials" (import from the BOQ, or add by hand);
+ *  - Stock · Payments · Expenses, as on the Labour page, and "Add materials" (import from the BOQ, or add by hand);
  *  - a bar graph of received and issued by month (all materials by value, or one by quantity);
  *  - one list grouped by section, each material with Received, Issued and its page (›).
  * Orders, requests and reservations still work, under "More".
  */
 export default function MaterialsBook({ projectId }: { projectId: string }) {
   const item = useWorkspaceItem(); // null: the list · "all": More · otherwise a material's page
-  const [tab, setTab] = useState<"stock" | "expenditure">("stock");
+  const [view, setView] = useState<View>("stock");
+  const [opened, setOpened] = useState<Set<View>>(() => new Set(["stock"]));
+  const show = (v: View) => {
+    setView(v);
+    setOpened((s) => (s.has(v) ? s : new Set(s).add(v)));
+  };
 
   // The Inventory page in the menu opens on this project next time too
   useEffect(() => {
@@ -64,13 +78,24 @@ export default function MaterialsBook({ projectId }: { projectId: string }) {
 
   return (
     <div className="space-y-5">
-      <TopBar projectId={projectId} tab={tab} onTab={setTab} />
-      {tab === "stock" ? (
+      <TopBar projectId={projectId} view={view} onView={show} />
+      {/* Panels once opened stay mounted, so switching back keeps a half-filled form as it was */}
+      <div hidden={view !== "stock"}>
         <StockView projectId={projectId} />
-      ) : (
-        <Suspense fallback={<SectionSkeleton />}>
-          <ExpensesSection projectId={projectId} sections={["material"]} />
-        </Suspense>
+      </div>
+      {opened.has("payments") && (
+        <div hidden={view !== "payments"}>
+          <Suspense fallback={<SectionSkeleton />}>
+            <PaymentsView projectId={projectId} />
+          </Suspense>
+        </div>
+      )}
+      {opened.has("expenses") && (
+        <div hidden={view !== "expenses"}>
+          <Suspense fallback={<SectionSkeleton />}>
+            <ExpensesSection projectId={projectId} sections={["general", "material"]} />
+          </Suspense>
+        </div>
       )}
     </div>
   );
@@ -86,7 +111,14 @@ function BackLink({ place, label }: { place: { projectId: string; section: "mate
 
 /* ---------------------------------- top bar ---------------------------------- */
 
-function TopBar({ projectId, tab, onTab }: { projectId: string; tab: "stock" | "expenditure"; onTab: (t: "stock" | "expenditure") => void }) {
+/** Payments to vendors; the project's materials are offered as "For (optional)" */
+function PaymentsView({ projectId }: { projectId: string }) {
+  const overview = useMaterialsOverview(projectId); // already loaded by the Stock view
+  const materials = useMemo(() => (overview.data?.sections ?? []).flatMap((s) => s.materials.map((m) => ({ id: m.id, name: m.name }))), [overview.data]);
+  return <VendorPaymentsPanel projectId={projectId} materials={materials} />;
+}
+
+function TopBar({ projectId, view, onView }: { projectId: string; view: View; onView: (v: View) => void }) {
   const canAdd = useCan("requirements.create");
   const [menu, setMenu] = useState(false);
   const [open, setOpen] = useState<"boq" | "hand" | null>(null);
@@ -104,23 +136,8 @@ function TopBar({ projectId, tab, onTab }: { projectId: string; tab: "stock" | "
   }, [menu]);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div role="tablist" aria-label="Materials" className="inline-flex rounded-lg bg-stone-100 p-1 text-sm">
-        {(["stock", "expenditure"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => onTab(t)}
-            className={`min-h-10 rounded-md px-4 font-medium transition-colors ${tab === t ? "bg-white text-stone-900 shadow-sm" : "text-stone-600 hover:text-stone-900"}`}
-          >
-            {t === "stock" ? "Stock" : "Expenditure"}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-2">
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <a
           href={hrefFor(more)}
           onClick={onPlaceClick(more)}
@@ -150,6 +167,30 @@ function TopBar({ projectId, tab, onTab }: { projectId: string; tab: "stock" | "
             )}
           </div>
         )}
+      </div>
+
+      {/* The same three buttons as the Labour page */}
+      <div role="group" aria-label="Materials" className="grid grid-cols-3 gap-2 sm:gap-3">
+        {VIEWS.map(({ key, label, hint, Icon }) => {
+          const on = view === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={on}
+              onClick={() => onView(key)}
+              className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2 sm:flex-row sm:justify-start sm:gap-3 sm:px-4 sm:text-left ${
+                on ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 bg-white text-stone-700 hover:border-stone-400 hover:text-stone-900"
+              }`}
+            >
+              <Icon aria-hidden className="shrink-0 text-lg" />
+              <span className="min-w-0">
+                <span className="block">{label}</span>
+                <span className={`hidden truncate text-xs font-normal sm:block ${on ? "text-stone-300" : "text-stone-500"}`}>{hint}</span>
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <Suspense fallback={null}>
@@ -233,7 +274,7 @@ const ChartCard = memo(function ChartCard({ overview: o }: { overview: Materials
 
       {all.length > 0 && (
         // One row that scrolls sideways: a project can have many materials
-        <div className="-mx-1 mt-3 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]" aria-label="Show">
+        <div className="-mx-1 mt-3 flex gap-1.5 overflow-x-auto px-1 pb-1 scrollbar-thin" aria-label="Show">
           {[{ id: null as string | null, label: "All (₹)" }, ...all.map((m) => ({ id: m.id, label: `${m.name} (${m.unit})` }))].map((c) => (
             <button
               key={c.id ?? "all"}

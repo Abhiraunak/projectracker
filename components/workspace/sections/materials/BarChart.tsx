@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { monthLabel, type Series } from "@/lib/inventory/materialsTab";
 
 export const RECEIVED_COLOR = "#047857"; // green
@@ -41,6 +41,13 @@ function useWidth<T extends HTMLElement>() {
  */
 export const BarChart = memo(function BarChart({ months, series, format, axis }: { months: string[]; series: Series; format: (n: number) => string; axis: (n: number) => string }) {
   const [active, setActive] = useState<number | null>(null);
+  // A mouse shows the figures while pointing; a finger taps to show them and taps again to hide them.
+  // (A tap also fires "pointer enter", so a plain toggle on click would hide them straight away.)
+  const pointTo = (i: number) => ({
+    onPointerEnter: (e: ReactPointerEvent) => e.pointerType === "mouse" && setActive(i),
+    onPointerLeave: (e: ReactPointerEvent) => e.pointerType === "mouse" && setActive(null),
+    onPointerUp: (e: ReactPointerEvent) => e.pointerType !== "mouse" && setActive((v) => (v === i ? null : i)),
+  });
   const { ref, width: W } = useWidth<HTMLDivElement>();
   const top = niceMax(Math.max(0, ...series.received, ...series.issued));
   const plotH = H - TOP - BOTTOM;
@@ -71,13 +78,7 @@ export const BarChart = memo(function BarChart({ months, series, format, axis }:
           const full = monthLabel(m, crossesYear && (i === 0 || m.endsWith("-01")) && slot >= 46);
           const label = slot >= 30 ? full : full.slice(0, 1);
           return (
-            <g
-              key={m}
-              onPointerEnter={() => setActive(i)}
-              onPointerLeave={() => setActive(null)}
-              onClick={() => setActive((v) => (v === i ? null : i))}
-              className="cursor-default"
-            >
+            <g key={m} {...pointTo(i)} className="cursor-default">
               <title>{`${monthLabel(m, true)}: received ${format(r)}, issued ${format(s)}`}</title>
               <rect x={LEFT + i * slot} y={TOP} width={slot} height={plotH + BOTTOM} fill={a === i ? "#fafaf9" : "transparent"} />
               {r > 0 && <rect x={x - bar - 1.5} y={y(r)} width={bar} height={Math.max(1, TOP + plotH - y(r))} rx={3} fill={RECEIVED_COLOR} opacity={dim ? 0.35 : 1} />}
