@@ -16,11 +16,13 @@ export interface Spend {
   material: number;
   general: number;
   spent: number;
-  projectCost: number | null; // set with Edit; null = not set
-  boqTotal: number | null; // all linked BOQs; null = none
-  /** What spent is measured against: the project cost, or the BOQ without one */
+  /** Our own cost for the whole job (set with Edit). Everything spent is measured against this. null = not set */
+  projectCost: number | null;
+  /** What the client sees: all linked BOQs added up. Shown for reference only, never used to judge spending. null = none */
+  boqTotal: number | null;
+  /** What spent is measured against: always the project cost (null until it is set) */
   against: number | null;
-  againstName: "the project cost" | "the BOQ";
+  againstName: "the project cost";
   pct: number | null;
   left: number | null; // below 0: over
   /** Attendance not yet paid to contractors (0 when paid ahead) */
@@ -48,7 +50,9 @@ export function useSpend(projectId: string): Spend | null {
 
   const projectCost = h.money.budgetIsSet ? h.money.budget : null;
   const boqTotal = h.boqs && h.boqs.length > 0 ? h.boqs.reduce((s, b) => s + b.grandTotal, 0) : null;
-  const against = projectCost ?? boqTotal;
+  // Two different amounts: the BOQ is what the client is charged; the project cost is what the job costs us.
+  // Spending belongs to the project cost, so only that is used for spent %, left and over.
+  const against = projectCost;
 
   return {
     hub: h,
@@ -59,7 +63,7 @@ export function useSpend(projectId: string): Spend | null {
     projectCost,
     boqTotal,
     against,
-    againstName: projectCost !== null ? "the project cost" : "the BOQ",
+    againstName: "the project cost",
     pct: against ? Math.round((spent / against) * 100) : null,
     left: against !== null ? against - spent : null,
     labourToPay: Math.max(0, labour.data?.toPay ?? h.labour.due),

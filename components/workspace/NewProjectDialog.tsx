@@ -90,7 +90,7 @@ export function NewProjectDialog({ onClose, onCreated }: { onClose: () => void; 
           </Field>
         </div>
 
-        <Field label="Project budget" optional hint="What the whole project should cost. You can set it later.">
+        <Field label="Project cost" optional hint="Our own cost for the whole job (not the BOQ amount the client sees). Spending is measured against it. You can set it later.">
           <MoneyInput value={cost} onChange={setCost} wrapperClassName="mt-1" className="min-h-11" />
         </Field>
 

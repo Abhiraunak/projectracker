@@ -1,9 +1,11 @@
 "use client";
 
-import { memo } from "react";
-import { FiChevronRight } from "react-icons/fi";
+import { memo, useState } from "react";
+import { FiChevronRight, FiEdit2 } from "react-icons/fi";
+import { useCan } from "@/hooks/useProjectAccess";
 import { hrefFor, onPlaceClick } from "@/hooks/useWorkspacePlace";
 import { plural, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
+import { EditDetailsDialog } from "./EditDetailsDialog";
 import { WorkItems } from "./sections/WorkItems";
 import { useSpend, type Spend } from "./sections/expenditure/useSpend";
 import type { SectionDef } from "./sections";
@@ -32,6 +34,8 @@ export const Overview = memo(function Overview({
 }) {
   const money = useSpend(projectId);
   const p = hub.progress;
+  const canEdit = useCan("project.manage");
+  const [settingCost, setSettingCost] = useState(false);
 
   return (
     <div className="space-y-5">
@@ -46,7 +50,11 @@ export const Overview = memo(function Overview({
       </p>
 
       {/* 2 · money */}
-      {money ? <MoneyAtAGlance m={money} /> : <div aria-busy="true" className="h-32 animate-pulse rounded-xl bg-stone-100 motion-reduce:animate-none" />}
+      {money ? <MoneyAtAGlance m={money} onEditCost={canEdit ? () => setSettingCost(true) : undefined} /> : <div aria-busy="true" className="h-32 animate-pulse rounded-xl bg-stone-100 motion-reduce:animate-none" />}
+
+      {settingCost && money && (
+        <EditDetailsDialog project={{ id: projectId, title: hub.project.title, firmName: hub.project.firmName, projectCost: money.projectCost }} onClose={() => setSettingCost(false)} />
+      )}
 
       {/* 3 · work items: progress and payment together */}
       <WorkItems projectId={projectId} />
@@ -63,7 +71,7 @@ export const Overview = memo(function Overview({
 
 /* ---------------------------------------- money ---------------------------------------- */
 
-function MoneyAtAGlance({ m }: { m: Spend }) {
+function MoneyAtAGlance({ m, onEditCost }: { m: Spend; onEditCost?: () => void }) {
   const over = m.left !== null && m.left < 0;
   const parts = [
     { label: "Labour", value: m.labour, color: COLORS.labour },
@@ -75,14 +83,10 @@ function MoneyAtAGlance({ m }: { m: Spend }) {
   return (
     <section aria-label="Money" className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
       <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Box
-          label={m.projectCost !== null ? "Project cost" : "BOQ amount"}
-          value={m.against !== null ? rupeesShort(m.against) : "Not set"}
-          note={m.projectCost !== null ? (m.boqTotal !== null ? `BOQ ${rupeesShort(m.boqTotal)}` : "No BOQ linked") : m.boqTotal !== null ? "No project cost set" : "Set it with Edit"}
-        />
-        <Box label="Spent" value={rupeesShort(m.spent)} note={m.pct !== null ? `${m.pct}% of ${m.againstName}` : "Labour + material + general"} />
-        <Box label={over ? "Over by" : "Left"} value={m.left !== null ? rupeesShort(Math.abs(m.left)) : "–"} tone={m.left === null ? undefined : over ? "text-red-700" : "text-emerald-700"} />
-        <Box label="Still to pay" value={rupeesShort(m.labourToPay)} note="to labour contractors" tone={m.labourToPay > 0.5 ? "text-amber-700" : undefined} />
+        <CostBox cost={m.projectCost} onEdit={onEditCost} />
+        <Box label="Spent" value={rupeesShort(m.spent)} note={m.pct !== null ? `${m.pct}% of the project cost` : "Labour + material + general"} />
+        <Box label={over ? "Over by" : "Left"} value={m.left !== null ? rupeesShort(Math.abs(m.left)) : "–"} note={m.left === null ? "Needs the project cost" : over ? "over the project cost" : "of the project cost"} tone={m.left === null ? undefined : over ? "text-red-700" : "text-emerald-700"} />
+        <Box label="BOQ amount" value={m.boqTotal !== null ? rupeesShort(m.boqTotal) : "No BOQ"} note="What the client sees" tone={m.boqTotal === null ? "text-stone-400" : undefined} />
       </dl>
 
       {/* Where it went, as one bar: labour, material, general, and what's left */}
@@ -91,15 +95,55 @@ function MoneyAtAGlance({ m }: { m: Spend }) {
           <span key={p.label} style={{ width: `${(p.value / whole) * 100}%`, background: p.color }} />
         ))}
       </div>
-      <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-600">
+      <ul className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-600">
         {parts.map((p) => (
           <li key={p.label} className="flex items-center gap-1.5">
             <span aria-hidden className="h-2.5 w-2.5 rounded-sm" style={{ background: p.color }} />
             {p.label} <b className="font-semibold tabular-nums text-stone-900">{rupeesShort(p.value)}</b>
           </li>
         ))}
+        {m.labourToPay > 0.5 && (
+          <li className="font-medium text-amber-700 sm:ml-auto">
+            {rupeesShort(m.labourToPay)} still to pay to labour contractors
+          </li>
+        )}
       </ul>
     </section>
+  );
+}
+
+/** The project cost: our own cost for the job. Tap it (or "Set project cost") to set or change it. */
+function CostBox({ cost, onEdit }: { cost: number | null; onEdit?: () => void }) {
+  if (!onEdit) return <Box label="Project cost" value={cost !== null ? rupeesShort(cost) : "Not set"} note="Our cost for the job" tone={cost === null ? "text-stone-400" : undefined} />;
+  if (cost === null)
+    return (
+      <div className="min-w-0">
+        <dt className="sr-only">Project cost</dt>
+        <dd className="h-full">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="flex h-full min-h-21 w-full flex-col items-start justify-center rounded-lg border-2 border-dashed border-orange-300 bg-orange-50 px-3 py-2.5 text-left hover:border-orange-400"
+          >
+            <span className="text-sm font-semibold text-orange-800">+ Set project cost</span>
+            <span className="text-xs text-orange-700">Our cost for the job</span>
+          </button>
+        </dd>
+      </div>
+    );
+  return (
+    <div className="min-w-0">
+      <dt className="sr-only">Project cost</dt>
+      <dd className="h-full">
+        <button type="button" onClick={onEdit} aria-label={`Project cost ${rupeesShort(cost)}. Change it`} className="group h-full w-full rounded-lg bg-stone-50 px-3 py-2.5 text-left hover:bg-stone-100">
+          <span className="flex items-center justify-between gap-2 text-xs text-stone-500">
+            Project cost <FiEdit2 aria-hidden className="shrink-0 text-stone-400 group-hover:text-stone-700" />
+          </span>
+          <span className="mt-0.5 block truncate text-xl font-semibold tabular-nums text-stone-900">{rupeesShort(cost)}</span>
+          <span className="block truncate text-xs text-stone-500">Our cost for the job</span>
+        </button>
+      </dd>
+    </div>
   );
 }
 

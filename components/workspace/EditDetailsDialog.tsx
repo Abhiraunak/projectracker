@@ -43,7 +43,7 @@ export function EditDetailsDialog({ project, onClose }: { project: EditableProje
         </label>
         <label className="block text-sm">
           <span className="font-medium text-stone-700">Project cost</span>
-          <span className="block text-xs text-stone-500">What the whole job should cost. Leave empty if not decided yet.</span>
+          <span className="block text-xs text-stone-500">Our own cost for the whole job, not the BOQ amount the client sees. Everything spent is measured against it. Leave empty if not decided yet.</span>
           <MoneyInput value={cost} onChange={setCost} max={1_000_000_000_000} wrapperClassName="mt-1" placeholder="e.g. 500000" />
           {cost !== "" && cost > 0 && <span className="mt-1 block text-xs tabular-nums text-stone-500">₹{cost.toLocaleString("en-IN")}</span>}
         </label>

@@ -25,8 +25,12 @@ export function MoneyOverview({ projectId }: { projectId: string }) {
       {/* 1 · what it should cost vs what has been spent */}
       <section aria-label="Cost and spent" className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
         <dl className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <Stat label="Project cost" value={projectCost !== null ? rupees(projectCost) : "Not set"} note={projectCost === null ? "Set it with Edit on the project" : undefined} />
-          <Stat label="Total BOQ amount" value={boqTotal !== null ? rupees(boqTotal) : "No BOQ linked"} note={h.boqs && h.boqs.length > 1 ? `${h.boqs.length} BOQs added up` : undefined} />
+          <Stat label="Project cost" value={projectCost !== null ? rupees(projectCost) : "Not set"} note={projectCost === null ? "Our cost for the job. Set it with Edit on the project" : "Our cost for the job"} />
+          <Stat
+            label="BOQ amount"
+            value={boqTotal !== null ? rupees(boqTotal) : "No BOQ linked"}
+            note={`What the client sees${h.boqs && h.boqs.length > 1 ? ` · ${h.boqs.length} BOQs added up` : ""}`}
+          />
           <Stat
             label="Spent so far"
             value={rupees(spent)}
