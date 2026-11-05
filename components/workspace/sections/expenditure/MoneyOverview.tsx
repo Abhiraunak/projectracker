@@ -114,7 +114,7 @@ function WorkTable({ tasks, loading }: { tasks: { id: string; work: string; stip
       {loading ? (
         <div aria-busy="true" className="m-4 h-24 animate-pulse rounded-lg bg-stone-100 motion-reduce:animate-none" />
       ) : rows.length === 0 ? (
-        <p className="px-4 py-8 text-center text-sm text-stone-500">No work items yet. Add them in Progress.</p>
+        <p className="px-4 py-8 text-center text-sm text-stone-500">No work items yet. Add them on the Overview (Add work item).</p>
       ) : (
         <table className="w-full text-sm">
           <thead>

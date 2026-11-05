@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { FiCheck, FiEdit2, FiPlus, FiTrash2, FiTrendingDown, FiTrendingUp } from "react-icons/fi";
+import { FiCheck, FiEdit2, FiTrendingDown, FiTrendingUp } from "react-icons/fi";
 import { ComparisonGrid } from "@/components/labour/ComparisonGrid";
 import { useCan } from "@/hooks/useProjectAccess";
 import { useProject, useUpdateProject } from "@/hooks/useLabourProjects";
+import { hrefFor, onPlaceClick } from "@/hooks/useWorkspacePlace";
 import { describeError, toFormData, type ApiProject, type ApiTask } from "@/lib/api";
 import { rupees } from "@/lib/projects/hub";
 import { SectionError, SectionSkeleton } from "../ui";
@@ -39,7 +40,11 @@ function toGridItems(tasks: ApiTask[]) {
     });
 }
 
-/** Rate comparison: contractor vs in-house for each work item, and only the area and the two rates to edit */
+/**
+ * Rate comparison only: contractor vs in-house for each work item, with the area and the two rates to edit.
+ * The work items themselves (name, dates, cost of work, paid) are added and changed on the Overview; they show up
+ * here by themselves, because both read the same project.
+ */
 export default function RatesSection({ projectId }: { projectId: string }) {
     const project = useProject(projectId); // the same data as Labour payment, so switching between them is instant
     const canEdit = useCan("project.manage");
@@ -50,9 +55,24 @@ export default function RatesSection({ projectId }: { projectId: string }) {
     if (project.isPending) return <SectionSkeleton />;
     if (project.isError) return <SectionError error={project.error} onRetry={() => void project.refetch()} />;
 
+    // No work items yet: they are added on the Overview, not here
+    if (project.data.tasks.length === 0) {
+        const overview = { projectId, section: "overview" as const, item: null };
+        return (
+            <div className="rounded-xl border border-dashed border-stone-300 px-4 py-10 text-center text-sm text-stone-600">
+                No work items to compare yet.{" "}
+                <a href={hrefFor(overview)} onClick={onPlaceClick(overview)} className="font-medium text-stone-900 underline underline-offset-4">
+                    Add work items on the Overview
+                </a>
+                , then set their area and rates here.
+            </div>
+        );
+    }
+
     if (editing)
         return (
             <RatesEditor
+                projectId={projectId}
                 project={project.data}
                 onCancel={() => setEditing(false)}
                 onSaved={() => {
@@ -82,7 +102,7 @@ export default function RatesSection({ projectId }: { projectId: string }) {
                             }}
                             className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-stone-300 px-4 text-sm font-medium text-stone-700 hover:border-stone-500"
                         >
-                            <FiEdit2 aria-hidden /> {project.data.tasks.length ? "Edit rates" : "Add work items"}
+                            <FiEdit2 aria-hidden /> Edit rates
                         </button>
                     )}
                 </div>
@@ -96,84 +116,39 @@ export default function RatesSection({ projectId }: { projectId: string }) {
 
 interface RateRowState {
     key: string;
-    /** true for a row added here: its name is typed in; existing work items keep theirs */
-    isNew: boolean;
+    /** shown, not edited: the name is changed on the Overview */
     work: string;
     area: number | "";
     contractorRate: number | "";
     inHouseRate: number | "";
 }
-type Patch = Partial<Omit<RateRowState, "key" | "isNew">>;
+type Patch = Partial<Pick<RateRowState, "area" | "contractorRate" | "inHouseRate">>;
 
 const asInput = (v: number): number | "" => (v ? v : "");
 const n = (v: number | "") => (v === "" ? 0 : v);
-let nextKey = 0;
-const blankRow = (): RateRowState => ({ key: `new-${++nextKey}`, isNew: true, work: "", area: "", contractorRate: "", inHouseRate: "" });
-
-/** Local date: toISOString() would give yesterday early in the morning in India */
-const todayLocal = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
 
 /**
- * The area and the two rates of each work item, and new work items with just a name, area and rates. Saving sends the
- * whole project back as the Project page does, with everything else (dates, budget, paid, progress) exactly as it was.
- * New items take the project's dates; they can be changed on the Project page.
+ * Only the area and the two rates of each work item. Saving starts from the project as it is now (not as it was
+ * when the editor opened), and changes only those three numbers, so a work item added or edited on the Overview in
+ * the meantime is never lost or undone.
  */
-function RatesEditor({ project, onCancel, onSaved }: { project: ApiProject; onCancel: () => void; onSaved: () => void }) {
+function RatesEditor({ projectId, project, onCancel, onSaved }: { projectId: string; project: ApiProject; onCancel: () => void; onSaved: () => void }) {
+    const latest = useProject(projectId); // the same cached project, kept fresh
     const update = useUpdateProject(); // refreshes this project, the hub and the project tiles after saving
-    const [rows, setRows] = useState<RateRowState[]>(() => [
-        ...project.tasks.map((t) => ({ key: t.id, isNew: false, work: t.work, area: asInput(t.area), contractorRate: asInput(t.contractorRate), inHouseRate: asInput(t.inHouseRate) })),
-        ...(project.tasks.length === 0 ? [blankRow()] : []),
-    ]);
-    const [error, setError] = useState<string | null>(null);
-
+    const [rows, setRows] = useState<RateRowState[]>(() =>
+        project.tasks.map((t) => ({ key: t.id, work: t.work, area: asInput(t.area), contractorRate: asInput(t.contractorRate), inHouseRate: asInput(t.inHouseRate) })),
+    );
     const change = (key: string, patch: Patch) => setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
-    const [focusKey, setFocusKey] = useState<string | null>(null); // the row just added: its name box takes the cursor
-    const addRow = () => {
-        const row = blankRow();
-        setRows((prev) => [...prev, row]);
-        setFocusKey(row.key);
-    };
-    const removeRow = (key: string) => setRows((prev) => prev.filter((r) => r.key !== key));
 
     const submit = async (e: FormEvent) => {
         e.preventDefault();
-        // A new row left completely empty is simply ignored; one with numbers but no name is a mistake
-        const added = rows.filter((r) => r.isNew && (r.work.trim() || n(r.area) || n(r.contractorRate) || n(r.inHouseRate)));
-        if (added.some((r) => !r.work.trim())) {
-            setError("Give every new work item a name.");
-            document.getElementById(`${added.find((r) => !r.work.trim())!.key}-work`)?.focus();
-            return;
-        }
-        setError(null);
-
-        const starts = project.tasks.map((t) => t.startDate).filter(Boolean).sort();
-        const ends = project.tasks.map((t) => t.endDate).filter(Boolean).sort();
-        const startDate = starts[0] ?? todayLocal();
-        const endDate = ends[ends.length - 1] ?? startDate;
-
-        const data = toFormData(project);
+        if (update.isPending) return;
+        const data = toFormData(latest.data ?? project);
         const byKey = new Map(rows.map((r) => [r.key, r]));
-        data.tasks = [
-            ...data.tasks.map((t) => {
-                const r = byKey.get(t.id);
-                return r ? { ...t, area: n(r.area), contractorRate: n(r.contractorRate), inHouseRate: n(r.inHouseRate) } : t;
-            }),
-            ...added.map((r) => ({
-                id: r.key, // the server gives new items their own id
-                work: r.work.trim(),
-                area: n(r.area),
-                contractorRate: n(r.contractorRate),
-                inHouseRate: n(r.inHouseRate),
-                progress: 0,
-                stipulated: 0,
-                paid: 0,
-                startDate,
-                endDate,
-            })),
-        ];
+        data.tasks = data.tasks.map((t) => {
+            const r = byKey.get(t.id);
+            return r ? { ...t, area: n(r.area), contractorRate: n(r.contractorRate), inHouseRate: n(r.inHouseRate) } : t;
+        });
         try {
             await update.mutateAsync({ id: project.id, data });
             onSaved();
@@ -193,21 +168,15 @@ function RatesEditor({ project, onCancel, onSaved }: { project: ApiProject; onCa
 
             <ul className="divide-y divide-stone-100 rounded-xl border border-stone-200">
                 {rows.map((r) => (
-                    <RateRow key={r.key} r={r} autoFocus={r.key === focusKey} onChange={(patch) => change(r.key, patch)} onRemove={r.isNew ? () => removeRow(r.key) : undefined} />
+                    <RateRow key={r.key} r={r} onChange={(patch) => change(r.key, patch)} />
                 ))}
             </ul>
 
-            <button
-                type="button"
-                onClick={addRow}
-                className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-stone-300 text-sm font-medium text-stone-600 hover:border-stone-500 hover:text-stone-900"
-            >
-                <FiPlus aria-hidden /> Add work item
-            </button>
+            <p className="text-xs text-stone-500">To add a work item or change its name, dates or cost, use Work items on the Overview.</p>
 
-            {(error || update.isError) && (
+            {update.isError && (
                 <p role="alert" className="text-sm text-red-700">
-                    {error ?? describeError(update.error)}
+                    {describeError(update.error)}
                 </p>
             )}
             <div className="flex justify-end">
@@ -221,7 +190,7 @@ function RatesEditor({ project, onCancel, onSaved }: { project: ApiProject; onCa
 
 const input = "mt-1 min-h-11 w-full min-w-0 rounded-lg border border-stone-300 bg-white pr-2 text-sm tabular-nums focus:border-stone-900 focus:outline-none";
 
-function RateRow({ r, autoFocus, onChange, onRemove }: { r: RateRowState; autoFocus?: boolean; onChange: (patch: Patch) => void; onRemove?: () => void }) {
+function RateRow({ r, onChange }: { r: RateRowState; onChange: (patch: Patch) => void }) {
     const ready = n(r.area) > 0 && n(r.contractorRate) > 0 && n(r.inHouseRate) > 0;
     const saving = n(r.area) * (n(r.contractorRate) - n(r.inHouseRate));
     const field = (label: string, key: "area" | "contractorRate" | "inHouseRate", prefix: string) => (
@@ -248,29 +217,7 @@ function RateRow({ r, autoFocus, onChange, onRemove }: { r: RateRowState; autoFo
 
     return (
         <li className="grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_24rem_14rem] md:items-end">
-            {r.isNew ? (
-                <div className="flex items-end gap-2">
-                    <label className="block min-w-0 flex-1 text-sm">
-                        <span className="text-stone-500">New work item</span>
-                        <input
-                            id={`${r.key}-work`}
-                            autoFocus={autoFocus} // once, when the row appears: never moves the cursor later
-                            value={r.work}
-                            onChange={(e) => onChange({ work: e.target.value })}
-                            maxLength={120}
-                            placeholder="e.g. Reinforced concrete works"
-                            className={`${input} pl-3`}
-                        />
-                    </label>
-                    {onRemove && (
-                        <button type="button" onClick={onRemove} aria-label="Remove this new work item" className="mb-0.5 min-h-11 shrink-0 rounded-lg px-2 text-stone-400 hover:bg-red-50 hover:text-red-600">
-                            <FiTrash2 aria-hidden />
-                        </button>
-                    )}
-                </div>
-            ) : (
-                <p className="font-medium text-stone-900 md:pb-3">{r.work || "Untitled"}</p>
-            )}
+            <p className="min-w-0 wrap-break-word font-medium text-stone-900 md:pb-2.5">{r.work}</p>
             {/* Side by side even on a phone: one short row per work item */}
             <div className="grid grid-cols-3 gap-2">
                 {field("Area sqft", "area", "")}

@@ -8,6 +8,7 @@ import { useProjectProgress } from "@/hooks/useProjectPages";
 import { hrefFor, onPlaceClick } from "@/hooks/useWorkspacePlace";
 import { plural, rupees, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
 import ProgressPage from "./sections/ProgressPage";
+import { WorkItems } from "./sections/WorkItems";
 import { useSpend, type Spend } from "./sections/expenditure/useSpend";
 import type { SectionDef } from "./sections";
 
@@ -18,7 +19,8 @@ const qty = (n: number) => n.toLocaleString("en-IN", { maximumFractionDigits: 3 
  * The project at a glance, so someone who knows nothing about it gets the whole picture on one screen:
  *  1. when it runs and whether it is on time;
  *  2. money: what it should cost, what's spent, what's left, what's still to pay, and where it went;
- *  3. progress: work done against time used, and every work item (Update progress is here too);
+ *  3. progress: work done against time used, every work item on a timeline (Update progress is here too), and the
+ *     work items table: cost of work, paid, left, with Add work item and Edit;
  *  4. needs attention: only what's wrong, in plain sentences;
  *  5. a tile for each of the other sections.
  * Everything comes from what the project already loads; nothing new is saved.
@@ -54,6 +56,8 @@ export const Overview = memo(function Overview({
 
       {/* 3 · progress, with every work item (was the Progress tab) */}
       <ProgressPage projectId={projectId} compact />
+      {/* every work item with its cost, paid and left; add or edit one here */}
+      <WorkItems projectId={projectId} />
 
       {/* 4 · needs attention */}
       <NeedsAttention projectId={projectId} money={money} />
