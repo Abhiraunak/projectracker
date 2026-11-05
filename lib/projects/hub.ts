@@ -6,16 +6,19 @@ export interface ProjectHub {
   progress: { percent: number; items: number; start: string | null; end: string | null; daysLeft: number | null; late: boolean };
   money: { budget: number; budgetIsSet: boolean; labourPaid: number; materialSpent: number; spent: number; left: number; usedPct: number };
   labour: { agreed: number; paid: number; earned: number; due: number; paidAhead: number };
+  /** Contractor vs in-house for the work items with both rates (missing from an older API) */
+  rates?: { compared: number; missing: number; contractor: number; inHouse: number; saving: number };
   materials: { spent: number; expected: number; openAlerts: number; pendingRequests: number } | null;
   boqs: { id: string; title: string; boqNumber: string; status: "DRAFT" | "FINAL"; grandTotal: number; itemCount: number; updatedAt: string }[] | null;
   drawings: { count: number } | null;
   attendance: { entriesThisWeek: number; amountThisWeek: number; lastDate: string | null; lastAmount: number | null } | null;
+  /** Phase 6; missing from an older API */
   equipment?: { items: number; hireThisMonth: number } | null;
 }
 
 export const hubApi = {
   get: (projectId: string) => request<ProjectHub>(`/projects/${encodeURIComponent(projectId)}/hub`),
-  setDetails: (projectId: string, body: { title?: string; firmName?: string | null }) =>
+  setDetails: (projectId: string, body: { title?: string; firmName?: string | null; projectCost?: number | null }) =>
     request<unknown>(`/projects/${encodeURIComponent(projectId)}`, { method: "PATCH", body: JSON.stringify(body) }),
 };
 

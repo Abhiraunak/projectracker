@@ -1,11 +1,11 @@
 "use client";
 
-import { DrawingsPage } from "@/components/drawing/DrawingsPage";
+import DrawingsBook from "./DrawingsBook";
 
 /**
- * Drawings. Until Phase 4 links each drawing to a project and numbers it (A-1.00), this shows every drawing the
- * person can see, the same as the Drawing page.
+ * The project's Drawings tab: the folder grid (one dark folder per drawing, its revisions inside).
+ * Kept so a sections.ts that still loads "./sections/DrawingsSection" shows the same thing as "./sections/DrawingsBook".
  */
-export default function DrawingsSection(_props: { projectId: string }) {
-  return <DrawingsPage />;
+export default function DrawingsSection({ projectId }: { projectId: string }) {
+  return <DrawingsBook projectId={projectId} />;
 }

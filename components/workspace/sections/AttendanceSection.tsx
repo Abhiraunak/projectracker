@@ -2,32 +2,38 @@
 
 import { lazy, Suspense, useState } from "react";
 import type { IconType } from "react-icons";
-import { FiClipboard, FiCreditCard, FiPaperclip } from "react-icons/fi";
-import { AttendanceManager } from "@/components/labour/Attendancemanager";
+import { FiBarChart2, FiClipboard, FiCreditCard, FiPaperclip } from "react-icons/fi";
+
 import { useLabourSummary } from "@/hooks/useLabour";
+import { useWorkspaceSection } from "@/hooks/useWorkspacePlace";
 import { CostDonut } from "./labour/CostDonut";
 import { SectionError, SectionSkeleton } from "../ui";
+import { AttendanceManager } from "@/components/labour/Attendancemanager";
 
 // Payments and Expenses download only when someone opens them; attendance is the usual first stop, so it ships here
 const PaymentsPanel = lazy(() => import("./labour/PaymentsPanel").then((m) => ({ default: m.PaymentsPanel })));
 const ExpensesSection = lazy(() => import("./ExpensesSection"));
+const RatesSection = lazy(() => import("./RatesSection")); // contractor vs in-house, was its own tab
 
-type View = "attendance" | "payments" | "expenses";
+type View = "attendance" | "payments" | "expenses" | "rates";
 const VIEWS: { key: View; label: string; hint: string; Icon: IconType }[] = [
   { key: "attendance", label: "Attendance", hint: "Daily labour entries", Icon: FiClipboard },
   { key: "payments", label: "Payments", hint: "Paid to contractors", Icon: FiCreditCard },
   { key: "expenses", label: "Expenses", hint: "Labour expenses", Icon: FiPaperclip },
+  { key: "rates", label: "Rate comparison", hint: "Contractor vs in-house", Icon: FiBarChart2 },
 ];
 
 /**
- * The project's labour page: the cost donut (by trade, plus General expenses) on top, then Attendance, Payments and
- * Expenses. Attendance is the existing attendance module, unchanged. Panels once opened stay mounted, so switching
+ * The project's labour page: the cost donut (by trade, plus General expenses) on top, then Attendance, Payments,
+ * Expenses and Rate comparison (contractor vs in-house, which used to be its own tab). Attendance is the existing attendance module, unchanged. Panels once opened stay mounted, so switching
  * back keeps a half-filled sheet or form as it was.
  */
 export default function AttendanceSection({ projectId }: { projectId: string }) {
   const summary = useLabourSummary(projectId);
-  const [view, setView] = useState<View>("attendance");
-  const [opened, setOpened] = useState<Set<View>>(() => new Set(["attendance"]));
+  // An old ?s=rates link lands here: start on Rate comparison
+  const startOn: View = useWorkspaceSection() === "rates" ? "rates" : "attendance";
+  const [view, setView] = useState<View>(startOn);
+  const [opened, setOpened] = useState<Set<View>>(() => new Set<View>(["attendance", startOn]));
 
   const show = (v: View) => {
     setView(v);
@@ -47,7 +53,7 @@ export default function AttendanceSection({ projectId }: { projectId: string }) 
         )}
       </section>
 
-      <div role="group" aria-label="Labour" className="grid grid-cols-3 gap-2 sm:gap-3">
+      <div role="group" aria-label="Labour" className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
         {VIEWS.map(({ key, label, hint, Icon }) => {
           const on = view === key;
           return (
@@ -56,9 +62,8 @@ export default function AttendanceSection({ projectId }: { projectId: string }) 
               type="button"
               aria-pressed={on}
               onClick={() => show(key)}
-              className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2 sm:flex-row sm:justify-start sm:gap-3 sm:px-4 sm:text-left ${
-                on ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 bg-white text-stone-700 hover:border-stone-400 hover:text-stone-900"
-              }`}
+              className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2 sm:flex-row sm:justify-start sm:gap-3 sm:px-4 sm:text-left ${on ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 bg-white text-stone-700 hover:border-stone-400 hover:text-stone-900"
+                }`}
             >
               <Icon aria-hidden className="shrink-0 text-lg" />
               <span className="min-w-0">
@@ -83,7 +88,14 @@ export default function AttendanceSection({ projectId }: { projectId: string }) 
       {opened.has("expenses") && (
         <div hidden={view !== "expenses"}>
           <Suspense fallback={<SectionSkeleton />}>
-            <ExpensesSection projectId={projectId} sections={["labour", "general"]} />
+            <ExpensesSection projectId={projectId} sections={["labour"]} />
+          </Suspense>
+        </div>
+      )}
+      {opened.has("rates") && (
+        <div hidden={view !== "rates"}>
+          <Suspense fallback={<SectionSkeleton />}>
+            <RatesSection projectId={projectId} />
           </Suspense>
         </div>
       )}

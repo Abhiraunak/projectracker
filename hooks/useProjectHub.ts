@@ -31,7 +31,7 @@ export function usePrefetchProject() {
 export function useSetProjectDetails(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { title: string; firmName: string | null }) => hubApi.setDetails(projectId, body),
+    mutationFn: (body: { title?: string; firmName?: string | null; projectCost?: number | null }) => hubApi.setDetails(projectId, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }), // the tiles and this hub
   });
 }

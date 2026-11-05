@@ -4,12 +4,10 @@ import { lazy, memo, Suspense, useDeferredValue, useMemo, useState } from "react
 import { FiInbox, FiSearch, FiUpload } from "react-icons/fi";
 import { useProjectDrawings } from "@/hooks/useProjectDrawings";
 import { hrefFor, onPlaceClick, useWorkspaceItem } from "@/hooks/useWorkspacePlace";
-import { seriesOf } from "@/lib/drawings/numbers";
 import type { ProjectDrawing } from "@/lib/drawings/projectApi";
-import { FileTypeTile } from "@/components/drawing/FileTypeTile";
-import { ImageWithFallback } from "@/components/drawing/ImageWithFallback";
 import { EmptyState, SectionError, SectionSkeleton } from "../ui";
 import { DrawingDetail } from "./drawings/DrawingDetail";
+import { FolderTile } from "./drawings/FolderTile";
 
 // Only downloaded when used
 const UploadDrawingDialog = lazy(() => import("./drawings/UploadDrawingDialog"));
@@ -19,8 +17,8 @@ const SORT = "sort"; // ?i=sort: put old drawings into this project
 const SEARCH_FROM = 13;
 
 /**
- * Phase 4: the project's drawings as a grid of numbered tiles (A-1.00, A-1.01 …), grouped by series.
- * Tap a tile for the drawing and its revisions; upload a file under a number (an existing number becomes its next
+ * The project's drawings as one grid of dark folders, one per drawing (D-01, A-1.00 …), in number order.
+ * Tap a folder for all its revisions as a grid; upload a file under a number (an existing number becomes its next
  * revision). Grid → drawing → back all happen in place (?…&i=<drawing>), and the back button works.
  */
 export default function DrawingsBook({ projectId }: { projectId: string }) {
@@ -72,16 +70,8 @@ const Grid = memo(function Grid({ projectId, drawings, unassigned, onUpload }: {
   const [search, setSearch] = useState("");
   const query = useDeferredValue(search.trim().toLowerCase());
 
-  // Grouped by series (A, S, E …); a heading only when there is more than one series
-  const groups = useMemo(() => {
-    const shown = query ? drawings.filter((d) => `${d.number} ${d.title}`.toLowerCase().includes(query)) : drawings;
-    const map = new Map<string, ProjectDrawing[]>();
-    for (const d of shown) {
-      const s = seriesOf(d.number);
-      map.set(s, [...(map.get(s) ?? []), d]);
-    }
-    return [...map.entries()];
-  }, [drawings, query]);
+  // One grid for every drawing (no headings by letter), filtered by the search box
+  const shown = useMemo(() => (query ? drawings.filter((d) => `${d.number} ${d.title}`.toLowerCase().includes(query)) : drawings), [drawings, query]);
 
   const sort = { projectId, section: "drawings" as const, item: SORT };
 
@@ -128,49 +118,15 @@ const Grid = memo(function Grid({ projectId, drawings, unassigned, onUpload }: {
 
       {drawings.length === 0 ? (
         <EmptyState title="No drawings in this project yet" hint="Upload a drawing with its number (like A-1.00). Uploading the same number again makes a new revision." />
-      ) : groups.length === 0 ? (
+      ) : shown.length === 0 ? (
         <EmptyState title="No drawing matches that" hint="Try a number such as A-1 or part of the name." />
       ) : (
-        groups.map(([series, list]) => (
-          <section key={series} aria-label={series ? `Series ${series}` : "Drawings"}>
-            {groups.length > 1 && <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">{series || "Other"}</h3>}
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-              {list.map((d) => (
-                <DrawingTile key={d.id} projectId={projectId} drawing={d} />
-              ))}
-            </ul>
-          </section>
-        ))
+        <ul aria-label="Drawings" className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+          {shown.map((d) => (
+            <FolderTile key={d.id} projectId={projectId} drawing={d} />
+          ))}
+        </ul>
       )}
     </div>
-  );
-});
-
-/** One numbered drawing. Memoised: re-renders only when that drawing changes. */
-const DrawingTile = memo(function DrawingTile({ projectId, drawing: d }: { projectId: string; drawing: ProjectDrawing }) {
-  const place = { projectId, section: "drawings" as const, item: d.id };
-  return (
-    <li className="[content-visibility:auto] [contain-intrinsic-size:auto_200px]">
-      <a
-        href={hrefFor(place)}
-        onClick={onPlaceClick(place)}
-        className="group block overflow-hidden rounded-xl border border-stone-200 transition-colors hover:border-stone-400 focus-visible:border-stone-900 focus-visible:outline-none"
-      >
-        <div className="relative aspect-4/3 bg-stone-50">
-          {d.thumbnailUrl ? (
-            <ImageWithFallback src={d.thumbnailUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <FileTypeTile kind={d.kind} format={d.format} compact className="h-full w-full" />
-          )}
-          {d.revision > 0 && (
-            <span className="absolute right-2 top-2 rounded bg-white/90 px-1.5 py-0.5 text-[11px] font-semibold text-stone-700 shadow-sm">R{d.revision}</span>
-          )}
-        </div>
-        <div className="px-3 py-2">
-          <p className="font-semibold tabular-nums tracking-tight text-stone-900">{d.number}</p>
-          <p className="truncate text-xs text-stone-500">{d.title}</p>
-        </div>
-      </a>
-    </li>
   );
 });

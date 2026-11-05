@@ -1,28 +1,22 @@
 "use client";
 
 import { memo } from "react";
-import { FiAlertTriangle, FiCheckCircle, FiChevronRight } from "react-icons/fi";
-import { useMaterialPurchases } from "@/hooks/useMaterialPurchases";
-import { useAccess } from "@/hooks/useProjectAccess";
-import { useProjectProgress } from "@/hooks/useProjectPages";
+import { FiChevronRight } from "react-icons/fi";
 import { hrefFor, onPlaceClick } from "@/hooks/useWorkspacePlace";
-import { plural, rupees, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
-import ProgressPage from "./sections/ProgressPage";
+import { plural, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
 import { WorkItems } from "./sections/WorkItems";
 import { useSpend, type Spend } from "./sections/expenditure/useSpend";
 import type { SectionDef } from "./sections";
 
 const COLORS = { labour: "#378ADD", material: "#BA7517", general: "#888780" };
-const qty = (n: number) => n.toLocaleString("en-IN", { maximumFractionDigits: 3 });
 
 /**
  * The project at a glance, so someone who knows nothing about it gets the whole picture on one screen:
  *  1. when it runs and whether it is on time;
  *  2. money: what it should cost, what's spent, what's left, what's still to pay, and where it went;
- *  3. progress: work done against time used, every work item on a timeline (Update progress is here too), and the
- *     work items table: cost of work, paid, left, with Add work item and Edit;
- *  4. needs attention: only what's wrong, in plain sentences;
- *  5. a tile for each of the other sections.
+ *  3. work items, in one card: work done against time used, then each item's dates, progress, cost, paid and
+ *     left, with Add work item, Update progress and Edit (late items get a red tag);
+ *  4. a tile for each of the other sections.
  * Everything comes from what the project already loads; nothing new is saved.
  */
 export const Overview = memo(function Overview({
@@ -54,15 +48,10 @@ export const Overview = memo(function Overview({
       {/* 2 · money */}
       {money ? <MoneyAtAGlance m={money} /> : <div aria-busy="true" className="h-32 animate-pulse rounded-xl bg-stone-100 motion-reduce:animate-none" />}
 
-      {/* 3 · progress, with every work item (was the Progress tab) */}
-      <ProgressPage projectId={projectId} compact />
-      {/* every work item with its cost, paid and left; add or edit one here */}
+      {/* 3 · work items: progress and payment together */}
       <WorkItems projectId={projectId} />
 
-      {/* 4 · needs attention */}
-      <NeedsAttention projectId={projectId} money={money} />
-
-      {/* 5 · the other sections */}
+      {/* 4 · the other sections */}
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         {sections.map((s) => (
           <SectionTile key={s.key} projectId={projectId} def={s} hub={hub} onWarm={onWarm} />
@@ -121,53 +110,6 @@ function Box({ label, value, note, tone }: { label: string; value: string; note?
       <dd className={`mt-0.5 truncate text-xl font-semibold tabular-nums ${tone ?? "text-stone-900"}`}>{value}</dd>
       {note && <dd className="truncate text-xs text-stone-500">{note}</dd>}
     </div>
-  );
-}
-
-/* ------------------------------------ needs attention ------------------------------------ */
-
-type Issue = { key: string; text: string; level: "bad" | "warn" };
-
-/** Only what's wrong, worst first. Each line says what and how much, in plain words. */
-function NeedsAttention({ projectId, money }: { projectId: string; money: Spend | null }) {
-  const access = useAccess();
-  const progress = useProjectProgress(projectId); // shared with the progress block above: one request
-  const purchases = useMaterialPurchases(projectId, access.can("materials.view"));
-  const today = progress.data?.today;
-
-  const issues: Issue[] = [];
-  if (money?.left !== null && money?.left !== undefined && money.left < 0) issues.push({ key: "over", text: `Spent ${rupees(-money.left)} more than ${money.againstName}`, level: "bad" });
-  for (const r of progress.data?.rows ?? []) {
-    if (today && r.progress < 100 && r.end < today) issues.push({ key: `late-${r.id}`, text: `${r.work} is past its end date (${shortDate(r.end)}), ${r.progress}% done`, level: "bad" });
-    if (r.agreed > 0 && r.paid - r.agreed > 0.5) issues.push({ key: `paid-${r.id}`, text: `${r.work}: ${rupees(r.paid - r.agreed)} given more than set`, level: "bad" });
-  }
-  if (money && money.labourToPay > 0.5) issues.push({ key: "labour", text: `${rupees(money.labourToPay)} still to pay to labour contractors`, level: "warn" });
-  const coming = (purchases.data?.items ?? []).filter((i) => i.toCome > 0);
-  for (const i of coming.slice(0, 3)) issues.push({ key: `mat-${i.id}`, text: `${qty(i.toCome)} ${i.unit} ${i.name} still to arrive`, level: "warn" });
-  if (coming.length > 3) issues.push({ key: "mat-more", text: `${plural(coming.length - 3, "more material")} still to arrive`, level: "warn" });
-  issues.sort((a, b) => (a.level === b.level ? 0 : a.level === "bad" ? -1 : 1));
-
-  const loading = progress.isPending || !money;
-  return (
-    <section aria-label="Needs attention" className="rounded-xl border border-stone-200 bg-white p-4 sm:p-5">
-      <h2 className="text-sm font-semibold text-stone-900">Needs attention</h2>
-      {loading ? (
-        <div aria-busy="true" className="mt-3 h-12 animate-pulse rounded-lg bg-stone-100 motion-reduce:animate-none" />
-      ) : issues.length === 0 ? (
-        <p className="mt-2 flex items-center gap-2 text-sm text-emerald-700">
-          <FiCheckCircle aria-hidden /> All in order
-        </p>
-      ) : (
-        <ul className="mt-2 space-y-1.5">
-          {issues.map((i) => (
-            <li key={i.key} className="flex items-start gap-2 text-sm text-stone-800">
-              <FiAlertTriangle aria-hidden className={`mt-0.5 shrink-0 ${i.level === "bad" ? "text-red-600" : "text-amber-600"}`} />
-              <span>{i.text}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
   );
 }
 

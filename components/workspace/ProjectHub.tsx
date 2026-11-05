@@ -43,16 +43,19 @@ export function ProjectHub({ projectId }: { projectId: string }) {
   );
 
   const allowed = useMemo(() => SECTIONS.filter((s) => access.can(s.needs)), [access]);
-  const current: SectionKey = section !== "overview" && allowed.some((s) => s.key === section) ? section : "overview";
+  // Rate comparison moved into Labour: an old ?s=rates link opens the Labour tab (which then shows the rates)
+  const wanted: SectionKey = section === "rates" ? "attendance" : section;
+  const current: SectionKey = wanted !== "overview" && allowed.some((s) => s.key === wanted) ? wanted : "overview";
 
   // The tab moves at once; the content follows. If a section's code is still downloading, the old section stays
   // on screen until the new one is ready, instead of flashing a loading block.
   const shown = useDeferredValue(current);
 
-  // Sections opened so far in this project. Read and written during render on purpose: adding the current
-  // section is idempotent, and it saves a second render that an effect would cost.
-  const visited = useRef(new Set<SectionKey>());
-  if (shown !== "overview") visited.current.add(shown);
+  // Sections opened so far in this project, kept mounted (hidden) so switching back is instant. State, not a ref:
+  // React allows updating a component's own state while it renders when it is guarded like this (it re-renders
+  // straight away, before anything is shown), which saves the extra paint an effect would cost.
+  const [visited, setVisited] = useState<SectionKey[]>([]);
+  if (shown !== "overview" && !visited.includes(shown)) setVisited([...visited, shown]);
 
   const title = hub.data?.project.title ?? fromList?.title ?? "";
   const firm = hub.data?.project.firmName ?? fromList?.firmName ?? null;
@@ -78,7 +81,7 @@ export function ProjectHub({ projectId }: { projectId: string }) {
             <SectionSkeleton />
           ))}
 
-        {[...visited.current].map((key) => {
+        {visited.map((key) => {
           const def = sectionByKey.get(key as SectionDef["key"]);
           if (!def || !allowed.includes(def)) return null;
           return (
@@ -89,7 +92,7 @@ export function ProjectHub({ projectId }: { projectId: string }) {
         })}
       </div>
 
-      {editing && hub.data && <EditDetailsDialog project={hub.data.project} onClose={() => setEditing(false)} />}
+      {editing && hub.data && <EditDetailsDialog project={{ ...hub.data.project, projectCost: hub.data.money.budgetIsSet ? hub.data.money.budget : null }} onClose={() => setEditing(false)} />}
     </div>
   );
 }
@@ -198,7 +201,7 @@ const SectionNav = memo(function SectionNav({
       aria-label="Project sections"
       className="sticky top-14 z-10 -mx-4 mt-3 border-b border-stone-200 bg-white px-4 sm:-mx-6 sm:px-6 lg:-top-6 lg:-mx-8 lg:px-8"
     >
-      <ul ref={listRef} className="-mb-px flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <ul ref={listRef} className="-mb-px flex gap-1 overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden">
         {tabs.map(({ key, label, Icon, def }) => {
           const place = { projectId, section: key };
           const active = key === current;

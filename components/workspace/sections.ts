@@ -1,15 +1,12 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 import type { IconType } from "react-icons";
-import { FiBarChart2, FiBox, FiPaperclip, FiClipboard, FiFileText, FiPenTool, FiTruck } from "react-icons/fi";
+import { FiBox, FiPaperclip, FiClipboard, FiFileText, FiPenTool, FiTruck } from "react-icons/fi";
 import type { Permission } from "@/lib/access/types";
 import type { SectionKey } from "@/lib/projects/place";
 import { plural, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
 
 type SectionProps = { projectId: string };
 
-/** Contractor vs in-house figures. Older versions of ProjectHub (and of the API) don't have them, so they're optional here. */
-type RateFigures = { compared: number; missing?: number; contractor: number; inHouse: number; saving: number };
-const ratesOf = (hub: ProjectHub): RateFigures | undefined => (hub as ProjectHub & { rates?: RateFigures }).rates;
 type Loader = () => Promise<{ default: ComponentType<SectionProps> }>;
 
 export interface SectionDef {
@@ -33,6 +30,7 @@ const def = (d: Omit<SectionDef, "Section">): SectionDef => ({ ...d, Section: la
 
 // Progress now sits on the Overview, and Labour payment is covered by the Labour tab, so neither has a tile or a tab.
 // Old links to them (?s=progress, ?s=payments) open the Overview.
+// Rate comparison now sits inside the Labour tab (its fourth button); old ?s=rates links open Labour on it.
 export const SECTIONS: SectionDef[] = [
   def({
     key: "drawings",
@@ -61,31 +59,6 @@ export const SECTIONS: SectionDef[] = [
     summary: ({ materials: m }) => (!m ? { text: "" } : m.spent > 0 ? { text: `${rupeesShort(m.spent)} spent on materials` } : { text: "Nothing added yet" }),
   }),
   def({
-    key: "rates",
-    label: "Rate comparison",
-    Icon: FiBarChart2,
-    needs: "project.view",
-    // The Project page's contractor vs in-house grid (components/labour/ComparisonGrid)
-    load: () => import("./sections/RatesSection"),
-    // The same figures and colours as the tab: green when in-house saves, red when it costs more
-    summary: (hub) => {
-      const r = ratesOf(hub);
-      if (!r || r.compared === 0) return { text: "No rates to compare yet" };
-      const pct = Math.round((Math.abs(r.saving) / Math.max(r.contractor, r.inHouse, 1)) * 100);
-      const items = ` · ${plural(r.compared, "item")}`;
-      if (r.saving >= 0) return { text: `In-house saves ${rupeesShort(r.saving)}${pct ? ` (${pct}%)` : ""}${items}`, tone: "good" };
-      return { text: `In-house costs ${rupeesShort(-r.saving)} more (${pct}%)${items}`, tone: "bad" };
-    },
-  }),
-  def({
-    key: "expenses",
-    label: "Expenditure",
-    Icon: FiPaperclip,
-    needs: "project.view",
-    load: () => import("./sections/ExpenditureSection"), // money at a glance, then the daily expenses
-    summary: () => ({ text: "Cost vs spent, and daily expenses" }),
-  }),
-  def({
     key: "attendance",
     label: "Labour",
     Icon: FiClipboard,
@@ -95,6 +68,14 @@ export const SECTIONS: SectionDef[] = [
       !a || !a.lastDate
         ? { text: "Nothing recorded yet" }
         : { text: `Last ${shortDate(a.lastDate)} · ${rupeesShort(a.amountThisWeek)} this week` },
+  }),
+   def({
+    key: "expenses",
+    label: "Expenditure",
+    Icon: FiPaperclip,
+    needs: "project.view",
+    load: () => import("./sections/ExpenditureSection"), // money at a glance, then the daily expenses
+    summary: () => ({ text: "Cost vs spent, and daily expenses" }),
   }),
   def({
     key: "equipment",
