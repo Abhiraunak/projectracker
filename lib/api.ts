@@ -40,6 +40,8 @@ export interface ProjectSummary {
   attendanceCount: number;
   projectCost: number | null;
   spent: number; // paid so far, across the work items
+  /** Everything spent, as on the Overview: labour, material and general (optional: older API versions don't send it) */
+  totalSpent?: number;
   budget: number;
   paid: number;
   progress: number;
