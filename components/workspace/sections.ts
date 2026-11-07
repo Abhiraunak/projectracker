@@ -33,14 +33,6 @@ const def = (d: Omit<SectionDef, "Section">): SectionDef => ({ ...d, Section: la
 // Rate comparison now sits inside the Labour tab (its fourth button); old ?s=rates links open Labour on it.
 export const SECTIONS: SectionDef[] = [
   def({
-    key: "drawings",
-    label: "Drawings",
-    Icon: FiPenTool,
-    needs: "drawings.use",
-    load: () => import("./sections/DrawingsBook"),
-    summary: ({ drawings }) => ({ text: drawings ? plural(drawings.count, "drawing") : "" }),
-  }),
-  def({
     key: "boq",
     label: "BOQ",
     Icon: FiFileText,
@@ -50,6 +42,14 @@ export const SECTIONS: SectionDef[] = [
       !boqs || boqs.length === 0 ? { text: "No BOQ yet" } : { text: `${plural(boqs.length, "BOQ")} · ${rupeesShort(boqs.reduce((s, b) => s + b.grandTotal, 0))}` },
   }),
   def({
+    key: "drawings",
+    label: "Drawings",
+    Icon: FiPenTool,
+    needs: "drawings.use",
+    load: () => import("./sections/DrawingsBook"),
+    summary: ({ drawings }) => ({ text: drawings ? plural(drawings.count, "drawing") : "" }),
+  }),
+  def({
     key: "materials",
     label: "Materials",
     Icon: FiBox,
@@ -57,14 +57,6 @@ export const SECTIONS: SectionDef[] = [
     // The simple list: material, quantity × rate, bill. (The full stock screens are still in ./sections/MaterialsBook.)
     load: () => import("./sections/MaterialsSimple"),
     summary: ({ materials: m }) => (!m ? { text: "" } : m.spent > 0 ? { text: `${rupeesShort(m.spent)} spent on materials` } : { text: "Nothing added yet" }),
-  }),
-  def({
-    key: "expenses",
-    label: "Expenditure",
-    Icon: FiPaperclip,
-    needs: "project.view",
-    load: () => import("./sections/ExpenditureSection"), // money at a glance, then the daily expenses
-    summary: () => ({ text: "Cost vs spent, and daily expenses" }),
   }),
   def({
     key: "attendance",
@@ -87,6 +79,14 @@ export const SECTIONS: SectionDef[] = [
       !e || e.items === 0
         ? { text: "Nothing here yet" }
         : { text: `${plural(e.items, "item")} here${e.hireThisMonth > 0 ? ` · ${rupeesShort(e.hireThisMonth)} hire this month` : ""}` },
+  }),
+  def({
+    key: "expenses",
+    label: "General",
+    Icon: FiPaperclip,
+    needs: "project.view",
+    load: () => import("./sections/ExpenditureSection"), // money at a glance, then the daily expenses
+    summary: () => ({ text: "Cost vs spent, and general expenses" }),
   }),
 ];
 

@@ -151,21 +151,25 @@ const HubHeader = memo(function HubHeader({
         <FiArrowLeft aria-hidden />
       </a>
       <div className="min-w-0 flex-1 pt-1">
-        {firm && <p className="truncate text-xs font-medium uppercase tracking-wide text-stone-500">{firm}</p>}
-        <h1 className="truncate text-xl font-semibold tracking-tight text-stone-900 sm:text-2xl" aria-busy={!title || undefined}>
-          {title || <span className="inline-block h-6 w-48 animate-pulse rounded bg-stone-100 align-middle" />}
-        </h1>
+        {/* The project's name, Edit right after it, and the firm underneath */}
+        <div className="flex min-w-0 items-center gap-1.5">
+          <h1 className="min-w-0 truncate text-xl font-semibold tracking-tight text-[#111111] sm:text-2xl" aria-busy={!title || undefined}>
+            {title || <span className="inline-block h-6 w-48 animate-pulse rounded bg-stone-100 align-middle" />}
+          </h1>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label="Edit project name, firm and cost"
+              className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-[#666666] hover:bg-[#F1F1EF] hover:text-[#111111]"
+            >
+              <FiEdit2 aria-hidden />
+              <span className="hidden sm:inline">Edit</span>
+            </button>
+          )}
+        </div>
+        {firm && <p className="truncate text-sm text-[#666666]">{firm}</p>}
       </div>
-      {canEdit && (
-        <button
-          type="button"
-          onClick={onEdit}
-          className="flex h-11 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900"
-        >
-          <FiEdit2 aria-hidden />
-          <span className="hidden sm:inline">Edit</span>
-        </button>
-      )}
     </div>
   );
 });
@@ -214,9 +218,8 @@ const SectionNav = memo(function SectionNav({
                 onTouchStart={def ? () => warm(def) : undefined}
                 onFocus={def ? () => warm(def) : undefined}
                 aria-current={active ? "page" : undefined}
-                className={`flex min-h-12 items-center gap-2 whitespace-nowrap border-b-2 px-3 text-sm font-medium transition-colors ${
-                  active ? "border-orange-500 text-stone-900" : "border-transparent text-stone-500 hover:text-stone-900"
-                }`}
+                className={`flex min-h-12 items-center gap-2 whitespace-nowrap border-b-2 px-3 text-sm font-medium transition-colors ${active ? "border-orange-500 text-stone-900" : "border-transparent text-stone-500 hover:text-stone-900"
+                  }`}
               >
                 <Icon aria-hidden className="text-base" />
                 {label}

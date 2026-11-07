@@ -2,13 +2,13 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+// import { usePathname } from "next/navigation";
 import { FiChevronDown, FiLogOut } from "react-icons/fi";
 import { useAuth } from "@/hooks/useAuth";
-import { useAccess } from "@/hooks/useProjectAccess";
+// import { useAccess } from "@/hooks/useProjectAccess";
 import { useSignOut } from "@/hooks/useSignOut";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { MENU_ROUTES, currentRoute, routeAllowed } from "./Sidebar/Routes";
+// import { MENU_ROUTES, currentRoute, routeAllowed } from "./Sidebar/Routes";
 
 const focusRing = "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]";
 
@@ -50,8 +50,6 @@ export function TopBar() {
 /** The person's tile: initials and name; tap it for the pages menu and Log out */
 function UserMenu() {
   const { user } = useAuth();
-  const access = useAccess();
-  const pathname = usePathname();
   const { signOut, isSigningOut, error } = useSignOut();
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
@@ -60,9 +58,7 @@ function UserMenu() {
 
   const name = user?.name ?? user?.email?.split("@")[0] ?? "Account";
   const email = user?.email ?? "";
-  // The pages that used to be in the sidebar (only those this person may open). Dashboard is the logo.
-  const pages = MENU_ROUTES.filter((r) => r.href !== "/dashboard" && r.href !== "/dashboard/projects" && routeAllowed(r, access));
-  const active = currentRoute(pathname)?.href;
+ 
 
   // Close on a click outside, or Escape (focus goes back to the tile)
   useEffect(() => {
@@ -110,21 +106,6 @@ function UserMenu() {
             <p className="truncate text-sm font-semibold text-[#111111]">{name}</p>
             {email && <p className="truncate text-[13px] text-[#666666]">{email}</p>}
           </div>
-          {pages.length > 0 && (
-            <nav aria-label="Pages" className="border-b border-[#EFEFED] pb-1.5">
-              {pages.map(({ href, title, Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={() => setOpen(false)}
-                  aria-current={href === active ? "page" : undefined}
-                  className={`${row} ${href === active ? "bg-[#F1F1EF] font-medium text-[#111111]" : "text-[#111111] hover:bg-[#F7F7F5]"}`}
-                >
-                  <Icon aria-hidden className="shrink-0 text-[#666666]" /> {title}
-                </Link>
-              ))}
-            </nav>
-          )}
           <div className="pt-1.5">
             <button type="button" onClick={() => void signOut()} disabled={isSigningOut} className={`${row} text-[#B3261E] hover:bg-[#FCEDEC] disabled:opacity-50`}>
               <FiLogOut aria-hidden className="shrink-0" /> {isSigningOut ? "Logging out…" : "Log out"}

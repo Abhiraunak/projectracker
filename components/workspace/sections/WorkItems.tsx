@@ -20,7 +20,7 @@ const clampPct = (n: number) => Math.min(100, Math.max(0, Math.round(n)));
 const isLate = (t: ApiTask, today: string) => t.progress < 100 && !!t.endDate && t.endDate < today;
 
 /**
- * The project's work items in one card: how much work is done against time used, then each work item with its
+ * The project's work items in one card: each work item with its
  * dates, progress, cost of work, paid and left. "Add work item" adds one; the pencil edits one (name, dates, cost,
  * paid, progress); "Update progress" turns the progress column into sliders for every item at once.
  * A work item past its end date and not finished gets a red "late" tag. Everything saves into the project, so it
@@ -44,7 +44,6 @@ export function WorkItems({ projectId }: { projectId: string }) {
 
   const tasks = project.data.tasks;
   const today = progress.data?.today ?? todayLocal();
-  const time = progress.data?.time;
   const total = tasks.reduce((s, t) => s + t.stipulated, 0);
   const paid = tasks.reduce((s, t) => s + t.paid, 0);
   const left = tasks.reduce((s, t) => s + Math.max(0, t.stipulated - t.paid), 0);
@@ -120,8 +119,6 @@ export function WorkItems({ projectId }: { projectId: string }) {
           ))}
       </header>
 
-      {/* work done against time used, across the whole project */}
-      {time && tasks.length > 0 && <WorkVsTime workPct={time.workPct} timePct={time.timePct} />}
 
       {updating && save.isError && (
         <p role="alert" className="px-4 pt-3 text-sm text-red-700">
@@ -227,29 +224,6 @@ export function WorkItems({ projectId }: { projectId: string }) {
   );
 }
 
-/** Two thin bars: how much of the work is done, and how much of the time is used */
-function WorkVsTime({ workPct, timePct }: { workPct: number; timePct: number }) {
-  const gap = Math.round(workPct - timePct);
-  const bar = (pct: number, color: string) => (
-    <span aria-hidden className="mt-1 block h-1.5 overflow-hidden rounded-full bg-stone-100">
-      <span className={`block h-full rounded-full ${color}`} style={{ width: `${clampPct(pct)}%` }} />
-    </span>
-  );
-  return (
-    <div className="grid grid-cols-2 gap-4 border-b border-stone-100 px-4 py-3 text-xs text-stone-600">
-      <p>
-        Work done <b className="font-semibold tabular-nums text-stone-900">{clampPct(workPct)}%</b>
-        {bar(workPct, "bg-blue-600")}
-      </p>
-      <p>
-        Time used <b className="font-semibold tabular-nums text-stone-900">{clampPct(timePct)}%</b>
-        {gap < -2 && <span className="text-amber-700"> · behind by {-gap}%</span>}
-        {gap > 2 && <span className="text-emerald-700"> · ahead by {gap}%</span>}
-        {bar(timePct, "bg-stone-400")}
-      </p>
-    </div>
-  );
-}
 
 /** Add or edit one work item: name, dates, cost of work, paid so far and (when editing) progress */
 function WorkItemDialog({ projectId, editing, onClose }: { projectId: string; editing: ApiTask | null; onClose: () => void }) {
