@@ -1,104 +1,145 @@
 "use client";
 
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useState, type ReactNode } from "react";
 import type { IconType } from "react-icons";
-import { FiBarChart2, FiClipboard, FiCreditCard, FiPaperclip } from "react-icons/fi";
-
+import { FiBarChart2, FiCalendar, FiClipboard, FiCreditCard, FiGrid, FiPaperclip, FiTool } from "react-icons/fi";
+import { AttendanceManager } from "@/components/labour/Attendancemanager";
 import { useLabourSummary } from "@/hooks/useLabour";
 import { useWorkspaceSection } from "@/hooks/useWorkspacePlace";
+import { todayLocal, weekStartOf } from "@/lib/projects/labourWeeks";
 import { CostDonut } from "./labour/CostDonut";
+import { LabourSearch } from "./labour/LabourSearch";
+import { WeekView } from "./labour/WeekView";
+import { mono } from "./materials/mono";
 import { SectionError, SectionSkeleton } from "../ui";
-import { AttendanceManager } from "@/components/labour/Attendancemanager";
 
-// Payments and Expenses download only when someone opens them; attendance is the usual first stop, so it ships here
+
+// Everything after the week downloads only when someone opens it
+const MonthView = lazy(() => import("./labour/MonthView").then((m) => ({ default: m.MonthView })));
+const ContractWork = lazy(() => import("./labour/ContractWork").then((m) => ({ default: m.ContractWork })));
 const PaymentsPanel = lazy(() => import("./labour/PaymentsPanel").then((m) => ({ default: m.PaymentsPanel })));
 const ExpensesSection = lazy(() => import("./ExpensesSection"));
-const RatesSection = lazy(() => import("./RatesSection")); // contractor vs in-house, was its own tab
+const RatesSection = lazy(() => import("./RatesSection")); // contractor vs in-house
 
-type View = "attendance" | "payments" | "expenses" | "rates";
-const VIEWS: { key: View; label: string; hint: string; Icon: IconType }[] = [
-  { key: "attendance", label: "Attendance", hint: "Daily labour entries", Icon: FiClipboard },
-  { key: "payments", label: "Payments", hint: "Paid to contractors", Icon: FiCreditCard },
-  { key: "expenses", label: "Expenses", hint: "Labour expenses", Icon: FiPaperclip },
-  { key: "rates", label: "Rate comparison", hint: "Contractor vs in-house", Icon: FiBarChart2 },
+type View = "week" | "sheet" | "month" | "contract" | "payments" | "expenses" | "rates";
+const VIEWS: { key: View; label: string; Icon: IconType }[] = [
+  { key: "week", label: "This week", Icon: FiCalendar },
+  { key: "sheet", label: "Hourly sheet", Icon: FiClipboard },
+  { key: "month", label: "Monthly", Icon: FiGrid },
+  { key: "contract", label: "Contract work", Icon: FiTool },
+  { key: "payments", label: "Payments", Icon: FiCreditCard },
+  { key: "expenses", label: "Expenses", Icon: FiPaperclip },
+  { key: "rates", label: "Rate comparison", Icon: FiBarChart2 },
 ];
 
 /**
- * The project's labour page: the cost donut (by trade, plus General expenses) on top, then Attendance, Payments,
- * Expenses and Rate comparison (contractor vs in-house, which used to be its own tab). Attendance is the existing attendance module, unchanged. Panels once opened stay mounted, so switching
- * back keeps a half-filled sheet or form as it was.
+ * The project's labour, in the order it is used:
+ *  - This week: each contractor's pay week (Mon–Sun): earned, carried from last week, paid, left; pay and settle.
+ *  - Hourly sheet: attendance by the hour (or by day, present/absent), the existing entry form and saved records.
+ *  - Monthly: one contractor's labour sheet, or every contractor together.
+ *  - Contract work: measured work × rate per sqft (or rft, nos…).
+ *  - Payments (with the cost donut), Expenses, Rate comparison.
+ * A search on top finds anything and opens its week. Panels once opened stay mounted, so a half-filled sheet stays.
  */
 export default function AttendanceSection({ projectId }: { projectId: string }) {
-  const summary = useLabourSummary(projectId);
-  // An old ?s=rates link lands here: start on Rate comparison
-  const startOn: View = useWorkspaceSection() === "rates" ? "rates" : "attendance";
+  // An old ?s=rates link lands on Rate comparison
+  const startOn: View = useWorkspaceSection() === "rates" ? "rates" : "week";
   const [view, setView] = useState<View>(startOn);
-  const [opened, setOpened] = useState<Set<View>>(() => new Set<View>(["attendance", startOn]));
+  const [opened, setOpened] = useState<Set<View>>(() => new Set<View>([startOn]));
+  const [weekStart, setWeekStart] = useState(() => weekStartOf(todayLocal()));
+  const [focusKey, setFocusKey] = useState<string | null>(null);
 
   const show = (v: View) => {
     setView(v);
     setOpened((s) => (s.has(v) ? s : new Set(s).add(v)));
   };
+  const panel = (v: View, node: ReactNode) =>
+    opened.has(v) && (
+      <div hidden={view !== v}>
+        <Suspense fallback={<SectionSkeleton />}>{node}</Suspense>
+      </div>
+    );
 
   return (
-    <div className="space-y-6">
-      <section aria-label="Labour cost" className="rounded-xl border border-stone-200 bg-white p-4 sm:p-6">
-        <h2 className="mb-4 text-sm font-semibold text-stone-900">Labour cost</h2>
-        {summary.isError ? (
-          <SectionError error={summary.error} onRetry={() => void summary.refetch()} />
-        ) : summary.data ? (
-          <CostDonut summary={summary.data} />
-        ) : (
-          <div aria-busy="true" className="h-52 animate-pulse rounded-lg bg-stone-100 motion-reduce:animate-none" />
-        )}
-      </section>
+    <div className="space-y-5">
+      <LabourSearch
+        projectId={projectId}
+        onPick={(start, key) => {
+          setWeekStart(start);
+          setFocusKey(key);
+          show("week");
+        }}
+      />
 
-      <div role="group" aria-label="Labour" className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-        {VIEWS.map(({ key, label, hint, Icon }) => {
-          const on = view === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              aria-pressed={on}
-              onClick={() => show(key)}
-              className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl border px-2 py-3 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2 sm:flex-row sm:justify-start sm:gap-3 sm:px-4 sm:text-left ${on ? "border-stone-900 bg-stone-900 text-white" : "border-stone-200 bg-white text-stone-700 hover:border-stone-400 hover:text-stone-900"
-                }`}
-            >
-              <Icon aria-hidden className="shrink-0 text-lg" />
-              <span className="min-w-0">
-                <span className="block">{label}</span>
-                <span className={`hidden truncate text-xs font-normal sm:block ${on ? "text-stone-300" : "text-stone-500"}`}>{hint}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      {/* one row that scrolls sideways on a phone */}
+      <nav aria-label="Labour" className="-mx-4 overflow-x-auto px-4 scrollbar-none sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+        <div className="inline-flex min-w-full gap-1 rounded-2xl bg-[#EFEFED] p-1">
+          {VIEWS.map(({ key, label, Icon }) => {
+            const on = view === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={on}
+                onClick={() => show(key)}
+                className={`flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 text-sm font-medium sm:flex-1 sm:justify-center ${mono.motion} ${mono.ring} ${on ? "bg-white text-[#111111] shadow-[0_1px_2px_rgba(17,17,17,0.08)]" : "text-[#666666] hover:text-[#111111]"
+                  }`}
+              >
+                <Icon aria-hidden className="shrink-0" />
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
 
-      <div hidden={view !== "attendance"}>
-        <AttendanceManager projectId={projectId} />
-      </div>
-      {opened.has("payments") && (
-        <div hidden={view !== "payments"}>
-          <Suspense fallback={<SectionSkeleton />}>
-            <PaymentsPanel projectId={projectId} />
-          </Suspense>
+      {opened.has("week") && (
+        <div hidden={view !== "week"}>
+          <WeekView
+            projectId={projectId}
+            start={weekStart}
+            onStart={(s) => {
+              setWeekStart(s);
+              setFocusKey(null);
+            }}
+            focusKey={focusKey}
+            onMarkAttendance={() => show("sheet")}
+          />
         </div>
       )}
-      {opened.has("expenses") && (
-        <div hidden={view !== "expenses"}>
-          <Suspense fallback={<SectionSkeleton />}>
-            <ExpensesSection projectId={projectId} sections={["labour"]} />
-          </Suspense>
+      {opened.has("sheet") && (
+        <div hidden={view !== "sheet"}>
+          <AttendanceManager projectId={projectId} showMonth={false} />
         </div>
       )}
-      {opened.has("rates") && (
-        <div hidden={view !== "rates"}>
-          <Suspense fallback={<SectionSkeleton />}>
-            <RatesSection projectId={projectId} />
-          </Suspense>
+      {panel("month", <MonthView projectId={projectId} />)}
+      {panel("contract", <ContractWork projectId={projectId} />)}
+      {panel(
+        "payments",
+        <div className="space-y-5">
+          <LabourCost projectId={projectId} />
+          <PaymentsPanel projectId={projectId} />
         </div>
       )}
+      {panel("expenses", <ExpensesSection projectId={projectId} sections={["labour"]} />)}
+      {panel("rates", <RatesSection projectId={projectId} />)}
     </div>
+  );
+}
+
+/** The cost donut: labour by trade (attendance and contract work), plus General expenses */
+function LabourCost({ projectId }: { projectId: string }) {
+  const summary = useLabourSummary(projectId);
+  return (
+    <section aria-label="Labour cost" className={`${mono.card} p-4 sm:p-6`}>
+      <h2 className="mb-4 text-[15px] font-semibold text-[#111111]">Labour cost</h2>
+      {summary.isError ? (
+        <SectionError error={summary.error} onRetry={() => void summary.refetch()} />
+      ) : summary.data ? (
+        <CostDonut summary={summary.data} />
+      ) : (
+        <div aria-busy="true" className="h-52 animate-pulse rounded-2xl bg-[#F7F7F5] motion-reduce:animate-none" />
+      )}
+    </section>
   );
 }

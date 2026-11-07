@@ -19,7 +19,13 @@ export const usePayments = (projectId: string) =>
 function useRefresh(projectId: string) {
   const qc = useQueryClient();
   return () =>
-    Promise.all([qc.invalidateQueries({ queryKey: paymentsKey(projectId) }), qc.invalidateQueries({ queryKey: labourSummaryKey(projectId) })]);
+    Promise.all([
+      qc.invalidateQueries({ queryKey: paymentsKey(projectId) }),
+      qc.invalidateQueries({ queryKey: labourSummaryKey(projectId) }),
+      // the pay week and the month show what was paid
+      qc.invalidateQueries({ queryKey: ["attendance", "labour-week", projectId] }),
+      qc.invalidateQueries({ queryKey: ["attendance", "labour-month", projectId] }),
+    ]);
 }
 
 export function useAddPayment(projectId: string) {

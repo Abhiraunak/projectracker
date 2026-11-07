@@ -39,7 +39,7 @@ export function PaymentsPanel({ projectId }: { projectId: string }) {
     <div className="space-y-5">
       <div className="flex flex-wrap gap-x-8 gap-y-1 text-sm text-stone-600">
         <span>
-          Earned (attendance) <span className="ml-1 font-semibold tabular-nums text-stone-900">{rupees(totals.earned)}</span>
+          Earned (attendance + contract work) <span className="ml-1 font-semibold tabular-nums text-stone-900">{rupees(totals.earned)}</span>
         </span>
         <span>
           Paid <span className="ml-1 font-semibold tabular-nums text-stone-900">{rupees(totals.paid)}</span>
@@ -125,14 +125,7 @@ function PaymentForm({ projectId, book, prefill }: { projectId: string; book: Pa
           Trade <span className="font-normal text-stone-400">(optional)</span>
         </span>
         <div className="mt-1.5">
-          <ChipInput
-            id="pay-trade"
-            value={trade}
-            onChange={setTrade}
-            choices={book.trades}
-            labelledBy="pay-trade-label"
-            size="sm"
-          />
+          <ChipInput id="pay-trade" value={trade} onChange={setTrade} choices={book.trades} noun="trade" storageKey={`attendance-trades:${projectId}`} labelledBy="pay-trade-label" size="sm" />
         </div>
       </div>
 
