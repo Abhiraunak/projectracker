@@ -2,7 +2,6 @@
 
 import type { FormEvent, RefObject } from "react";
 import { FiCornerUpLeft, FiCornerUpRight, FiEdit2, FiSave, FiX } from "react-icons/fi";
-import { ChipInput } from "@/components/utilites/ChipInput";
 import { fieldLabel, iconBtn, inputBase } from "@/components/utilites/fieldStyles";
 import { FormMessage } from "@/components/utilites/FormMessage";
 import { MoneyInput } from "@/components/utilites/MoneyInput";
@@ -33,7 +32,7 @@ interface Props {
 }
 
 /** The "New entry" / "Editing entry" card: trade, contractor, day(s), labourers, extras, notes, total, save */
-export function EntryForm({ api, projectId, team, choices, usual, total, saving, error, savedNote, submitRef, tradeStorageKey, onSubmit, onCancelEdit }: Props) {
+export function EntryForm({ api, projectId, team, usual, total, saving, error, savedNote, submitRef, onSubmit, onCancelEdit }: Props) {
   const { form, update, editing, editingBatchId, severalDays, multiDay } = api;
   const dayCount = severalDays ? form.days.length : 1;
 
@@ -73,17 +72,10 @@ export function EntryForm({ api, projectId, team, choices, usual, total, saving,
       <form onSubmit={onSubmit} className="space-y-6 p-4 sm:p-6">
         <PayModeSwitch value={form.payMode} onChange={api.setPayMode} locked={editing} />
 
-        <div>
-          <p id="tradeLabel" className={fieldLabel}>
-            Trade
-          </p>
-          <ChipInput id="tradeInput" labelledBy="tradeLabel" noun="trade" value={form.trade} onChange={(trade) => update({ trade })} choices={choices} storageKey={tradeStorageKey} />
-        </div>
-
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label htmlFor="contractorNameInput" className={fieldLabel}>
-              Team head
+              Contractor name
             </label>
             <input
               id="contractorNameInput"
@@ -92,7 +84,8 @@ export function EntryForm({ api, projectId, team, choices, usual, total, saving,
               maxLength={120}
               value={form.contractorName}
               onChange={(e) => update({ contractorName: e.target.value })}
-              // A known contractor brings their usual trade along, when none is chosen yet
+              // No trade picker: a known contractor still brings their usual trade along (kept out of sight), so their
+              // entries, contract work and payments stay on one line
               onBlur={(e) => {
                 const known = usual?.[e.target.value.trim()];
                 if (known && !form.trade.trim()) update({ trade: known });
@@ -176,37 +169,41 @@ export function EntryForm({ api, projectId, team, choices, usual, total, saving,
 }
 
 const PAY_MODES: { key: PayMode; label: string; hint: string }[] = [
+  { key: "hourly", label: "Paid hourly", hint: "Hours + OT × rate per hour" },
+  { key: "daily", label: "Paid by day", hint: "Present / absent × day rate" },
   { key: "amount", label: "Paid monthly", hint: "Type each labourer's amount" },
-  { key: "hourly", label: "Paid hourly", hint: "Hours + OT × each labourer's rate" },
 ];
 
 /**
- * How this contractor's team is paid. Paid monthly: the amounts are typed, as before. Paid hourly: names and day
- * rates come from the team, hours and overtime are entered, and the pay is worked out. A saved entry keeps its own.
+ * How this contractor's team is paid. Paid hourly: hours and overtime × each labourer's rate per hour. Paid by day:
+ * tap present or absent; present pays the day rate. Paid monthly: the amounts are typed, as before. A saved entry
+ * can move between hourly and by day (both are hours underneath), but not to or from typed amounts.
  */
 function PayModeSwitch({ value, onChange, locked }: { value: PayMode; onChange: (mode: PayMode) => void; locked: boolean }) {
   return (
     <div>
-      <div role="group" aria-label="How this team is paid" className="grid grid-cols-2 gap-1 rounded-lg bg-stone-100 p-1 sm:inline-grid sm:min-w-md">
+      <div role="group" aria-label="How this team is paid" className="grid grid-cols-3 gap-1 rounded-lg bg-stone-100 p-1 sm:inline-grid sm:min-w-xl">
         {PAY_MODES.map((m) => {
           const on = value === m.key;
+          const blocked = locked && !on && (m.key === "amount" || value === "amount");
           return (
             <button
               key={m.key}
               type="button"
               aria-pressed={on}
-              disabled={locked && !on}
+              disabled={blocked}
               onClick={() => onChange(m.key)}
-              className={`rounded-md px-3 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 disabled:cursor-not-allowed disabled:opacity-40 ${on ? "bg-white text-stone-900 shadow-sm" : "text-stone-600 hover:text-stone-900"
-                }`}
+              className={`rounded-md px-3 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 disabled:cursor-not-allowed disabled:opacity-40 ${
+                on ? "bg-white text-stone-900 shadow-sm" : "text-stone-600 hover:text-stone-900"
+              }`}
             >
               <span className="block text-sm font-semibold">{m.label}</span>
-              <span className="block text-xs text-stone-500">{m.hint}</span>
+              <span className="hidden text-xs text-stone-500 sm:block">{m.hint}</span>
             </button>
           );
         })}
       </div>
-      {locked && <p className="mt-1.5 text-xs text-stone-500">A saved entry keeps how it was paid.</p>}
+      {locked && value === "amount" && <p className="mt-1.5 text-xs text-stone-500">A saved entry keeps how it was paid.</p>}
     </div>
   );
 }

@@ -47,7 +47,7 @@ export const SECTIONS: SectionDef[] = [
     needs: "boq.use",
     load: () => import("./sections/BoqSection"),
     summary: ({ boqs }) =>
-      !boqs || boqs.length === 0 ? { text: "None linked yet" } : { text: `${plural(boqs.length, "BOQ")} · ${rupeesShort(boqs.reduce((s, b) => s + b.grandTotal, 0))}` },
+      !boqs || boqs.length === 0 ? { text: "No BOQ yet" } : { text: `${plural(boqs.length, "BOQ")} · ${rupeesShort(boqs.reduce((s, b) => s + b.grandTotal, 0))}` },
   }),
   def({
     key: "materials",
@@ -59,6 +59,14 @@ export const SECTIONS: SectionDef[] = [
     summary: ({ materials: m }) => (!m ? { text: "" } : m.spent > 0 ? { text: `${rupeesShort(m.spent)} spent on materials` } : { text: "Nothing added yet" }),
   }),
   def({
+    key: "expenses",
+    label: "Expenditure",
+    Icon: FiPaperclip,
+    needs: "project.view",
+    load: () => import("./sections/ExpenditureSection"), // money at a glance, then the daily expenses
+    summary: () => ({ text: "Cost vs spent, and daily expenses" }),
+  }),
+  def({
     key: "attendance",
     label: "Labour",
     Icon: FiClipboard,
@@ -68,14 +76,6 @@ export const SECTIONS: SectionDef[] = [
       !a || !a.lastDate
         ? { text: "Nothing recorded yet" }
         : { text: `Last ${shortDate(a.lastDate)} · ${rupeesShort(a.amountThisWeek)} this week` },
-  }),
-   def({
-    key: "expenses",
-    label: "Expenditure",
-    Icon: FiPaperclip,
-    needs: "project.view",
-    load: () => import("./sections/ExpenditureSection"), // money at a glance, then the daily expenses
-    summary: () => ({ text: "Cost vs spent, and daily expenses" }),
   }),
   def({
     key: "equipment",

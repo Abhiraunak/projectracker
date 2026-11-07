@@ -12,7 +12,7 @@ import { EditorBanners } from "./EditorBanners";
 import { EditorToolbar } from "./EditorToolbar";
 
 /** The BOQ editor: toolbar, banners, the page you type on, and the print copy */
-export function BoqEditor({ record }: { record: BoqRecord }) {
+export function BoqEditor({ record, embedded }: { record: BoqRecord; /** Opened inside a project workspace */ embedded?: { onBack: () => void; projectTitle: string } }) {
   const editor = useBoqEditor(record);
   const totals = useMemo(() => boqTotals(editor.doc), [editor.doc]);
   const editApi = useMemo(() => ({ readOnly: editor.readOnly, apply: editor.apply }), [editor.readOnly, editor.apply]);
@@ -34,7 +34,7 @@ export function BoqEditor({ record }: { record: BoqRecord }) {
   return (
     <BoqEditProvider value={editApi}>
       <div className="space-y-4">
-        <EditorToolbar boqId={record.id} editor={editor} onPrint={() => window.print()} onExport={exportExcel} exporting={exporting} />
+        <EditorToolbar boqId={record.id} editor={editor} onPrint={() => window.print()} onExport={exportExcel} exporting={exporting} embedded={embedded} />
         <EditorBanners editor={editor} />
         {exportError && (
           <p role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">

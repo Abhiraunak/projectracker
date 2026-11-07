@@ -23,17 +23,26 @@ function useRemember() {
   return (boq: BoqRecord) => {
     queryClient.setQueryData(boqKeys.one(boq.id), boq);
     void queryClient.invalidateQueries({ queryKey: boqKeys.all });
+    if (boq.project) void queryClient.invalidateQueries({ queryKey: ["projects"] }); // the project's tile and hub list its BOQs
   };
 }
 
-export function useCreateBoq() {
+/** `projectId`: the new BOQ belongs to that project from the start (made inside the project workspace) */
+export function useCreateBoq(projectId: string | null = null) {
   const remember = useRemember();
-  return useMutation({ mutationFn: (document: BoqDocument) => boqApi.create(document), onSuccess: remember });
+  return useMutation({ mutationFn: (document: BoqDocument) => boqApi.create(document, projectId), onSuccess: remember });
 }
 
-export function useDuplicateBoq() {
+/** `projectId`: the copy stays in that project (copied inside the project workspace); otherwise it has no project */
+export function useDuplicateBoq(projectId: string | null = null) {
   const remember = useRemember();
-  return useMutation({ mutationFn: (id: string) => boqApi.duplicate(id), onSuccess: remember });
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const copy = await boqApi.duplicate(id);
+      return projectId ? boqApi.setProject(copy.id, projectId) : copy;
+    },
+    onSuccess: remember,
+  });
 }
 
 export function useSaveBoq(id: string) {
@@ -51,6 +60,7 @@ export function useDeleteBoq() {
     onSuccess: (_result: void, id: string) => {
       queryClient.removeQueries({ queryKey: boqKeys.one(id) });
       void queryClient.invalidateQueries({ queryKey: boqKeys.all });
+      void queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
   });
 }

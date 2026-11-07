@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { FiPlus, FiUsers } from "react-icons/fi";
 import type { TeamMember } from "@/lib/attendanceApi";
-import { mergeTeam } from "@/lib/attendance/form";
+import { byHours, mergeTeam } from "@/lib/attendance/form";
 import type { AttendanceFormApi } from "./useAttendanceForm";
 import { DayAmountsGrid } from "./DayAmountsGrid";
+import { DayGrid } from "./DayGrid";
 import { HourlyGrid } from "./HourlyGrid";
 import { TeamDialog } from "./TeamDialog";
 import { WorkerRows } from "./WorkerRows";
@@ -16,7 +17,8 @@ import { WorkerRows } from "./WorkerRows";
  */
 export function LabourDetails({ api, projectId, team }: { api: AttendanceFormApi; projectId: string; team?: TeamMember[] }) {
   const { form, severalDays } = api;
-  const hourly = form.payMode === "hourly";
+  const hourly = byHours(form.payMode); // paid hourly or by day: the team, rates and hours
+  const daily = form.payMode === "daily";
   const contractor = form.contractorName.trim();
   const [teamOpen, setTeamOpen] = useState(false);
   const working = team?.filter((m) => m.active).length ?? 0;
@@ -27,7 +29,7 @@ export function LabourDetails({ api, projectId, team }: { api: AttendanceFormApi
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <FiUsers aria-hidden className="text-stone-500" /> Labour details
-          {hourly && <span className="rounded bg-orange-50 px-1.5 py-0.5 text-xs font-medium text-orange-800">Hours × rate</span>}
+          {hourly && <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs font-medium text-stone-700">{daily ? "Days present × day rate" : "Hours × rate per hour"}</span>}
         </h3>
         <div className="flex items-center gap-3">
           {hourly && (
@@ -51,7 +53,23 @@ export function LabourDetails({ api, projectId, team }: { api: AttendanceFormApi
         </div>
       </div>
 
-      {hourly ? (
+      {daily ? (
+        <>
+          <DayGrid
+            days={severalDays ? form.days : null}
+            date={form.date}
+            workers={form.workers}
+            extras={form.extras}
+            onLabel={(id, label) => api.changeWorker(id, { label })}
+            onRate={(id, dayRate) => api.changeWorker(id, { dayRate })}
+            onHours={api.changeHours}
+            onSameEveryDay={api.copyToEveryDay}
+            onRemove={api.removeWorker}
+            onNavigate={api.navigate}
+          />
+          <p className="mt-3 text-xs text-stone-500">Tap a day to mark present; leave it on A when absent. New names and changed rates are saved to {contractor ? `${contractor}'s` : "the contractor's"} team.</p>
+        </>
+      ) : hourly ? (
         <>
           <HourlyGrid
             days={severalDays ? form.days : null}

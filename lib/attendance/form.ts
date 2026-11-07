@@ -11,20 +11,35 @@ export interface WorkerRow {
   label: string; // L1, L2… when paid by amount; the labourer's name when paid hourly
   amount: number | ""; // one day
   amounts: Record<string, number | "">; // several days: what this labourer is paid on each day ("YYYY-MM-DD")
-  // Paid hourly: rupees for 8 hours, then hours and overtime (one day, or by day when entering several)
+  // Paid hourly or by day: rupees for a full day of 8 hours (the hourly sheet shows and takes it per hour), then hours
+  // and overtime (one day, or by day when entering several). Paid by day: present = 8 hours, absent = blank.
   dayRate: number | "";
   hours: number | "";
   ot: number | "";
   hoursByDay: Record<string, number | "">;
   otByDay: Record<string, number | "">;
+  // A day that differs (paid hourly or by day): its own day rate (the rate changed) and rupees on top (paid extra)
+  extra: number | ""; // one day
+  rateByDay: Record<string, number | "">;
+  extraByDay: Record<string, number | "">;
 }
 
 /**
  * "amount" ("Paid monthly"): rupees typed for each labourer, as before.
- * "hourly" ("Paid hourly"): the team's names and day rates, hours and overtime each day; the app works out the pay.
+ * "hourly" ("Paid hourly"): the team's names and rates per hour, hours and overtime each day; hours × rate = pay,
+ *          so 8 hours at ₹100 an hour is ₹800.
+ * "daily"  ("Paid by day"): present or absent each day × the day rate. Saved as 8 hours at day rate ÷ 8, so the
+ *          server, the month sheet and the payments all read it like an hourly day.
  */
-export type PayMode = "amount" | "hourly";
-export const STANDARD_HOURS = 8; // a day rate is for 8 hours; overtime is paid at the same hourly rate
+export type PayMode = "amount" | "hourly" | "daily";
+export const STANDARD_HOURS = 8; // a full day is 8 hours; overtime is paid at the same hourly rate
+/** Paid hourly or by day: names, rates and hours rather than typed amounts */
+export const byHours = (mode: PayMode) => mode !== "amount";
+
+/** The day rate kept in the form, shown as a rate per hour (₹800 a day → ₹100 an hour) */
+export const hourRateOf = (dayRate: number | ""): number | "" => (dayRate === "" ? "" : Math.round((dayRate / STANDARD_HOURS) * 10000) / 10000);
+/** A rate per hour typed in the hourly sheet, kept as the day rate (₹100 an hour → ₹800 a day) */
+export const dayRateFromHour = (perHour: number | ""): number | "" => (perHour === "" ? "" : perHour * STANDARD_HOURS);
 
 export interface AttendanceForm {
   payMode: PayMode;
@@ -65,8 +80,10 @@ export function formatDay(s: string) {
 }
 
 // A function: every row gets its own by-day objects instead of sharing one
-const blankHours = () => ({ dayRate: "" as const, hours: "" as const, ot: "" as const, hoursByDay: {}, otByDay: {} });
-export const newWorker = (n: number, mode: PayMode = "amount"): WorkerRow => ({ id: newId(), label: mode === "hourly" ? "" : `L${n}`, amount: "", amounts: {}, ...blankHours() });
+const blankHours = () => ({ dayRate: "" as const, hours: "" as const, ot: "" as const, hoursByDay: {}, otByDay: {}, ...noChanges() });
+/** No day with its own rate or an extra amount */
+const noChanges = () => ({ extra: "" as const, rateByDay: {}, extraByDay: {} });
+export const newWorker = (n: number, mode: PayMode = "amount"): WorkerRow => ({ id: newId(), label: byHours(mode) ? "" : `L${n}`, amount: "", amounts: {}, ...blankHours() });
 
 /** Paid hourly: one row per labourer still on the team, with their day rate, hours empty */
 export const fromTeam = (members: { name: string; dayRate: number; active: boolean }[]): WorkerRow[] =>
@@ -100,6 +117,8 @@ export const untouched = (workers: WorkerRow[]) =>
       w.amount === "" &&
       w.hours === "" &&
       w.ot === "" &&
+      w.extra === "" &&
+      Object.values(w.extraByDay).every((v) => v === "") &&
       Object.values(w.amounts).every((v) => v === "") &&
       Object.values(w.hoursByDay).every((v) => v === "") &&
       Object.values(w.otByDay).every((v) => v === "")
@@ -120,7 +139,7 @@ export const emptyForm = (): AttendanceForm => ({
 /* ---------------------------------------------- totals ---------------------------------------------- */
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
-/** Paid hourly: (hours + OT) × day rate ÷ 8, as the server works it out */
+/** Paid hourly: (hours + OT) × rate per hour (the day rate ÷ 8), as the server works it out. 8 h at ₹100/h = ₹800 */
 export const payFor = (hours: number, ot: number, dayRate: number) => round2(((hours + ot) * dayRate) / STANDARD_HOURS);
 
 /** Paid hourly: a labourer's hours and overtime on one day (`day` null: a single-day entry) */
@@ -129,11 +148,21 @@ export const hoursOn = (w: WorkerRow, day: string | null) => ({
   ot: num(day ? (w.otByDay[day] ?? "") : w.ot),
 });
 
+/** Paid hourly or by day: the day rate used on a day (its own rate when it was changed that day) */
+export const rateOn = (w: WorkerRow, day: string | null) => {
+  const own = day ? (w.rateByDay[day] ?? "") : "";
+  return own === "" ? num(w.dayRate) : own;
+};
+/** Paid hourly or by day: rupees paid on top on a day */
+export const extraOn = (w: WorkerRow, day: string | null) => num(day ? (w.extraByDay[day] ?? "") : w.extra);
+/** That day has its own rate or an extra amount */
+export const dayChanged = (w: WorkerRow, day: string | null) => extraOn(w, day) > 0 || (day !== null && (w.rateByDay[day] ?? "") !== "" && rateOn(w, day) !== num(w.dayRate));
+
 /** What a labourer is paid on one of the chosen days (several-days mode) */
 export const dayAmount = (w: WorkerRow, day: string, mode: PayMode = "amount") => {
   if (mode === "amount") return num(w.amounts[day] ?? "");
   const { hours, ot } = hoursOn(w, day);
-  return payFor(hours, ot, num(w.dayRate));
+  return round2(payFor(hours, ot, rateOn(w, day)) + extraOn(w, day));
 };
 /** Everything paid on one day: each labourer's amount for that day, plus the extras */
 export const dayTotal = (workers: WorkerRow[], day: string, extras: number | "", mode: PayMode = "amount") =>
@@ -143,7 +172,7 @@ export const workerTotal = (w: WorkerRow, days: string[] | null, mode: PayMode =
   if (days) return days.reduce((sum, d) => sum + dayAmount(w, d, mode), 0);
   if (mode === "amount") return num(w.amount);
   const { hours, ot } = hoursOn(w, null);
-  return payFor(hours, ot, num(w.dayRate));
+  return round2(payFor(hours, ot, num(w.dayRate)) + extraOn(w, null));
 };
 /** Paid hourly: a labourer's hours and overtime over the chosen days (or the one day) */
 export const workerHours = (w: WorkerRow, days: string[] | null) =>
@@ -165,7 +194,7 @@ export function sameEveryDay(f: AttendanceForm, id: string): AttendanceForm {
     ...f,
     workers: f.workers.map((w) => {
       if (w.id !== id) return w;
-      if (f.payMode === "hourly") {
+      if (byHours(f.payMode)) {
         // The first day they worked sets both: OT follows the same day as the hours
         const day = f.days.find((d) => (w.hoursByDay[d] ?? "") !== "" || (w.otByDay[d] ?? "") !== "");
         return day ? { ...w, hoursByDay: everyDay(w.hoursByDay[day] ?? ""), otByDay: everyDay(w.otByDay[day] ?? "") } : w;
@@ -178,8 +207,11 @@ export function sameEveryDay(f: AttendanceForm, id: string): AttendanceForm {
 /** Switching how the team is paid keeps the people; amounts and hours don't carry over (they mean different things) */
 export function withPayMode(f: AttendanceForm, mode: PayMode): AttendanceForm {
   if (f.payMode === mode) return f;
-  const named = (w: WorkerRow, i: number) => (mode === "hourly" ? (/^L\d+$/.test(w.label) ? "" : w.label) : w.label || `L${i + 1}`);
-  return { ...f, payMode: mode, workers: f.workers.map((w, i) => ({ ...w, label: named(w, i), amount: "", amounts: {}, hours: "", ot: "", hoursByDay: {}, otByDay: {} })) };
+  // Hourly ↔ by day: the same team and rates, only the hours start again (a day is 8 hours either way)
+  if (byHours(f.payMode) && byHours(mode))
+    return { ...f, payMode: mode, workers: f.workers.map((w) => ({ ...w, hours: "", ot: "", hoursByDay: {}, otByDay: {}, ...noChanges() })) };
+  const named = (w: WorkerRow, i: number) => (byHours(mode) ? (/^L\d+$/.test(w.label) ? "" : w.label) : w.label || `L${i + 1}`);
+  return { ...f, payMode: mode, workers: f.workers.map((w, i) => ({ ...w, label: named(w, i), amount: "", amounts: {}, hours: "", ot: "", hoursByDay: {}, otByDay: {}, ...noChanges() })) };
 }
 
 /** Switching to several days starts from the day already chosen, with the amounts already typed on that day */
@@ -194,6 +226,7 @@ export function toSeveralDays(f: AttendanceForm): AttendanceForm {
       amounts: w.amounts[first] === undefined ? { ...w.amounts, [first]: w.amount } : w.amounts,
       hoursByDay: w.hoursByDay[first] === undefined ? { ...w.hoursByDay, [first]: w.hours } : w.hoursByDay,
       otByDay: w.otByDay[first] === undefined ? { ...w.otByDay, [first]: w.ot } : w.otByDay,
+      extraByDay: w.extraByDay[first] === undefined ? { ...w.extraByDay, [first]: w.extra } : w.extraByDay,
     })),
   };
 }
@@ -204,14 +237,16 @@ export function toOneDay(f: AttendanceForm): AttendanceForm {
   return {
     ...f,
     date: first ?? f.date,
-    workers: first ? f.workers.map((w) => ({ ...w, amount: w.amounts[first] ?? w.amount, hours: w.hoursByDay[first] ?? w.hours, ot: w.otByDay[first] ?? w.ot })) : f.workers,
+    workers: first
+      ? f.workers.map((w) => ({ ...w, amount: w.amounts[first] ?? w.amount, hours: w.hoursByDay[first] ?? w.hours, ot: w.otByDay[first] ?? w.ot, extra: w.extraByDay[first] ?? w.extra, dayRate: rateOn(w, first) || w.dayRate }))
+      : f.workers,
   };
 }
 
 /** After saving: keep the trade, contractor and rows for the next entry; clear the amounts */
 export const readyForNext = (f: AttendanceForm): AttendanceForm => ({
   ...f,
-  workers: f.workers.map((w) => ({ ...w, amount: "", amounts: {}, hours: "", ot: "", hoursByDay: {}, otByDay: {} })), // names and day rates stay
+  workers: f.workers.map((w) => ({ ...w, amount: "", amounts: {}, hours: "", ot: "", hoursByDay: {}, otByDay: {}, ...noChanges() })), // names and day rates stay
   extras: "",
   notes: "",
   days: [], // those days are saved now: choosing them again by mistake would double-count them
@@ -220,9 +255,19 @@ export const readyForNext = (f: AttendanceForm): AttendanceForm => ({
 /** A saved record, loaded back into the form to edit */
 const blank = (n: number | null | undefined): number | "" => (n === null || n === undefined || n === 0 ? "" : n);
 const dayRateOf = (hourlyRate: number | null | undefined): number | "" => (hourlyRate ? round2(hourlyRate * STANDARD_HOURS) : "");
+/** A saved hourly day: the rupees paid above hours × rate (the extra that day), or "" */
+const extraIn = (w: { amount: number; hours?: number | null; otHours?: number | null; hourlyRate?: number | null }): number | "" => {
+  if (w.hours === null || w.hours === undefined || !w.hourlyRate) return "";
+  const extra = round2(w.amount - ((w.hours ?? 0) + (w.otHours ?? 0)) * w.hourlyRate);
+  return extra > 0.009 ? extra : "";
+};
+
+/** An hourly entry where everyone worked exactly a full day and no OT reads back as "Paid by day" */
+const looksDaily = (workers: { hours?: number | null; otHours?: number | null }[]) =>
+  workers.length > 0 && workers.every((w) => (w.hours ?? 0) === STANDARD_HOURS && !(w.otHours ?? 0));
 
 export const fromRecord = (r: AttendanceRecord): AttendanceForm => ({
-  payMode: r.payMode === "hourly" ? "hourly" : "amount",
+  payMode: r.payMode === "hourly" ? (looksDaily(r.workers) ? "daily" : "hourly") : "amount",
   trade: r.trade,
   contractorName: r.contractorName,
   date: r.date,
@@ -236,6 +281,8 @@ export const fromRecord = (r: AttendanceRecord): AttendanceForm => ({
     ot: blank(w.otHours),
     hoursByDay: {},
     otByDay: {},
+    ...noChanges(),
+    extra: extraIn(w), // paid hourly: whatever was paid above hours × rate
   })),
   extras: r.extras === 0 ? "" : r.extras,
   notes: r.notes,
@@ -266,10 +313,15 @@ export function fromBatch(batch: AttendanceBatch): AttendanceForm {
       if (w.hours !== null && w.hours !== undefined) row.hoursByDay[d.date] = blank(w.hours);
       if (w.otHours !== null && w.otHours !== undefined) row.otByDay[d.date] = blank(w.otHours);
       if (w.hourlyRate) row.dayRate = dayRateOf(w.hourlyRate); // the latest day's rate
+      if (w.hourlyRate) row.rateByDay[d.date] = dayRateOf(w.hourlyRate);
+      const extra = extraIn(w);
+      if (extra !== "") row.extraByDay[d.date] = extra;
     }
   }
+  // A day's own rate is kept only where it differs from the labourer's usual (latest) rate
+  for (const row of rows.values()) row.rateByDay = Object.fromEntries(Object.entries(row.rateByDay).filter(([, r]) => r !== row.dayRate));
   return {
-    payMode: first?.payMode === "hourly" ? "hourly" : "amount",
+    payMode: first?.payMode === "hourly" ? (looksDaily(days.flatMap((d) => d.workers)) ? "daily" : "hourly") : "amount",
     trade: first?.trade ?? "",
     contractorName: first?.contractorName ?? "",
     date: first?.date ?? todayLocal(),
@@ -290,19 +342,19 @@ export interface Problem {
 
 /** What is missing before the form can be saved, or null */
 export function checkForm(f: AttendanceForm, severalDays: boolean): Problem | null {
-  if (!f.trade.trim()) return { message: "Choose the trade this entry is for (Civil, Tiles…).", focus: "tradeInput" };
   if (!f.contractorName.trim()) return { message: "Please enter a contractor name.", focus: "contractorNameInput" };
-  if (f.payMode === "hourly") {
+  if (byHours(f.payMode)) {
+    const daily = f.payMode === "daily";
     const days = severalDays ? f.days : null;
     const worked = f.workers.filter((w) => workerHours(w, days).hours + workerHours(w, days).ot > 0);
     const unnamed = worked.find((w) => !w.label.trim());
     if (unnamed) return { message: "Every labourer who worked needs a name." };
     const noRate = worked.filter((w) => !(num(w.dayRate) > 0));
-    if (noRate.length) return { message: `Enter the day rate for ${noRate.map((w) => w.label.trim()).join(", ")}.` };
+    if (noRate.length) return { message: `Enter the ${daily ? "day rate" : "rate per hour"} for ${noRate.map((w) => w.label.trim()).join(", ")}.` };
     const names = worked.map((w) => w.label.trim().toLowerCase());
     const twice = names.find((n, i) => names.indexOf(n) !== i);
     if (twice) return { message: `${worked.find((w) => w.label.trim().toLowerCase() === twice)!.label.trim()} is listed twice.` };
-    if (!severalDays && worked.length === 0) return { message: "Enter the hours for at least one labourer." };
+    if (!severalDays && worked.length === 0) return { message: daily ? "Mark at least one labourer present." : "Enter the hours for at least one labourer." };
   }
   if (!severalDays) return null;
   if (f.days.length === 0) return { message: "Choose at least one day." };
@@ -317,15 +369,15 @@ export function checkForm(f: AttendanceForm, severalDays: boolean): Problem | nu
 /** One day's entry, as the API takes it */
 export const toPayload = (f: AttendanceForm, projectId: string): AttendancePayload => ({
   projectId,
-  payMode: f.payMode,
+  payMode: byHours(f.payMode) ? "hourly" : "amount", // by day is saved as 8 hours at day rate ÷ 8
   contractorName: f.contractorName.trim(),
   trade: f.trade.trim(),
   date: f.date,
   workers:
-    f.payMode === "hourly"
+    byHours(f.payMode)
       ? f.workers
           .filter((w) => w.label.trim()) // a blank row with no name was never filled in
-          .map((w) => ({ label: w.label.trim(), amount: 0, dayRate: num(w.dayRate), hours: num(w.hours), otHours: num(w.ot) }))
+          .map((w) => ({ label: w.label.trim(), amount: 0, dayRate: num(w.dayRate), hours: num(w.hours), otHours: num(w.ot), ...(num(w.extra) > 0 ? { extra: num(w.extra) } : {}) }))
       : f.workers.map((w) => ({ label: w.label.trim() || "Labour", amount: num(w.amount) })),
   extras: num(f.extras),
   notes: f.notes.trim(),
@@ -340,10 +392,23 @@ export function toManyPayload(f: AttendanceForm, projectId: string): AttendanceM
     projectId,
     dates: f.days,
     workers:
-      f.payMode === "hourly"
+      byHours(f.payMode)
         ? f.workers
             .filter((w) => w.label.trim())
-            .map((w) => ({ label: w.label.trim(), amount: 0, dayRate: num(w.dayRate), hoursByDay: byDay(w.hoursByDay), otByDay: byDay(w.otByDay) }))
+            .map((w) => {
+              // Only the days that differ: their own rate, and rupees on top
+              const rates = Object.fromEntries(f.days.filter((d) => (w.rateByDay[d] ?? "") !== "" && rateOn(w, d) !== num(w.dayRate)).map((d) => [d, rateOn(w, d)]));
+              const extras = Object.fromEntries(f.days.filter((d) => extraOn(w, d) > 0).map((d) => [d, extraOn(w, d)]));
+              return {
+                label: w.label.trim(),
+                amount: 0,
+                dayRate: num(w.dayRate),
+                hoursByDay: byDay(w.hoursByDay),
+                otByDay: byDay(w.otByDay),
+                ...(Object.keys(rates).length ? { rateByDay: rates } : {}),
+                ...(Object.keys(extras).length ? { extraByDay: extras } : {}),
+              };
+            })
         : f.workers.map((w) => ({ label: w.label.trim() || "Labour", amount: 0, amounts: Object.fromEntries(f.days.map((d) => [d, dayAmount(w, d)])) })),
   };
 }

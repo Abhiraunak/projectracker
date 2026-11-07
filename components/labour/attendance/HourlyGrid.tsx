@@ -5,7 +5,7 @@ import { FiChevronLeft, FiChevronRight, FiCopy, FiTrash2 } from "react-icons/fi"
 import { iconBtn, removeBtn } from "@/components/utilites/fieldStyles";
 import { useDragScroll } from "@/hooks/useDragScroll";
 import { shortDay, weekday } from "@/lib/attendance/days";
-import { dayTotal, hoursOn, num, payFor, rupees, STANDARD_HOURS, toInput, workerHours, workerTotal, type WorkerRow } from "@/lib/attendance/form";
+import { dayRateFromHour, dayTotal, hourRateOf, hoursOn, num, payFor, rupees, toInput, workerHours, workerTotal, type WorkerRow } from "@/lib/attendance/form";
 
 interface Props {
   /** The chosen days, or null for a single-day entry on `date` */
@@ -29,7 +29,8 @@ const sticky = "sticky left-0 z-10 bg-white";
 
 /**
  * Paid hourly, like a monthly labour sheet: each labourer is two rows, their hours and their overtime (OT), with the
- * days across. Their day rate (for 8 hours) sits beside the name; pay is (hours + OT) × day rate ÷ 8. A blank day
+ * days across. Their rate per hour sits beside the name; pay is (hours + OT) × rate, so 8 hours at ₹100 is ₹800.
+ * (The form keeps a day rate of 8 × the hourly rate, which is what the team list and the server use.) A blank day
  * means absent. Totals on the right: hours and amount, OT and its amount, and the total.
  * Several days: opens on the newest day, and a drag (mouse), swipe (phone) or the arrows show the earlier ones.
  */
@@ -94,8 +95,8 @@ export function HourlyGrid({ days, date, workers, extras, onLabel, onRate, onHou
                 Labourer
               </th>
               <th scope="col" className={`${cell} w-20 min-w-20 text-right font-medium sm:w-24 sm:min-w-24`}>
-                Rate / day
-                <span className="block font-normal text-stone-400">{STANDARD_HOURS} h</span>
+                Rate / hour
+                <span className="block font-normal text-stone-400">₹ per hour</span>
               </th>
               {columns.map((d) => (
                 <th key={d} scope="col" data-newest={d === lastDay || undefined} className={`${cell} w-16 min-w-16 text-right font-medium`}>
@@ -146,10 +147,10 @@ export function HourlyGrid({ days, date, workers, extras, onLabel, onRate, onHou
                         inputMode="decimal"
                         min={0}
                         step="any"
-                        aria-label={`${name}: rate for ${STANDARD_HOURS} hours`}
-                        value={w.dayRate}
+                        aria-label={`${name}: rate per hour`}
+                        value={hourRateOf(w.dayRate)}
                         onKeyDown={(e) => onNavigate(e, index, "rate")}
-                        onChange={(e) => onRate(w.id, toInput(e.target.value))}
+                        onChange={(e) => onRate(w.id, dayRateFromHour(toInput(e.target.value)))}
                         placeholder="₹"
                         className={box}
                       />

@@ -40,19 +40,34 @@ interface Props {
   onPrint: () => void;
   onExport: () => void;
   exporting: boolean;
+  /** Inside a project workspace: back goes to its BOQ list, and the project is fixed (shown, not a picker) */
+  embedded?: { onBack: () => void; projectTitle: string };
 }
 
 /** Above the page (never printed): back, title and save status, undo/redo, shortcuts, print, Excel, final/draft */
-export function EditorToolbar({ boqId, editor, onPrint, onExport, exporting }: Props) {
+export function EditorToolbar({ boqId, editor, onPrint, onExport, exporting, embedded }: Props) {
   const title = editor.doc.title || "Untitled BOQ";
+  const back = "rounded p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500";
 
   return (
-    <div className="sticky top-14 z-20 -mx-4 border-b border-stone-200 bg-white px-4 py-3 sm:-mx-6 sm:px-6 lg:-top-6 lg:-mx-8 lg:px-8">
+    <div
+      className={
+        embedded
+          ? "rounded-[22px] border border-[#E8E8E6] bg-white px-4 py-3 sm:px-5"
+          : "sticky top-14 z-20 -mx-4 border-b border-stone-200 bg-white px-4 py-3 sm:-mx-6 sm:px-6 lg:-top-6 lg:-mx-8 lg:px-8"
+      }
+    >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <Link href="/dashboard/boq" aria-label="Back to all BOQs" className="rounded p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500">
-            <FiArrowLeft aria-hidden />
-          </Link>
+          {embedded ? (
+            <button type="button" onClick={embedded.onBack} aria-label="Back to this project's BOQs" className={back}>
+              <FiArrowLeft aria-hidden />
+            </button>
+          ) : (
+            <Link href="/dashboard/boq" aria-label="Back to all BOQs" className={back}>
+              <FiArrowLeft aria-hidden />
+            </Link>
+          )}
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="truncate text-base font-semibold">{title}</h1>
@@ -60,7 +75,7 @@ export function EditorToolbar({ boqId, editor, onPrint, onExport, exporting }: P
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
               <SaveIndicator editor={editor} />
-              <ProjectPicker boqId={boqId} />
+              {embedded ? <span className="truncate text-xs text-stone-500">Project: {embedded.projectTitle}</span> : <ProjectPicker boqId={boqId} />}
             </div>
           </div>
         </div>

@@ -2,33 +2,27 @@
 
 import { lazy, Suspense, useState, type ReactNode } from "react";
 import type { IconType } from "react-icons";
-import { FiBarChart2, FiCalendar, FiClipboard, FiCreditCard, FiGrid, FiPaperclip, FiTool } from "react-icons/fi";
-import { AttendanceManager } from "@/components/labour/Attendancemanager";
-import { useLabourSummary } from "@/hooks/useLabour";
+import { FiBarChart2, FiCalendar, FiClipboard, FiGrid, FiTool } from "react-icons/fi";
+
 import { useWorkspaceSection } from "@/hooks/useWorkspacePlace";
 import { todayLocal, weekStartOf } from "@/lib/projects/labourWeeks";
-import { CostDonut } from "./labour/CostDonut";
 import { LabourSearch } from "./labour/LabourSearch";
 import { WeekView } from "./labour/WeekView";
 import { mono } from "./materials/mono";
-import { SectionError, SectionSkeleton } from "../ui";
-
+import { SectionSkeleton } from "../ui";
+import { AttendanceManager } from "@/components/labour/Attendancemanager";
 
 // Everything after the week downloads only when someone opens it
 const MonthView = lazy(() => import("./labour/MonthView").then((m) => ({ default: m.MonthView })));
 const ContractWork = lazy(() => import("./labour/ContractWork").then((m) => ({ default: m.ContractWork })));
-const PaymentsPanel = lazy(() => import("./labour/PaymentsPanel").then((m) => ({ default: m.PaymentsPanel })));
-const ExpensesSection = lazy(() => import("./ExpensesSection"));
 const RatesSection = lazy(() => import("./RatesSection")); // contractor vs in-house
 
-type View = "week" | "sheet" | "month" | "contract" | "payments" | "expenses" | "rates";
+type View = "week" | "sheet" | "month" | "contract" | "rates";
 const VIEWS: { key: View; label: string; Icon: IconType }[] = [
   { key: "week", label: "This week", Icon: FiCalendar },
   { key: "sheet", label: "Hourly sheet", Icon: FiClipboard },
   { key: "month", label: "Monthly", Icon: FiGrid },
   { key: "contract", label: "Contract work", Icon: FiTool },
-  { key: "payments", label: "Payments", Icon: FiCreditCard },
-  { key: "expenses", label: "Expenses", Icon: FiPaperclip },
   { key: "rates", label: "Rate comparison", Icon: FiBarChart2 },
 ];
 
@@ -38,7 +32,7 @@ const VIEWS: { key: View; label: string; Icon: IconType }[] = [
  *  - Hourly sheet: attendance by the hour (or by day, present/absent), the existing entry form and saved records.
  *  - Monthly: one contractor's labour sheet, or every contractor together.
  *  - Contract work: measured work × rate per sqft (or rft, nos…).
- *  - Payments (with the cost donut), Expenses, Rate comparison.
+ *  - Rate comparison. (Payments are made from each contractor's card in This week.)
  * A search on top finds anything and opens its week. Panels once opened stay mounted, so a half-filled sheet stays.
  */
 export default function AttendanceSection({ projectId }: { projectId: string }) {
@@ -114,32 +108,7 @@ export default function AttendanceSection({ projectId }: { projectId: string }) 
       )}
       {panel("month", <MonthView projectId={projectId} />)}
       {panel("contract", <ContractWork projectId={projectId} />)}
-      {panel(
-        "payments",
-        <div className="space-y-5">
-          <LabourCost projectId={projectId} />
-          <PaymentsPanel projectId={projectId} />
-        </div>
-      )}
-      {panel("expenses", <ExpensesSection projectId={projectId} sections={["labour"]} />)}
       {panel("rates", <RatesSection projectId={projectId} />)}
     </div>
-  );
-}
-
-/** The cost donut: labour by trade (attendance and contract work), plus General expenses */
-function LabourCost({ projectId }: { projectId: string }) {
-  const summary = useLabourSummary(projectId);
-  return (
-    <section aria-label="Labour cost" className={`${mono.card} p-4 sm:p-6`}>
-      <h2 className="mb-4 text-[15px] font-semibold text-[#111111]">Labour cost</h2>
-      {summary.isError ? (
-        <SectionError error={summary.error} onRetry={() => void summary.refetch()} />
-      ) : summary.data ? (
-        <CostDonut summary={summary.data} />
-      ) : (
-        <div aria-busy="true" className="h-52 animate-pulse rounded-2xl bg-[#F7F7F5] motion-reduce:animate-none" />
-      )}
-    </section>
   );
 }

@@ -20,8 +20,11 @@ const focusLater = (id: string) =>
  * rows with the keyboard.
  * The components only draw what this hands them.
  */
+/** A new form starts on "Paid hourly", the sheet used most */
+const startForm = () => withPayMode(emptyForm(), "hourly");
+
 export function useAttendanceForm() {
-  const { value: form, setValue, undo, redo, reset } = useFormHistory(emptyForm);
+  const { value: form, setValue, undo, redo, reset } = useFormHistory(startForm); // the hourly sheet first
   const [editingId, setEditingId] = useState<string | null>(null); // one saved day
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null); // days saved together
   const [multiDay, setMultiDay] = useState(false);

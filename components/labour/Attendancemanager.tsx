@@ -21,7 +21,7 @@ import { MonthSheet } from "./attendance/MonthSheet";
  * Labour attendance for one project: trade cards, the entry form, and saved records.
  * This file only puts the parts together; each part lives in ./attendance and the rules in lib/attendance/form.ts.
  */
-export function AttendanceManager({ projectId }: { projectId: string }) {
+export function AttendanceManager({ projectId, showMonth = true }: { projectId: string; /** false: the month sheet has its own tab */ showMonth?: boolean }) {
   const api = useAttendanceForm();
   const { form, severalDays, editingId, editingBatchId } = api;
 
@@ -121,7 +121,7 @@ export function AttendanceManager({ projectId }: { projectId: string }) {
 
       <RecordsPanel projectId={projectId} trade={tradeFilter} onClearTrade={() => setTradeFilter(undefined)} onEdit={startEdit} onDeleted={onDeleted} resetKey={savedCount} />
 
-      <MonthSheet projectId={projectId} />
+      {showMonth && <MonthSheet projectId={projectId} />}
     </div>
   );
 }

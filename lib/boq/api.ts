@@ -4,6 +4,7 @@ import type { BoqDocument, BoqRecord, BoqStatus, BoqSummary } from "./types";
 export interface BoqListQuery {
   q?: string;
   status?: BoqStatus;
+  projectId?: string; // only this project's BOQs (the project workspace)
   page: number;
   pageSize: number;
 }
@@ -28,10 +29,11 @@ export interface BoqListPage {
 const json = (data: unknown) => JSON.stringify(data);
 
 export const boqApi = {
-  list: ({ q, status, page, pageSize }: BoqListQuery) => {
+  list: ({ q, status, projectId, page, pageSize }: BoqListQuery) => {
     const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (q) query.set("q", q);
     if (status) query.set("status", status);
+    if (projectId) query.set("projectId", projectId);
     return request<BoqListPage>(`/boqs?${query}`);
   },
 

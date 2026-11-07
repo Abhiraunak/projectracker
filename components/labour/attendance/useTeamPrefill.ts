@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useDebounced } from "@/hooks/useDebounced";
 import { useTeam } from "@/hooks/useAttendance";
-import { fromTeam, untouched } from "@/lib/attendance/form";
+import { byHours, fromTeam, untouched } from "@/lib/attendance/form";
 import type { AttendanceFormApi } from "./useAttendanceForm";
 
 /**
@@ -13,7 +13,7 @@ import type { AttendanceFormApi } from "./useAttendanceForm";
  */
 export function useTeamPrefill(api: AttendanceFormApi, projectId: string) {
   const { form, editing, fillWorkers } = api;
-  const hourly = form.payMode === "hourly";
+  const hourly = byHours(form.payMode); // paid hourly or by day
   const contractor = useDebounced(form.contractorName.trim(), 400);
   const team = useTeam(projectId, hourly ? contractor : "");
   const filledFor = useRef(""); // only read and written in effects

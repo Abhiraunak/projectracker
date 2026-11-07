@@ -6,7 +6,7 @@ import { DialogHeader, ModalDialog } from "@/components/utilites/ModalDialog";
 import { useSaveTeam } from "@/hooks/useAttendance";
 import { describeError } from "@/lib/api";
 import type { TeamMember } from "@/lib/attendanceApi";
-import { newId, payFor, rupees, STANDARD_HOURS, toInput } from "@/lib/attendance/form";
+import { dayRateFromHour, hourRateOf, newId, rupees, STANDARD_HOURS, toInput } from "@/lib/attendance/form";
 
 interface Row {
   key: string;
@@ -19,7 +19,7 @@ interface Row {
 const box = "h-10 w-full rounded border border-stone-300 bg-white px-2 text-sm focus:border-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900/20";
 
 /**
- * A contractor's team for hourly attendance: each labourer's name and day rate (for 8 hours), and who has left.
+ * A contractor's team for hourly attendance: each labourer's name and rate per hour (a day is 8 hours), and who has left.
  * Someone who left stays listed (their past days keep their name); tick them back if they return.
  */
 export function TeamDialog({
@@ -53,7 +53,7 @@ export function TeamDialog({
     const filled = rows.filter((r) => r.name.trim());
     const noRate = filled.find((r) => r.dayRate === "" || Number(r.dayRate) <= 0);
     if (noRate) {
-      setProblem(`Enter the day rate for ${noRate.name.trim()}.`);
+      setProblem(`Enter the rate per hour for ${noRate.name.trim()}.`);
       document.getElementById(`team-${noRate.key}-rate`)?.focus();
       return;
     }
@@ -81,12 +81,12 @@ export function TeamDialog({
 
   return (
     <ModalDialog open onClose={onClose} label={`${contractorName}'s team`} size="lg" locked={save.isPending}>
-      <DialogHeader title={`${contractorName}'s team`} subtitle={`${working} working · day rate is for ${STANDARD_HOURS} hours; OT is paid at the same hourly rate`} onClose={onClose} locked={save.isPending} />
+      <DialogHeader title={`${contractorName}'s team`} subtitle={`${working} working · rate per hour; a full day is ${STANDARD_HOURS} hours and OT is paid at the same rate`} onClose={onClose} locked={save.isPending} />
       <form onSubmit={submit} className="space-y-3 p-4 sm:p-5">
         <div className="hidden grid-cols-[minmax(0,1fr)_8rem_6.5rem_5.5rem] gap-2 px-1 text-xs font-medium text-stone-500 sm:grid">
           <span>Name</span>
-          <span className="text-right">Rate / day</span>
-          <span className="text-right">Per hour</span>
+          <span className="text-right">Rate / hour</span>
+          <span className="text-right">A day ({STANDARD_HOURS} h)</span>
           <span className="text-center">Working</span>
         </div>
         <ul className="space-y-2">
@@ -107,14 +107,14 @@ export function TeamDialog({
                 inputMode="decimal"
                 min={0}
                 step="any"
-                value={r.dayRate}
-                onChange={(e) => change(r.key, { dayRate: toInput(e.target.value) })}
-                placeholder="₹ / day"
-                aria-label={`${r.name.trim() || `Labourer ${i + 1}`}: rate for ${STANDARD_HOURS} hours`}
+                value={hourRateOf(r.dayRate)}
+                onChange={(e) => change(r.key, { dayRate: dayRateFromHour(toInput(e.target.value)) })}
+                placeholder="₹ / hour"
+                aria-label={`${r.name.trim() || `Labourer ${i + 1}`}: rate per hour`}
                 className={`${box} text-right tabular-nums`}
               />
               <span className="text-xs tabular-nums text-stone-500 sm:text-right sm:text-sm">
-                {r.dayRate !== "" && Number(r.dayRate) > 0 ? `${rupees(payFor(1, 0, Number(r.dayRate)))} / h` : <span className="text-stone-300">–</span>}
+                {r.dayRate !== "" && Number(r.dayRate) > 0 ? `${rupees(Number(r.dayRate))} a day` : <span className="text-stone-300">–</span>}
               </span>
               <label className="flex cursor-pointer items-center justify-end gap-2 text-xs text-stone-600 sm:justify-center">
                 <input type="checkbox" checked={r.active} onChange={(e) => change(r.key, { active: e.target.checked })} className="h-4 w-4 accent-stone-900" />

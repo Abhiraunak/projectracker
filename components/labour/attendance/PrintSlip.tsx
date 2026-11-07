@@ -3,7 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { describeDays, weekday } from "@/lib/attendance/days";
-import { dayTotal, formatDay, num, rupees, workerHours, workerTotal, type AttendanceForm } from "@/lib/attendance/form";
+import { dayTotal, formatDay, num, rupees, STANDARD_HOURS, workerHours, workerTotal, type AttendanceForm } from "@/lib/attendance/form";
 
 /*
  * Rendered into <body> and shown only when printing. While printing, every other part of the page is hidden,
@@ -85,7 +85,7 @@ export function PrintSlip({ title, form, total, days }: { title: string; form: A
                     <td className="py-2 pr-2">{i + 1}</td>
                     <td className="py-2">
                       {w.label.trim() || "Labour"}
-                      {mode === "hourly" && <HoursNote hours={workerHours(w, days).hours} ot={workerHours(w, days).ot} dayRate={num(w.dayRate)} />}
+                      {mode !== "amount" && <HoursNote daily={mode === "daily"} hours={workerHours(w, days).hours} ot={workerHours(w, days).ot} dayRate={num(w.dayRate)} />}
                     </td>
                     <td className="py-2 text-right tabular-nums">{rupees(workerTotal(w, days, mode))}</td>
                   </tr>
@@ -141,11 +141,19 @@ export function PrintSlip({ title, form, total, days }: { title: string; form: A
   );
 }
 
-/** Paid hourly: "224 h + 97 h OT at ₹1,300 a day" */
-function HoursNote({ hours, ot, dayRate }: { hours: number; ot: number; dayRate: number }) {
+/** Paid hourly: "224 h + 97 h OT at ₹100 an hour"; by day: "26 days at ₹800 a day" */
+function HoursNote({ daily, hours, ot, dayRate }: { daily: boolean; hours: number; ot: number; dayRate: number }) {
+  if (daily) {
+    const n = Math.round((hours / STANDARD_HOURS) * 100) / 100;
+    return (
+      <span className="ml-2 text-xs">
+        ({n} {n === 1 ? "day" : "days"} at {rupees(dayRate)} a day)
+      </span>
+    );
+  }
   return (
     <span className="ml-2 text-xs">
-      ({hours} h{ot ? ` + ${ot} h OT` : ""} at {rupees(dayRate)} a day)
+      ({hours} h{ot ? ` + ${ot} h OT` : ""} at {rupees(dayRate / STANDARD_HOURS)} an hour)
     </span>
   );
 }
