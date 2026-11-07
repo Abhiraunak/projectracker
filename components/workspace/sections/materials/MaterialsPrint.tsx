@@ -11,9 +11,10 @@ const td = "border-b border-stone-300 py-1.5 pr-3 align-top";
 
 /**
  * The materials list on paper, printed the same way as the Equipment lists (PrintArea): each material with what was
- * ordered, what has arrived, what is still to come and the amount, then the total and space to sign.
+ * ordered (at the preset rate), what has arrived, what is left, the preset cost and the actual spend, then the totals
+ * and space to sign.
  */
-export function MaterialsPrint({ items, total, site, onDone }: { items: Purchase[]; total: number; site: string; onDone: () => void }) {
+export function MaterialsPrint({ items, total, spent, site, onDone }: { items: Purchase[]; total: number; spent: number; site: string; onDone: () => void }) {
   const title = `Materials at ${site}`;
   return (
     <PrintArea id="materials-print-root" title={title} onDone={onDone}>
@@ -43,8 +44,9 @@ export function MaterialsPrint({ items, total, site, onDone }: { items: Purchase
             <th className={`${th} text-right`}>Ordered</th>
             <th className={`${th} text-right`}>Rate</th>
             <th className={`${th} text-right`}>Arrived</th>
-            <th className={`${th} text-right`}>To come</th>
-            <th className={`${th} text-right`}>Amount</th>
+            <th className={`${th} text-right`}>Left</th>
+            <th className={`${th} text-right`}>Preset cost</th>
+            <th className={`${th} text-right`}>Actual spend</th>
           </tr>
         </thead>
         <tbody>
@@ -65,6 +67,7 @@ export function MaterialsPrint({ items, total, site, onDone }: { items: Purchase
                 {p.state === "extra" ? `${qtyText(p.extra)} extra` : p.toCome > 0 ? `${qtyText(p.toCome)} ${p.unit}` : "-"}
               </td>
               <td className={`${td} whitespace-nowrap text-right tabular-nums`}>{money(p.amount)}</td>
+              <td className={`${td} whitespace-nowrap text-right tabular-nums`}>{money(p.spent ?? 0)}</td>
             </tr>
           ))}
         </tbody>
@@ -74,6 +77,7 @@ export function MaterialsPrint({ items, total, site, onDone }: { items: Purchase
               Total
             </td>
             <td className="whitespace-nowrap py-2 pr-3 text-right font-bold tabular-nums">{money(total)}</td>
+            <td className="whitespace-nowrap py-2 pr-3 text-right font-bold tabular-nums">{money(spent)}</td>
           </tr>
         </tfoot>
       </table>

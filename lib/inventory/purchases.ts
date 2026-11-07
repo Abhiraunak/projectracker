@@ -6,16 +6,18 @@ export interface Purchase {
   section: string; // the heading it is listed under ("Flooring"); empty = none
   name: string;
   unit: string;
-  quantity: number;
-  rate: number;
-  amount: number; // quantity × rate, worked out on the server
+  quantity: number; // ordered
+  rate: number; // the preset (planned) rate per unit
+  amount: number; // preset cost: quantity × rate, worked out on the server
+  /** Actual spending: every delivery's quantity × the rate paid for it */
+  spent: number;
   date: string; // YYYY-MM-DD
   note: string;
   billUrl: string | null;
   billKind: "pdf" | "image" | null;
   addedBy: string;
   createdAt: string;
-  /** Deliveries, newest first: on what date how many arrived. `quantity` above is what was ordered. */
+  /** Deliveries, newest first: on what date how many arrived and at what rate. `quantity` above is what was ordered. */
   deliveries: Delivery[];
   arrived: number;
   toCome: number;
@@ -27,6 +29,8 @@ export interface Delivery {
   id: string;
   date: string;
   quantity: number;
+  rate: number; // what was actually paid per unit
+  amount: number; // quantity × rate
   billUrl: string | null;
   billKind: "pdf" | "image" | null;
   addedBy: string;
@@ -42,7 +46,9 @@ export interface MaterialTotal {
 
 export interface PurchaseBook {
   items: Purchase[];
-  total: number;
+  total: number; // preset cost of everything ordered
+  /** What the deliveries actually cost, all materials */
+  spentTotal: number;
   entries: number;
   materials: MaterialTotal[]; // biggest spend first
   names: { name: string; unit: string }[]; // already used on this project, to pick from
@@ -144,10 +150,18 @@ async function withRenew<T>(run: () => Promise<T>) {
   }
 }
 
-async function sendDelivery(projectId: string, purchaseId: string, d: { date: string; quantity: number; bill: File | null }) {
+export interface DeliveryInput {
+  date: string;
+  quantity: number;
+  rate: number; // per unit, what was actually paid
+  bill: File | null;
+}
+
+async function sendDelivery(projectId: string, purchaseId: string, d: DeliveryInput) {
   const form = new FormData();
   form.append("date", d.date);
   form.append("quantity", String(d.quantity));
+  form.append("rate", String(d.rate));
   if (d.bill) form.append("file", d.bill);
   const res = await fetch(apiUrl(`/projects/${id(projectId)}/material-purchases/${id(purchaseId)}/deliveries`), { method: "POST", body: form, credentials: "include", headers: { "X-Requested-With": "fetch" } });
   const body = (await res.json().catch(() => null)) as { purchase?: Purchase; error?: string; details?: unknown } | null;
@@ -156,7 +170,7 @@ async function sendDelivery(projectId: string, purchaseId: string, d: { date: st
 }
 
 export const purchasesApi = {
-  addDelivery: (projectId: string, purchaseId: string, d: { date: string; quantity: number; bill: File | null }) => withRenew(() => sendDelivery(projectId, purchaseId, d)),
+  addDelivery: (projectId: string, purchaseId: string, d: DeliveryInput) => withRenew(() => sendDelivery(projectId, purchaseId, d)),
   removeDelivery: (projectId: string, purchaseId: string, deliveryId: string) =>
     request<{ purchase: Purchase }>(`/projects/${id(projectId)}/material-purchases/${id(purchaseId)}/deliveries/${id(deliveryId)}`, { method: "DELETE" }).then((r) => r.purchase),
   list: (projectId: string) => request<PurchaseBook>(`/projects/${id(projectId)}/material-purchases`),
