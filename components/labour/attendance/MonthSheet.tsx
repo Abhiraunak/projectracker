@@ -129,7 +129,7 @@ export function MonthSheet({ projectId }: { projectId: string }) {
           <div className="text-black">
             <h1 className="text-base font-bold">{title}</h1>
             <p className="mb-2 text-[10px]">
-              {data.contractor?.trade ? `${data.contractor.trade} · ` : ""}Printed {formatDay(new Date().toISOString().slice(0, 10))}
+              Printed {formatDay(new Date().toISOString().slice(0, 10))}
             </p>
             <SheetTable data={data} print />
             <div className="mt-3 w-80 text-[10px]">

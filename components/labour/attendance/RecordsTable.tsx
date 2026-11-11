@@ -26,7 +26,7 @@ function dayRange(from: string, to: string) {
 }
 
 /**
- * Saved entries: date, trade, contractor, labourers, notes, total, with edit and delete.
+ * Saved entries: date, contractor, labourers, notes, total, with edit and delete.
  * Days saved together are one row: their date range and number of days, each labourer's pay over all of them, and
  * the total; edit opens every day together and delete removes them together.
  */
@@ -49,7 +49,6 @@ export const RecordsTable = memo(function RecordsTable({
         <thead className="border-b border-stone-200 text-stone-500">
           <tr>
             <th scope="col" className="px-4 py-3 font-medium">Date</th>
-            <th scope="col" className="px-4 py-3 font-medium">Trade</th>
             <th scope="col" className="px-4 py-3 font-medium">Contractor</th>
             <th scope="col" className="px-4 py-3 font-medium">Labourers</th>
             <th scope="col" className="px-4 py-3 font-medium">Notes</th>
@@ -74,9 +73,6 @@ export const RecordsTable = memo(function RecordsTable({
                   ) : (
                     formatDay(r.date)
                   )}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3">
-                  {r.trade ? <span className="rounded bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-700">{r.trade}</span> : <span className="text-xs text-amber-700">Not set</span>}
                 </td>
                 <td className="px-4 py-3 font-medium">{r.contractorName}</td>
                 <td className="px-4 py-3">

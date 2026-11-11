@@ -60,7 +60,6 @@ export function PrintSlip({ title, form, total, days }: { title: string; form: A
 
           <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
             <Fact label="Contractor" value={form.contractorName.trim() || "-"} />
-            <Fact label="Trade" value={form.trade.trim() || "-"} />
             <Fact label={days ? "Days" : "Date"} value={days ? describeDays(days) : formatDay(form.date)} />
           </dl>
 

@@ -8,7 +8,6 @@ import { describeError } from "@/lib/api";
 import type { AttendanceListItem } from "@/lib/attendanceApi";
 import { checkForm, DEFAULT_TRADES, formTotal, savedManyNote, toManyPayload, toPayload } from "@/lib/attendance/form";
 import { printWithTitle } from "@/lib/print";
-import { TradeCards } from "./TradeCards";
 import { AttendanceHeader } from "./attendance/AttendanceHeader";
 import { EntryForm } from "./attendance/EntryForm";
 import { PrintSlip } from "./attendance/PrintSlip";
@@ -18,7 +17,7 @@ import { useTeamPrefill } from "./attendance/useTeamPrefill";
 import { MonthSheet } from "./attendance/MonthSheet";
 
 /**
- * Labour attendance for one project: trade cards, the entry form, and saved records.
+ * Labour attendance for one project: the entry form and saved records. No trades: attendance is by contractor.
  * This file only puts the parts together; each part lives in ./attendance and the rules in lib/attendance/form.ts.
  */
 export function AttendanceManager({ projectId, showMonth = true }: { projectId: string; /** false: the month sheet has its own tab */ showMonth?: boolean }) {
@@ -31,7 +30,6 @@ export function AttendanceManager({ projectId, showMonth = true }: { projectId: 
   const saveDays = useSaveAttendanceDays();
   const saving = save.isPending || saveDays.isPending;
 
-  const [tradeFilter, setTradeFilter] = useState<string | undefined>(undefined);
   const [printTitle, setPrintTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [savedNote, setSavedNote] = useState<string | null>(null);
@@ -101,8 +99,6 @@ export function AttendanceManager({ projectId, showMonth = true }: { projectId: 
       <PrintSlip title={slipTitle} form={form} total={total} days={severalDays ? form.days : null} />
       <AttendanceHeader printTitle={printTitle} onPrintTitle={setPrintTitle} defaultTitle={defaultTitle} onPrint={() => printWithTitle(slipTitle)} />
 
-      {trades.data && <TradeCards projectId={projectId} data={trades.data} selected={tradeFilter} onSelect={setTradeFilter} canEdit />}
-
       <EntryForm
         api={api}
         projectId={projectId}
@@ -119,7 +115,7 @@ export function AttendanceManager({ projectId, showMonth = true }: { projectId: 
         onCancelEdit={cancelEdit}
       />
 
-      <RecordsPanel projectId={projectId} trade={tradeFilter} onClearTrade={() => setTradeFilter(undefined)} onEdit={startEdit} onDeleted={onDeleted} resetKey={savedCount} />
+      <RecordsPanel projectId={projectId} onClearTrade={() => { }} onEdit={startEdit} onDeleted={onDeleted} resetKey={savedCount} />
 
       {showMonth && <MonthSheet projectId={projectId} />}
     </div>

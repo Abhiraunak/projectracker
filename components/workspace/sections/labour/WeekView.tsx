@@ -36,7 +36,7 @@ export function WeekView({
   onMarkAttendance: () => void;
 }) {
   const week = useLabourWeek(projectId, start);
-  const canPay = useCan("project.manage");
+  const canPay = useCan("attendance.write"); // paying and settling come with the Labour tick
   const canWrite = useCan("attendance.write");
   const [open, setOpen] = useState<Open>(null);
   const thisWeek = weekStartOf(todayLocal());
@@ -172,11 +172,11 @@ const LineCard = memo(function LineCard({
 }) {
   const settled = !!l.settled;
   return (
-    <li id={`wk-${l.key}`} className={`${mono.card} scroll-mt-24 p-4 sm:p-5 ${focused ? "outline outline-offset-2 outline-[#111111]" : ""}`}>
+    <li id={`wk-${l.key}`} className={`${mono.card} scroll-mt-24 p-4 sm:p-5 ${focused ? "outline-2 outline-offset-2 outline-[#111111]" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-[17px] font-semibold text-[#111111]">{l.contractorName}</p>
-          <p className="text-sm text-[#666666]">{l.trade || "No trade"}</p>
+          {l.trade && <p className="text-sm text-[#666666]">{l.trade}</p>}
         </div>
         {settled ? (
           <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#E9F5EE] px-2.5 py-1 text-xs font-medium text-[#1A6B3C]">

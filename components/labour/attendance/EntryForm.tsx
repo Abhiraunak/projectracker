@@ -75,7 +75,7 @@ export function EntryForm({ api, projectId, team, usual, total, saving, error, s
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label htmlFor="contractorNameInput" className={fieldLabel}>
-              Contractor name
+              Team head
             </label>
             <input
               id="contractorNameInput"

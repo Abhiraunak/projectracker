@@ -155,7 +155,7 @@ function MonthTotals({ projectId }: { projectId: string }) {
                   <tr key={l.key} className="hover:bg-[#FAFAF9]">
                     <th scope="row" className={`${mono.td} pl-5 text-left font-medium text-[#111111]`}>
                       {l.contractorName}
-                      <span className="block text-xs font-normal text-[#8C8C8C]">{l.trade || "No trade"}</span>
+                      {l.trade && <span className="block text-xs font-normal text-[#8C8C8C]">{l.trade}</span>}
                     </th>
                     {l.byWeek.map((v, i) => (
                       <td key={i} className={`${mono.td} text-right tabular-nums ${v ? "text-[#333333]" : "text-[#B5B5B2]"}`}>
