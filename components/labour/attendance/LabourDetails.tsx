@@ -24,7 +24,7 @@ export function LabourDetails({ api, projectId, team }: { api: AttendanceFormApi
   const working = team?.filter((m) => m.active).length ?? 0;
 
   return (
-    <fieldset className="min-w-0 rounded border border-stone-300 p-4">
+    <fieldset id="labour-details" className="min-w-0 scroll-mt-20 rounded border border-stone-300 p-4">
       <legend className="sr-only">Labour details</legend>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
@@ -65,9 +65,10 @@ export function LabourDetails({ api, projectId, team }: { api: AttendanceFormApi
             onHours={api.changeHours}
             onSameEveryDay={api.copyToEveryDay}
             onRemove={api.removeWorker}
+            onChangeWorker={api.changeWorker}
             onNavigate={api.navigate}
           />
-          <p className="mt-3 text-xs text-stone-500">Tap a day to mark present; leave it on A when absent. New names and changed rates are saved to {contractor ? `${contractor}'s` : "the contractor's"} team.</p>
+          <p className="mt-3 text-xs text-stone-500">Tap a day to mark present; leave it on A when absent. Paid extra or a different rate one day? Use the sliders button beside the labourer. New names and changed rates are saved to {contractor ? `${contractor}'s` : "the contractor's"} team.</p>
         </>
       ) : hourly ? (
         <>
@@ -81,10 +82,11 @@ export function LabourDetails({ api, projectId, team }: { api: AttendanceFormApi
             onHours={api.changeHours}
             onSameEveryDay={api.copyToEveryDay}
             onRemove={api.removeWorker}
+            onChangeWorker={api.changeWorker}
             onNavigate={api.navigate}
           />
           <p className="mt-3 text-xs text-stone-500">
-            Leave a day blank when someone was absent. New names and changed rates are saved to {contractor ? `${contractor}'s` : "the contractor's"} team.
+            Leave a day blank when someone was absent. Paid extra or a different rate one day? Use the sliders button beside the labourer. New names and changed rates are saved to {contractor ? `${contractor}'s` : "the contractor's"} team.
           </p>
         </>
       ) : severalDays ? (

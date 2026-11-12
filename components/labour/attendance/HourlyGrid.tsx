@@ -5,7 +5,8 @@ import { FiChevronLeft, FiChevronRight, FiCopy, FiTrash2 } from "react-icons/fi"
 import { iconBtn, removeBtn } from "@/components/utilites/fieldStyles";
 import { useDragScroll } from "@/hooks/useDragScroll";
 import { shortDay, weekday } from "@/lib/attendance/days";
-import { dayRateFromHour, dayTotal, hourRateOf, hoursOn, num, payFor, rupees, toInput, workerHours, workerTotal, type WorkerRow } from "@/lib/attendance/form";
+import { dayChanged, dayRateFromHour, dayTotal, hourRateOf, num, payFor, rupees, toInput, workerHours, workerTotal, type WorkerRow } from "@/lib/attendance/form";
+import { DayChangesButton } from "./DayChanges";
 
 interface Props {
   /** The chosen days, or null for a single-day entry on `date` */
@@ -18,6 +19,8 @@ interface Props {
   onHours: (id: string, day: string | null, field: "hours" | "ot", value: number | "") => void;
   onSameEveryDay: (id: string) => void;
   onRemove: (id: string) => void;
+  /** A day that was different: its own rate, or extra paid */
+  onChangeWorker: (id: string, patch: Partial<WorkerRow>) => void;
   onNavigate: (e: KeyboardEvent, index: number, field: string) => void;
 }
 
@@ -34,7 +37,7 @@ const sticky = "sticky left-0 z-10 bg-white";
  * means absent. Totals on the right: hours and amount, OT and its amount, and the total.
  * Several days: opens on the newest day, and a drag (mouse), swipe (phone) or the arrows show the earlier ones.
  */
-export function HourlyGrid({ days, date, workers, extras, onLabel, onRate, onHours, onSameEveryDay, onRemove, onNavigate }: Props) {
+export function HourlyGrid({ days, date, workers, extras, onLabel, onRate, onHours, onSameEveryDay, onRemove, onChangeWorker, onNavigate }: Props) {
   const columns = days ?? [date];
   const boxRef = useRef<HTMLDivElement>(null);
   const { edges, page, reveal } = useDragScroll(boxRef);
@@ -156,7 +159,8 @@ export function HourlyGrid({ days, date, workers, extras, onLabel, onRate, onHou
                       />
                     </td>
                     {columns.map((d, di) => (
-                      <td key={d} className={`${cell} border-b-0`}>
+                      <td key={d} className={`${cell} relative border-b-0`}>
+                        {dayChanged(w, days ? d : null) && <span aria-hidden title="Changed day" className="pointer-events-none absolute right-1 top-1 z-1 h-2 w-2 rounded-full bg-[#111111] ring-2 ring-white" />}
                         <input
                           id={`worker-${index}-h-${di}`}
                           type="number"
@@ -179,6 +183,7 @@ export function HourlyGrid({ days, date, workers, extras, onLabel, onRate, onHou
                       {rupees(total)}
                     </td>
                     <td rowSpan={2} className={`${cell} whitespace-nowrap text-right`}>
+                      <DayChangesButton worker={w} days={days} date={date} daily={false} onChange={(p) => onChangeWorker(w.id, p)} />
                       {days && days.length > 1 && (
                         <button type="button" onClick={() => onSameEveryDay(w.id)} title="Copy the first day's hours and OT to every day" aria-label={`Same hours every day for ${name}`} className={iconBtn}>
                           <FiCopy aria-hidden />
@@ -227,7 +232,7 @@ export function HourlyGrid({ days, date, workers, extras, onLabel, onRate, onHou
               <td />
               {columns.map((d) => (
                 <td key={d} className="px-1 py-2 text-right font-semibold tabular-nums text-stone-900">
-                  {rupees(days ? dayTotal(workers, d, extras, "hourly") : workers.reduce((s, w) => s + payFor(hoursOn(w, null).hours, hoursOn(w, null).ot, num(w.dayRate)), 0) + num(extras))}
+                  {rupees(days ? dayTotal(workers, d, extras, "hourly") : workers.reduce((s, w) => s + workerTotal(w, null, "hourly"), 0) + num(extras))}
                 </td>
               ))}
               <td className="px-1 py-2 text-right tabular-nums">

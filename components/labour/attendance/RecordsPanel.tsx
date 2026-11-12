@@ -20,6 +20,8 @@ interface Props {
   onClearTrade: () => void;
   /** A row to edit: one day, or (with `batch`) days saved together */
   onEdit: (r: AttendanceListItem) => void;
+  /** "Next day" on a row: carry that register on to the next day */
+  onNextDay?: (r: AttendanceListItem) => void;
   /** Told after a delete (the entry's id, or the batch's), so an entry being edited can be closed */
   onDeleted?: (id: string) => void;
   /** Changes after each save: the panel goes back to page 1 with the search cleared, to show the new entry */
@@ -37,7 +39,7 @@ export function RecordsPanel(props: Props) {
 }
 
 /** Owns its own search and page, so the form above doesn't re-render while someone types in the search box */
-function Panel({ projectId, trade, onClearTrade, onEdit, onDeleted }: Props) {
+function Panel({ projectId, trade, onClearTrade, onEdit, onNextDay, onDeleted }: Props) {
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const query = useDebounced(search.trim(), 300);
@@ -143,7 +145,7 @@ function Panel({ projectId, trade, onClearTrade, onEdit, onDeleted }: Props) {
               </button>
             </p>
           ) : (
-            <RecordsTable records={list.data.items} dimmed={list.isPlaceholderData} onEdit={onEdit} onDelete={handleDelete} />
+            <RecordsTable records={list.data.items} dimmed={list.isPlaceholderData} onEdit={onEdit} onNextDay={onNextDay} onDelete={handleDelete} />
           )}
           <Pagination page={Math.min(page, totalPages)} totalPages={list.data.totalPages} total={list.data.total} pageSize={PAGE_SIZE} onPageChange={setPage} />
         </>

@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useState, type FormEvent } from "react";
+import React, { Suspense, useEffect, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { describeError } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +11,8 @@ import { homeFor, roleOf, safeNext } from "@/lib/auth/home";
 import { Heading, SubHeading } from "@/components/utilites/Label";
 
 const inputClass =
-    "w-full rounded-lg border border-stone-300 bg-white px-3.5 py-2.5 text-sm text-stone-900 placeholder:text-stone-400 " +
+    // text-base on phones: 16px stops iOS zooming into the field (sm: and up keeps the original 14px)
+    "w-full rounded-lg border border-stone-300 bg-white px-3.5 py-2.5 text-base text-stone-900 placeholder:text-stone-400 sm:text-sm " +
     "transition-colors focus:border-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-900/20 disabled:opacity-60";
 
 /** The ?next= page asked for, if it is a page of this app */
@@ -20,18 +21,27 @@ function requestedNext(): string | null {
     return safeNext(new URLSearchParams(window.location.search).get("next"));
 }
 
+/** useSearchParams needs a Suspense boundary around it, so the page can still be pre-rendered */
 export default function LoginPage() {
+    return (
+        <Suspense fallback={null}>
+            <SignIn />
+        </Suspense>
+    );
+}
+
+function SignIn() {
     const router = useRouter();
+    const params = useSearchParams();
     const { user, isUserLoading, login } = useAuth();
-    const [email, setEmail] = useState("");
+    // Read from the address, not set in an effect: ?created=1 from sign-up, ?email= back from Forgot password
+    const justSignedUp = params.get("created") === "1";
+    const [email, setEmail] = useState(() => {
+        const e = params.get("email") ?? "";
+        return e.length <= 254 ? e : "";
+    });
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
-    const [justSignedUp, setJustSignedUp] = useState(false);
-
-    // Arriving from the sign-up page (?created=1): say the account is ready
-    useEffect(() => {
-        setJustSignedUp(new URLSearchParams(window.location.search).get("created") === "1");
-    }, []);
 
     // Already signed in: skip the form, to this account's own area (clients to the portal, staff to the dashboard)
     useEffect(() => {
@@ -80,6 +90,8 @@ export default function LoginPage() {
                             autoComplete="email"
                             autoCapitalize="none"
                             spellCheck={false}
+                            enterKeyHint="next"
+                            maxLength={254}
                             placeholder="name@company.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -92,15 +104,25 @@ export default function LoginPage() {
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label htmlFor="login-password" className="text-sm font-medium text-stone-700">
-                            Password
-                        </label>
+                        <div className="flex items-center justify-between gap-3">
+                            <label htmlFor="login-password" className="text-sm font-medium text-stone-700">
+                                Password
+                            </label>
+                            <Link
+                                href={email.trim() ? `/forgot-password?email=${encodeURIComponent(email.trim())}` : "/forgot-password"}
+                                className="-my-2 py-2 text-sm font-medium text-stone-600 underline-offset-2 hover:text-stone-900 hover:underline"
+                            >
+                                Forgot password?
+                            </Link>
+                        </div>
                         <div className="relative">
                             <input
                                 id="login-password"
                                 type={showPassword ? "text" : "password"}
                                 name="password"
                                 autoComplete="current-password"
+                                enterKeyHint="go"
+                                maxLength={256}
                                 placeholder="••••••••"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}

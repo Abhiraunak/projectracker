@@ -84,6 +84,18 @@ export function AttendanceManager({ projectId, showMonth = true }: { projectId: 
     [api.startEdit, api.startEditBatch]
   );
 
+  // "Next day" on a saved row: the same register, the next day added, ready to mark
+  const nextDay = useCallback(
+    (r: AttendanceListItem) => {
+      api.continueNextDay(r);
+      setSavedNote(null);
+      setError(null);
+      setTimeout(() => document.getElementById("labour-details")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [api.continueNextDay]
+  );
+
   const cancelEdit = () => {
     api.cancelEdit();
     setError(null);
@@ -115,7 +127,7 @@ export function AttendanceManager({ projectId, showMonth = true }: { projectId: 
         onCancelEdit={cancelEdit}
       />
 
-      <RecordsPanel projectId={projectId} onClearTrade={() => { }} onEdit={startEdit} onDeleted={onDeleted} resetKey={savedCount} />
+      <RecordsPanel projectId={projectId} onClearTrade={() => { }} onEdit={startEdit} onNextDay={nextDay} onDeleted={onDeleted} resetKey={savedCount} />
 
       {showMonth && <MonthSheet projectId={projectId} />}
     </div>

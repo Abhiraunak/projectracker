@@ -11,6 +11,22 @@ const parse = (iso: string) => {
 
 export const isIsoDay = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && toIso(parse(s)) === s;
 
+/** Today, as "YYYY-MM-DD" in local time */
+export const todayIso = () => toIso(new Date());
+/** The day after this one ("2026-11-11" → "2026-11-12") */
+export const nextDay = (iso: string) => {
+  const d = parse(iso);
+  d.setDate(d.getDate() + 1);
+  return toIso(d);
+};
+/** The day after the last of these days, or null when that would be in the future (it can be added tomorrow) */
+export const nextDayToAdd = (days: string[]) => {
+  const last = [...days].sort().at(-1);
+  if (!last) return null;
+  const next = nextDay(last);
+  return next <= todayIso() ? next : null;
+};
+
 /** Every day from `from` to `to` (inclusive, either order), optionally without Sundays, at most MAX_DAYS */
 export function daysBetween(from: string, to: string, skipSundays = false): string[] {
   if (!isIsoDay(from) || !isIsoDay(to)) return [];

@@ -3,7 +3,8 @@
 import { useCallback, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useFormHistory } from "@/hooks/useFormHistory";
-import type { AttendanceBatch, AttendanceRecord } from "@/lib/attendanceApi";
+import type { AttendanceBatch, AttendanceListItem, AttendanceRecord } from "@/lib/attendanceApi";
+import { addDay, nextDay } from "@/lib/attendance/days";
 import { emptyForm, fromBatch, fromRecord, newWorker, readyForNext, sameEveryDay, toOneDay, toSeveralDays, withPayMode, type AttendanceForm, type PayMode, type WorkerRow } from "@/lib/attendance/form";
 
 /** Focus and select a field by id after React has drawn it */
@@ -116,6 +117,28 @@ export function useAttendanceForm() {
     },
     [reset]
   );
+  /**
+   * "Next day" on a saved row: carry on the same register the next day.
+   *  - Days saved together: they open with the next day added as a new, empty column; mark it and Update.
+   *  - One day: a new entry for the next day, with the same contractor, labourers and rates, nothing marked.
+   */
+  const continueNextDay = useCallback(
+    (r: AttendanceListItem) => {
+      if (r.batch && r.batch.days.length > 0) {
+        const f = fromBatch(r.batch);
+        reset({ ...f, days: addDay(f.days, nextDay(f.days.at(-1)!)) });
+        setEditingId(null);
+        setEditingBatchId(r.batch.id);
+        setMultiDay(true);
+      } else {
+        reset({ ...readyForNext(fromRecord(r)), date: nextDay(r.date) });
+        setEditingId(null);
+        setEditingBatchId(null);
+        setMultiDay(false);
+      }
+    },
+    [reset]
+  );
   const cancelEdit = () => {
     if (editingBatchId) setMultiDay(false);
     setEditingId(null);
@@ -152,6 +175,7 @@ export function useAttendanceForm() {
     navigate,
     startEdit,
     startEditBatch,
+    continueNextDay,
     cancelEdit,
     afterSave,
   };

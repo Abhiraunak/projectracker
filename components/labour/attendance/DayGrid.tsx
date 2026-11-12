@@ -4,7 +4,8 @@ import type { KeyboardEvent } from "react";
 import { FiCheck, FiCopy, FiTrash2 } from "react-icons/fi";
 import { iconBtn, removeBtn } from "@/components/utilites/fieldStyles";
 import { shortDay, weekday } from "@/lib/attendance/days";
-import { dayTotal, hoursOn, num, rupees, STANDARD_HOURS, toInput, workerTotal, type WorkerRow } from "@/lib/attendance/form";
+import { dayChanged, dayTotal, hoursOn, num, rupees, STANDARD_HOURS, toInput, workerTotal, type WorkerRow } from "@/lib/attendance/form";
+import { DayChangesButton } from "./DayChanges";
 
 interface Props {
     /** The chosen days, or null for a single-day entry on `date` */
@@ -17,6 +18,8 @@ interface Props {
     onHours: (id: string, day: string | null, field: "hours" | "ot", value: number | "") => void;
     onSameEveryDay: (id: string) => void;
     onRemove: (id: string) => void;
+    /** A day that was different: its own rate, or extra paid */
+    onChangeWorker: (id: string, patch: Partial<WorkerRow>) => void;
     onNavigate: (e: KeyboardEvent, index: number, field: string) => void;
 }
 
@@ -30,7 +33,7 @@ const sticky = "sticky left-0 z-10 bg-white";
  * (saved as a full 8-hour day, so the month sheet and payments read it the same as hourly). Big tap targets for a
  * phone on site; the days scroll sideways when there are many.
  */
-export function DayGrid({ days, date, workers, extras, onLabel, onRate, onHours, onSameEveryDay, onRemove, onNavigate }: Props) {
+export function DayGrid({ days, date, workers, extras, onLabel, onRate, onHours, onSameEveryDay, onRemove, onChangeWorker, onNavigate }: Props) {
     const columns = days ?? [date];
     if (days && days.length === 0) return <p className="text-sm text-stone-500">Choose the days above first.</p>;
     const present = (w: WorkerRow, d: string) => hoursOn(w, days ? d : null).hours >= STANDARD_HOURS;
@@ -100,7 +103,8 @@ export function DayGrid({ days, date, workers, extras, onLabel, onRate, onHours,
                                 {columns.map((d) => {
                                     const on = present(w, d);
                                     return (
-                                        <td key={d} className={`${cell} text-center`}>
+                                        <td key={d} className={`${cell} relative text-center`}>
+                                            {dayChanged(w, days ? d : null) && <span aria-hidden title="Changed day" className="pointer-events-none absolute right-1 top-1 z-1 h-2 w-2 rounded-full bg-[#111111] ring-2 ring-white" />}
                                             <button
                                                 type="button"
                                                 aria-pressed={on}
@@ -117,6 +121,7 @@ export function DayGrid({ days, date, workers, extras, onLabel, onRate, onHours,
                                 <td className={`${cell} text-right tabular-nums text-stone-700`}>{daysWorked(w) || "–"}</td>
                                 <td className={`${cell} text-right font-semibold tabular-nums`}>{rupees(workerTotal(w, days, "daily"))}</td>
                                 <td className={`${cell} whitespace-nowrap text-right`}>
+                                    <DayChangesButton worker={w} days={days} date={date} daily onChange={(p) => onChangeWorker(w.id, p)} />
                                     {days && days.length > 1 && (
                                         <button type="button" onClick={() => onSameEveryDay(w.id)} title="Present every chosen day, like the first" aria-label={`Same every day for ${name}`} className={iconBtn}>
                                             <FiCopy aria-hidden />

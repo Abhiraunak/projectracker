@@ -1,7 +1,8 @@
 "use client";
 
 import { memo } from "react";
-import { FiEdit2, FiTrash2 } from "react-icons/fi";
+import { FiEdit2, FiPlus, FiTrash2 } from "react-icons/fi";
+import { nextDayToAdd, shortDay, weekday } from "@/lib/attendance/days";
 import { iconBtn } from "@/components/utilites/fieldStyles";
 import type { AttendanceListItem } from "@/lib/attendanceApi";
 import { formatDay, rupees } from "@/lib/attendance/form";
@@ -35,12 +36,15 @@ export const RecordsTable = memo(function RecordsTable({
   dimmed,
   onEdit,
   onDelete,
+  onNextDay,
 }: {
   records: AttendanceListItem[];
   /** Showing the previous page while the next loads */
   dimmed?: boolean;
   onEdit: (r: AttendanceListItem) => void;
   onDelete: (r: AttendanceListItem) => void;
+  /** Carry this register on to the next day */
+  onNextDay?: (r: AttendanceListItem) => void;
 }) {
   return (
     // relative: keeps the hidden "Actions" label inside the scroll box, so phones don't scroll the whole page sideways
@@ -89,6 +93,7 @@ export const RecordsTable = memo(function RecordsTable({
                 </td>
                 <td className="px-4 py-3 text-right font-semibold tabular-nums">{rupees(batch ? batch.totalAmount : r.totalAmount)}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-right">
+                  {onNextDay && <NextDay r={r} onNextDay={onNextDay} />}
                   <button
                     type="button"
                     onClick={() => onEdit(r)}
@@ -116,3 +121,21 @@ export const RecordsTable = memo(function RecordsTable({
     </div>
   );
 });
+
+/** "+ Next day": open this register again with the day after its last one, ready to mark */
+function NextDay({ r, onNextDay }: { r: AttendanceListItem; onNextDay: (r: AttendanceListItem) => void }) {
+  const last = r.batch?.to ?? r.date;
+  const next = nextDayToAdd([last]);
+  if (!next) return null; // the next day is still to come
+  return (
+    <button
+      type="button"
+      onClick={() => onNextDay(r)}
+      title={r.batch ? `Add ${weekday(next)} ${shortDay(next)} to these days` : `New entry for ${weekday(next)} ${shortDay(next)}, same labourers`}
+      aria-label={`Next day for ${r.contractorName}: ${weekday(next)} ${shortDay(next)}`}
+      className="mr-1 inline-flex min-h-9 items-center gap-1 rounded-lg border border-stone-300 px-2.5 text-xs font-semibold text-stone-800 hover:border-stone-900"
+    >
+      <FiPlus aria-hidden /> Next day
+    </button>
+  );
+}

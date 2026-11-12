@@ -5,7 +5,7 @@ import { FiCornerUpLeft, FiCornerUpRight, FiEdit2, FiSave, FiX } from "react-ico
 import { fieldLabel, iconBtn, inputBase } from "@/components/utilites/fieldStyles";
 import { FormMessage } from "@/components/utilites/FormMessage";
 import { MoneyInput } from "@/components/utilites/MoneyInput";
-import { describeDays } from "@/lib/attendance/days";
+import { addDay, describeDays, nextDayToAdd, shortDay, weekday } from "@/lib/attendance/days";
 import { rupees, type PayMode } from "@/lib/attendance/form";
 import type { TeamMember } from "@/lib/attendanceApi";
 import { AttendanceDays } from "../AttendanceDays";
@@ -123,6 +123,7 @@ export function EntryForm({ api, projectId, team, usual, total, saving, error, s
         {severalDays && (
           <div>
             <AttendanceDays days={form.days} onChange={(days) => update({ days })} />
+            <NextDayButton days={form.days} onAdd={(d) => update({ days: addDay(form.days, d) })} />
             <p className="mt-2 text-xs text-stone-500">Enter what each labourer is paid on each day below. Each day counts on its own date. Days saved together stay together in Saved records, and open together to edit.</p>
           </div>
         )}
@@ -193,9 +194,8 @@ function PayModeSwitch({ value, onChange, locked }: { value: PayMode; onChange: 
               aria-pressed={on}
               disabled={blocked}
               onClick={() => onChange(m.key)}
-              className={`rounded-md px-3 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 disabled:cursor-not-allowed disabled:opacity-40 ${
-                on ? "bg-white text-stone-900 shadow-sm" : "text-stone-600 hover:text-stone-900"
-              }`}
+              className={`rounded-md px-3 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 disabled:cursor-not-allowed disabled:opacity-40 ${on ? "bg-white text-stone-900 shadow-sm" : "text-stone-600 hover:text-stone-900"
+                }`}
             >
               <span className="block text-sm font-semibold">{m.label}</span>
               <span className="hidden text-xs text-stone-500 sm:block">{m.hint}</span>
@@ -205,5 +205,24 @@ function PayModeSwitch({ value, onChange, locked }: { value: PayMode; onChange: 
       </div>
       {locked && value === "amount" && <p className="mt-1.5 text-xs text-stone-500">A saved entry keeps how it was paid.</p>}
     </div>
+  );
+}
+
+/** "+ Add next day (Thu 13 Nov)": the day after the last chosen one, as a new empty column to mark */
+function NextDayButton({ days, onAdd }: { days: string[]; onAdd: (day: string) => void }) {
+  const next = nextDayToAdd(days);
+  if (!next) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        onAdd(next);
+        // bring the new day's column into view on a phone
+        setTimeout(() => document.getElementById("labour-details")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+      }}
+      className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-dashed border-stone-400 px-3 text-sm font-medium text-stone-700 hover:border-stone-900 hover:text-stone-900"
+    >
+      + Add next day ({weekday(next)} {shortDay(next)})
+    </button>
   );
 }
