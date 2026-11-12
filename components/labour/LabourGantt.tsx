@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useEffect, useMemo, useState } from "react";
+import React, { memo, useMemo, useSyncExternalStore } from "react";
 import { FiCalendar, FiClock, FiTrendingDown, FiTrendingUp } from "react-icons/fi";
 import { formatINR } from "./data";
 import { Heading } from "../utilites/Label";
@@ -35,6 +35,17 @@ const short = (d: Date) => d.toLocaleDateString("en-IN", { day: "numeric", month
 const clamp = (v: number, lo = 0, hi = 100) => Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : 0));
 
 type Range = { start: Date; end: Date; days: number };
+
+/*
+ * "Today" as "YYYY-MM-DD", read with useSyncExternalStore: the server (and the first client render, while hydrating)
+ * gets null, then the browser's date. A string, so the same day gives the same value and nothing re-renders.
+ */
+const noSubscribe = () => () => {};
+const todayOnClient = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const todayOnServer = () => null;
 
 /** Weekly ticks for short projects, monthly up to ~13 months, quarterly beyond. */
 function buildTicks({ start, end, days }: Range) {
@@ -110,12 +121,9 @@ const Empty = ({ children }: { children: React.ReactNode }) => (
 /* -------------------------------------------------------------------------- */
 
 export const LabourGantt = memo(function LabourGantt({ tasks = [] }: { tasks?: GanttTask[] }) {
-  // "Today" is read on the client after mount, so server and client HTML always match
-  const [today, setToday] = useState<Date | null>(null);
-  useEffect(() => {
-    const d = new Date();
-    setToday(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
-  }, []);
+  // "Today" is read on the client only, so server and client HTML always match (no setState in an effect)
+  const todayKey = useSyncExternalStore(noSubscribe, todayOnClient, todayOnServer);
+  const today = useMemo(() => (todayKey ? parseDate(todayKey) : null), [todayKey]);
 
   const { scheduled, unscheduled, range } = useMemo(() => {
     const scheduled: Row[] = [];
@@ -178,7 +186,7 @@ export const LabourGantt = memo(function LabourGantt({ tasks = [] }: { tasks?: G
 
         {range ? (
           <div className="overflow-x-auto">
-            <div className="min-w-[760px]">
+            <div className="min-w-190">
               {/* Time axis */}
               <div className={`${COLS} border-b border-stone-200 text-sm text-stone-500`}>
                 <div className="px-4 py-2">Work item</div>
@@ -210,7 +218,7 @@ export const LabourGantt = memo(function LabourGantt({ tasks = [] }: { tasks?: G
                   return (
                     <li key={t.id} className={`${COLS} border-b border-stone-200 last:border-b-0`}>
                       <div className="min-w-0 px-4 py-3">
-                        <p className="break-words text-sm font-semibold text-stone-900">{t.work}</p>
+                        <p className="wrap-break-word text-sm font-semibold text-stone-900">{t.work}</p>
                         <p className="mt-0.5 text-xs text-stone-500">
                           {short(t.start)} to {short(t.end)}
                         </p>

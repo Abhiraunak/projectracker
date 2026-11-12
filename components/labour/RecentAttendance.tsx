@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useState } from "react";
 import { FiClock } from "react-icons/fi";
 import { describeError } from "@/lib/api";
 import { useAttendanceList } from "@/hooks/useAttendance";
@@ -33,10 +33,10 @@ export function RecentAttendance({ onSelect }: { onSelect?: (projectId: string) 
   const [page, setPage] = useState(1);
   const list = useAttendanceList({ page, pageSize: PAGE_SIZE });
 
-  // If the last record on the final page is deleted, step back instead of showing an empty page
-  useEffect(() => {
-    if (list.data && page > list.data.totalPages) setPage(list.data.totalPages);
-  }, [list.data, page]);
+  // If the last record on the final page is deleted, step back instead of showing an empty page.
+  // Adjusted while rendering (React's pattern for this), not in an effect; the guard stops it once the page fits.
+  const lastPage = Math.max(1, list.data?.totalPages ?? 1);
+  if (list.data && page > lastPage) setPage(lastPage);
 
   if (list.isPending) {
     return <div aria-busy="true" className="h-56 animate-pulse rounded bg-stone-200/60 motion-reduce:animate-none" />;
