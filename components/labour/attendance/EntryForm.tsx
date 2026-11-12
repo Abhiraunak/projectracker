@@ -33,14 +33,14 @@ interface Props {
 
 /** The "New entry" / "Editing entry" card: trade, contractor, day(s), labourers, extras, notes, total, save */
 export function EntryForm({ api, projectId, team, usual, total, saving, error, savedNote, submitRef, onSubmit, onCancelEdit }: Props) {
-  const { form, update, editing, editingBatchId, severalDays, multiDay } = api;
+  const { form, update, editing, editingBatchId, severalDays, multiDay, sheet } = api;
   const dayCount = severalDays ? form.days.length : 1;
 
   return (
     <section className={`rounded border ${editing ? "border-stone-900" : "border-stone-300"}`} aria-label={editing ? "Edit attendance entry" : "New attendance entry"}>
       <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3">
         <h2 className="flex items-center gap-2 text-base font-semibold">
-          {editingBatchId ? `Editing ${dayCount} days` : editing ? "Editing entry" : "New entry"}
+          {sheet ? `${sheet.contractorName}: open days` : editingBatchId ? `Editing ${dayCount} days` : editing ? "Editing entry" : "New entry"}
           {editing && (
             <span className="flex items-center gap-1 rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800">
               <FiEdit2 aria-hidden /> Editing
@@ -122,6 +122,12 @@ export function EntryForm({ api, projectId, team, usual, total, saving, error, s
 
         {severalDays && (
           <div>
+            {sheet && sheet.settledWeeks.length > 0 && (
+              <p className="mb-2 rounded-lg bg-stone-100 px-3 py-2 text-xs text-stone-600">
+                {sheet.settledWeeks.length} settled {sheet.settledWeeks.length === 1 ? "week is" : "weeks are"} paid and locked, so not shown here (last: {shortDay(sheet.settledWeeks.at(-1)!.start)} to{" "}
+                {shortDay(sheet.settledWeeks.at(-1)!.end)}).
+              </p>
+            )}
             <AttendanceDays days={form.days} onChange={(days) => update({ days })} />
             <NextDayButton days={form.days} onAdd={(d) => update({ days: addDay(form.days, d) })} />
             <p className="mt-2 text-xs text-stone-500">Enter what each labourer is paid on each day below. Each day counts on its own date. Days saved together stay together in Saved records, and open together to edit.</p>
@@ -161,7 +167,7 @@ export function EntryForm({ api, projectId, team, usual, total, saving, error, s
             className="flex items-center gap-2 rounded bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-stone-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <FiSave aria-hidden />
-            {saving ? "Saving…" : editingBatchId ? `Update ${dayCount} ${dayCount === 1 ? "day" : "days"} (Ctrl+S)` : editing ? "Update entry" : severalDays ? `Save ${dayCount} ${dayCount === 1 ? "entry" : "entries"} (Ctrl+S)` : "Save entry (Ctrl+S)"}
+            {saving ? "Saving…" : sheet ? `Save ${sheet.contractorName}'s sheet (Ctrl+S)` : editingBatchId ? `Update ${dayCount} ${dayCount === 1 ? "day" : "days"} (Ctrl+S)` : editing ? "Update entry" : severalDays ? `Save ${dayCount} ${dayCount === 1 ? "entry" : "entries"} (Ctrl+S)` : "Save entry (Ctrl+S)"}
           </button>
         </div>
       </form>

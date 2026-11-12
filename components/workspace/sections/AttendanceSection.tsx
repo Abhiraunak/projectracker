@@ -1,26 +1,28 @@
 "use client";
 
-import { lazy, Suspense, useState, type ReactNode } from "react";
+import { lazy, Suspense, useRef, useState, type ReactNode } from "react";
 import type { IconType } from "react-icons";
-import { FiBarChart2, FiCalendar, FiClipboard, FiGrid, FiTool } from "react-icons/fi";
-
+import { FiBarChart2, FiCalendar, FiClipboard, FiFolder, FiGrid, FiTool } from "react-icons/fi";
+import { AttendanceManager } from "@/components/labour/Attendancemanager";
+import { RegistersPanel } from "@/components/labour/attendance/RegistersPanel";
+import type { OpenSheet } from "@/lib/attendanceApi";
 import { useWorkspaceSection } from "@/hooks/useWorkspacePlace";
 import { todayLocal, weekStartOf } from "@/lib/projects/labourWeeks";
 import { LabourSearch } from "./labour/LabourSearch";
 import { WeekView } from "./labour/WeekView";
 import { mono } from "./materials/mono";
 import { SectionSkeleton } from "../ui";
-import { AttendanceManager } from "@/components/labour/Attendancemanager";
 
 // Everything after the week downloads only when someone opens it
 const MonthView = lazy(() => import("./labour/MonthView").then((m) => ({ default: m.MonthView })));
 const ContractWork = lazy(() => import("./labour/ContractWork").then((m) => ({ default: m.ContractWork })));
 const RatesSection = lazy(() => import("./RatesSection")); // contractor vs in-house
 
-type View = "week" | "sheet" | "month" | "contract" | "rates";
+type View = "week" | "sheet" | "saved" | "month" | "contract" | "rates";
 const VIEWS: { key: View; label: string; Icon: IconType }[] = [
   { key: "week", label: "This week", Icon: FiCalendar },
   { key: "sheet", label: "Hourly sheet", Icon: FiClipboard },
+  { key: "saved", label: "Saved attendance", Icon: FiFolder },
   { key: "month", label: "Monthly", Icon: FiGrid },
   { key: "contract", label: "Contract work", Icon: FiTool },
   { key: "rates", label: "Rate comparison", Icon: FiBarChart2 },
@@ -39,7 +41,9 @@ export default function AttendanceSection({ projectId }: { projectId: string }) 
   // An old ?s=rates link lands on Rate comparison
   const startOn: View = useWorkspaceSection() === "rates" ? "rates" : "week";
   const [view, setView] = useState<View>(startOn);
-  const [opened, setOpened] = useState<Set<View>>(() => new Set<View>([startOn]));
+  // The sheet is always mounted (hidden until its tab), so Saved attendance can open a contractor's sheet in it
+  const [opened, setOpened] = useState<Set<View>>(() => new Set<View>([startOn, "sheet"]));
+  const openSheetIn = useRef<((sheet: OpenSheet) => void) | null>(null);
   const [weekStart, setWeekStart] = useState(() => weekStartOf(todayLocal()));
   const [focusKey, setFocusKey] = useState<string | null>(null);
 
@@ -103,7 +107,18 @@ export default function AttendanceSection({ projectId }: { projectId: string }) 
       )}
       {opened.has("sheet") && (
         <div hidden={view !== "sheet"}>
-          <AttendanceManager projectId={projectId} showMonth={false} />
+          <AttendanceManager projectId={projectId} showMonth={false} showRecords={false} openerRef={openSheetIn} />
+        </div>
+      )}
+      {opened.has("saved") && (
+        <div hidden={view !== "saved"}>
+          <RegistersPanel
+            projectId={projectId}
+            onOpen={(sheet) => {
+              show("sheet");
+              openSheetIn.current?.(sheet);
+            }}
+          />
         </div>
       )}
       {panel("month", <MonthView projectId={projectId} />)}

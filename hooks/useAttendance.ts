@@ -30,6 +30,19 @@ export function useSaveAttendanceDays() {
   });
 }
 
+/** Saved records, one row per contractor */
+export const useRegisters = (projectId: string, q: string) =>
+  useQuery({ queryKey: ["attendance", "registers", projectId, q], queryFn: () => attendanceApi.registers(projectId, q || undefined), placeholderData: keepPreviousData, staleTime: 15_000 });
+
+/** Save a contractor's open sheet: its open days are replaced by the days as edited */
+export function useSaveSheet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: AttendanceManyPayload & { replaceIds: string[] }) => attendanceApi.saveSheet(data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["attendance"] }),
+  });
+}
+
 export function useDeleteAttendance() {
   const qc = useQueryClient();
   return useMutation({

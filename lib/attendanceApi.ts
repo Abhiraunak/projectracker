@@ -66,7 +66,7 @@ export interface AttendancePayload {
   contractorName: string;
   trade: string;
   date: string;
-  workers: { label: string; amount: number; dayRate?: number; hours?: number; otHours?: number }[];
+  workers: { label: string; amount: number; dayRate?: number; hours?: number; otHours?: number; extra?: number }[];
   extras: number;
   notes: string;
 }
@@ -85,6 +85,8 @@ export type AttendanceManyPayload = Omit<AttendancePayload, "date" | "workers"> 
     dayRate?: number; // paid hourly: rupees for 8 hours
     hoursByDay?: Record<string, number>;
     otByDay?: Record<string, number>;
+    rateByDay?: Record<string, number>; // a different day rate on some days
+    extraByDay?: Record<string, number>; // rupees on top on some days
   }[];
 };
 
@@ -158,7 +160,34 @@ export interface TradesResponse {
   usual: Record<string, string>;
 }
 
+/** One contractor's register: every day in one place. Days in settled (paid) weeks are locked and summarised. */
+export interface Register {
+  key: string;
+  contractorName: string;
+  openDays: { date: string; total: number }[];
+  openTotal: number;
+  settledWeeks: { start: string; end: string; total: number }[];
+  earned: number; // attendance + contract work, all time
+  paid: number;
+  toPay: number; // below 0: paid in advance
+  lastDate: string;
+}
+
+/** A contractor's open days in full, to open as one sheet; `ids` are the entries that saving replaces */
+export interface OpenSheet {
+  contractorName: string;
+  ids: string[];
+  sheet: AttendanceBatch | null;
+  settledWeeks: { start: string; end: string; total: number }[];
+}
+
 export const attendanceApi = {
+  registers: (projectId: string, q?: string) =>
+    request<{ items: Register[] }>(`/attendance/registers?projectId=${encodeURIComponent(projectId)}${q ? `&q=${encodeURIComponent(q)}` : ""}`),
+  sheet: (projectId: string, contractor: string) =>
+    request<OpenSheet>(`/attendance/sheet?projectId=${encodeURIComponent(projectId)}&contractor=${encodeURIComponent(contractor)}`),
+  saveSheet: (data: AttendanceManyPayload & { replaceIds: string[] }) =>
+    request<{ attendance: AttendanceRecord[]; count: number; batchId: string | null }>("/attendance/sheet", { method: "PUT", body: JSON.stringify(data) }),
   list: ({ projectId, q, trade, page, pageSize, grouped }: AttendanceListParams) => {
     const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (grouped) qs.set("grouped", "true");

@@ -3,8 +3,8 @@
 import { useCallback, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useFormHistory } from "@/hooks/useFormHistory";
-import type { AttendanceBatch, AttendanceListItem, AttendanceRecord } from "@/lib/attendanceApi";
-import { addDay, nextDay } from "@/lib/attendance/days";
+import type { AttendanceBatch, AttendanceListItem, AttendanceRecord, OpenSheet } from "@/lib/attendanceApi";
+import { addDay, nextDay, todayIso } from "@/lib/attendance/days";
 import { emptyForm, fromBatch, fromRecord, newWorker, readyForNext, sameEveryDay, toOneDay, toSeveralDays, withPayMode, type AttendanceForm, type PayMode, type WorkerRow } from "@/lib/attendance/form";
 
 /** Focus and select a field by id after React has drawn it */
@@ -29,8 +29,10 @@ export function useAttendanceForm() {
   const [editingId, setEditingId] = useState<string | null>(null); // one saved day
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null); // days saved together
   const [multiDay, setMultiDay] = useState(false);
+  /** A contractor's open sheet: every day not yet settled, saved together (replacing these entry ids) */
+  const [sheet, setSheet] = useState<{ contractorName: string; ids: string[]; settledWeeks: OpenSheet["settledWeeks"] } | null>(null);
   const severalDays = multiDay && !editingId; // a single saved day stays one day; days saved together open as several
-  const editing = editingId !== null || editingBatchId !== null;
+  const editing = editingId !== null || editingBatchId !== null || sheet !== null;
 
   const update = useCallback((patch: Partial<AttendanceForm>) => setValue((prev) => ({ ...prev, ...patch })), [setValue]);
 
@@ -103,6 +105,7 @@ export function useAttendanceForm() {
       reset(fromRecord(r));
       setEditingId(r.id);
       setEditingBatchId(null);
+      setSheet(null);
       setMultiDay(false);
     },
     [reset]
@@ -113,6 +116,7 @@ export function useAttendanceForm() {
       reset(fromBatch(batch));
       setEditingId(null);
       setEditingBatchId(batch.id);
+      setSheet(null);
       setMultiDay(true);
     },
     [reset]
@@ -139,8 +143,24 @@ export function useAttendanceForm() {
     },
     [reset]
   );
+  /**
+   * Open a contractor's sheet: all their open days in one grid (settled weeks stay out). With no open days it starts
+   * a new sheet for today with their team, so the next day is simply marked.
+   */
+  const startSheet = useCallback(
+    (open: OpenSheet) => {
+      if (open.sheet && open.sheet.days.length > 0) reset(fromBatch(open.sheet));
+      else reset({ ...withPayMode(emptyForm(), "hourly"), contractorName: open.contractorName, days: [todayIso()] });
+      setEditingId(null);
+      setEditingBatchId(null);
+      setSheet({ contractorName: open.contractorName, ids: open.ids, settledWeeks: open.settledWeeks });
+      setMultiDay(true);
+    },
+    [reset]
+  );
   const cancelEdit = () => {
-    if (editingBatchId) setMultiDay(false);
+    if (editingBatchId || sheet) setMultiDay(false);
+    setSheet(null);
     setEditingId(null);
     setEditingBatchId(null);
     reset(withPayMode(emptyForm(), form.payMode)); // stays on the pay mode in use
@@ -148,7 +168,8 @@ export function useAttendanceForm() {
   /** After saving: same contractor and rows, amounts cleared, undo history forgotten */
   const afterSave = () => {
     reset(readyForNext(form));
-    if (editingBatchId) setMultiDay(false); // back to a normal new entry
+    if (editingBatchId || sheet) setMultiDay(false); // back to a normal new entry
+    setSheet(null);
     setEditingId(null);
     setEditingBatchId(null);
   };
@@ -176,6 +197,8 @@ export function useAttendanceForm() {
     startEdit,
     startEditBatch,
     continueNextDay,
+    sheet,
+    startSheet,
     cancelEdit,
     afterSave,
   };
