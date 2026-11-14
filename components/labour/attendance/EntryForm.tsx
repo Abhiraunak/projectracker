@@ -75,7 +75,7 @@ export function EntryForm({ api, projectId, team, usual, total, saving, error, s
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <label htmlFor="contractorNameInput" className={fieldLabel}>
-              Team head
+              Contractor name
             </label>
             <input
               id="contractorNameInput"
@@ -200,8 +200,9 @@ function PayModeSwitch({ value, onChange, locked }: { value: PayMode; onChange: 
               aria-pressed={on}
               disabled={blocked}
               onClick={() => onChange(m.key)}
-              className={`rounded-md px-3 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 disabled:cursor-not-allowed disabled:opacity-40 ${on ? "bg-white text-stone-900 shadow-sm" : "text-stone-600 hover:text-stone-900"
-                }`}
+              className={`rounded-md px-3 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-stone-900 disabled:cursor-not-allowed disabled:opacity-40 ${
+                on ? "bg-white text-stone-900 shadow-sm" : "text-stone-600 hover:text-stone-900"
+              }`}
             >
               <span className="block text-sm font-semibold">{m.label}</span>
               <span className="hidden text-xs text-stone-500 sm:block">{m.hint}</span>

@@ -80,8 +80,9 @@ export default function AttendanceSection({ projectId }: { projectId: string }) 
                 type="button"
                 aria-pressed={on}
                 onClick={() => show(key)}
-                className={`flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 text-sm font-medium sm:flex-1 sm:justify-center ${mono.motion} ${mono.ring} ${on ? "bg-white text-[#111111] shadow-[0_1px_2px_rgba(17,17,17,0.08)]" : "text-[#666666] hover:text-[#111111]"
-                  }`}
+                className={`flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 text-sm font-medium sm:flex-1 sm:justify-center ${mono.motion} ${mono.ring} ${
+                  on ? "bg-white text-[#111111] shadow-[0_1px_2px_rgba(17,17,17,0.08)]" : "text-[#666666] hover:text-[#111111]"
+                }`}
               >
                 <Icon aria-hidden className="shrink-0" />
                 {label}

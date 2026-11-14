@@ -60,7 +60,6 @@ export function AttendanceManager({
     if (openerRef) openerRef.current = openSheet;
   });
 
-
   useEditorShortcuts({ undo: api.undo, redo: api.redo, save: () => submitRef.current?.click(), enabled: true });
 
   const total = formTotal(form, severalDays);
@@ -105,7 +104,6 @@ export function AttendanceManager({
     setError(null);
     setPrintTitle("");
   };
-
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
