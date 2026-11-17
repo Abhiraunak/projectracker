@@ -4,8 +4,9 @@ import React, { useState } from "react";
 import { describeError } from "@/lib/api";
 import { PRESETS, type AdminUser, type Permission } from "@/lib/access/types";
 import { useUpdateUserAccess } from "@/hooks/useAdminUsers";
-import { Pill } from "@/components/materials/Pill";
 import { PermissionChecklist } from "./PermissionChecklist";
+import { displayName } from "@/lib/access/sections";
+import { Pill } from "../materials/Pill";
 import { buttonPrimary, buttonSecondary } from "../utilites/Label";
 
 interface Props {
@@ -29,14 +30,6 @@ export function UserAccessCard({ user, isYou, isLastAdmin, onSaved }: Props) {
   const adminLocked = isLastAdmin && user.isAdmin;
   const dirty = isAdmin !== user.isAdmin || !sameSet(selected, user.permissions);
 
-  const toggle = (permission: Permission) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(permission)) next.delete(permission);
-      else next.add(permission);
-      return next;
-    });
-
   const reset = () => {
     setIsAdmin(user.isAdmin);
     setSelected(new Set(user.permissions));
@@ -56,8 +49,10 @@ export function UserAccessCard({ user, isYou, isLastAdmin, onSaved }: Props) {
     <article className="rounded border border-stone-300">
       <header className="flex flex-wrap items-start justify-between gap-2 border-b border-stone-200 px-4 py-3">
         <div className="min-w-0">
-          <p className="truncate font-semibold">{user.email}</p>
-          <p className="text-xs text-stone-500">Joined {joined(user.createdAt)}</p>
+          <p className="truncate font-semibold">{displayName(user)}</p>
+          <p className="truncate text-xs text-stone-500">
+            {user.name?.trim() ? `${user.email} · ` : ""}Joined {joined(user.createdAt)}
+          </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {isYou && <Pill tone="neutral">You</Pill>}
@@ -87,7 +82,7 @@ export function UserAccessCard({ user, isYou, isLastAdmin, onSaved }: Props) {
         {!isAdmin && (
           <>
             <div>
-              <p className="mb-2 text-sm text-stone-500">Quick start (you can adjust the boxes after)</p>
+              <p className="mb-2 text-sm text-stone-500">Quick start (you can change the ticks after)</p>
               <div className="flex flex-wrap gap-2">
                 {PRESETS.map((preset) => (
                   <button
@@ -101,7 +96,7 @@ export function UserAccessCard({ user, isYou, isLastAdmin, onSaved }: Props) {
                 ))}
               </div>
             </div>
-            <PermissionChecklist selected={selected} onToggle={toggle} />
+            <PermissionChecklist selected={selected} onChange={setSelected} />
             {selected.size === 0 && (
               <p className="rounded bg-amber-50 p-3 text-sm text-amber-900">With nothing ticked, this person only sees the welcome page.</p>
             )}

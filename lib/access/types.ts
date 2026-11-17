@@ -6,7 +6,9 @@ export type Permission =
   | "requests.create" | "requests.approve"
   | "attendance.view" | "attendance.write" | "attendance.punch" | "attendance.team"
   | "drawings.use" | "boq.use"
-  | "equipment.view" | "equipment.manage";
+  | "equipment.view" | "equipment.manage"
+  | "expenses.manage"
+  | "diary.write" | "diary.review";
 
 export interface PermissionInfo {
   key: Permission;
@@ -76,16 +78,71 @@ export const PERMISSION_GROUPS: { title: string; items: PermissionInfo[] }[] = [
       { key: "equipment.manage", label: "Manage equipment", help: "Add equipment, send it between the yard and sites, write it off." },
     ],
   },
+  {
+    title: "General",
+    items: [{ key: "expenses.manage", label: "General expenses", help: "Add, edit and delete the project's general expenses." }],
+  },
+  {
+    title: "Site diary",
+    items: [
+      { key: "diary.write", label: "Fill the site diary", help: "The daily report on the phone: teams, material arrived with camera photos." },
+      { key: "diary.review", label: "Review site diaries", help: "Read reports with where they were made, set the site location, add teams to attendance, price arrivals." },
+    ],
+  },
 ];
+
+/**
+ * The admin page gives access one workspace section at a time: one tick per section, and the tick grants
+ * everything that section needs. Any tick also lets the person see projects (their Overview).
+ * Deleting a project is in no section: only admins can.
+ */
+export interface SectionAccess {
+  key: "overview" | "boq" | "drawings" | "materials" | "labour" | "equipment" | "general" | "diary" | "diaryReview";
+  label: string;
+  help: string;
+  permissions: Permission[];
+  /** true: this tick alone doesn't open projects (a site engineer sees only the site diary) */
+  noProjects?: boolean;
+}
+export const SECTION_ACCESS: SectionAccess[] = [
+  { key: "overview", label: "Overview", help: "Edit the project's name, firm, project cost and work items; see the activity log.", permissions: ["project.manage", "tasks.progress", "audit.view"] },
+  { key: "boq", label: "BOQ", help: "Make, edit, print and mark final the project's BOQs.", permissions: ["boq.use"] },
+  { key: "drawings", label: "Drawings", help: "Upload drawings and their revisions.", permissions: ["drawings.use"] },
+  {
+    key: "materials",
+    label: "Materials",
+    help: "Add materials, log deliveries with rate and bill, see the delivery log.",
+    permissions: ["materials.view", "catalog.manage", "requirements.create", "requirements.order", "requirements.delete", "stock.receive", "stock.issue", "stock.reserve", "stock.adjust", "deliveries.approve", "requests.create", "requests.approve"],
+  },
+  { key: "labour", label: "Labour", help: "Attendance, contract work, weekly pay and settling, monthly sheets, rate comparison.", permissions: ["attendance.view", "attendance.write", "attendance.punch", "attendance.team"] },
+  { key: "equipment", label: "Equipment", help: "See and manage equipment at sites and in the yard.", permissions: ["equipment.view", "equipment.manage"] },
+  { key: "general", label: "General", help: "The project's money overview and general expenses.", permissions: ["expenses.manage"] },
+  { key: "diaryReview", label: "Site engineer tab", help: "The engineers' daily reports as a table, the site location (hidden from engineers), add teams to attendance, price material.", permissions: ["diary.review"] },
+  {
+    key: "diary",
+    label: "Site diary: fill (site engineer)",
+    help: "Only the site diary on the phone. On its own it doesn't open projects, money or other sections.",
+    permissions: ["diary.write"],
+    noProjects: true,
+  },
+];
+/** Seeing projects at all: comes with any section */
+export const BASE_PERMISSION: Permission = "project.view";
+
 
 export const ALL_PERMISSIONS: Permission[] = PERMISSION_GROUPS.flatMap((group) => group.items.map((item) => item.key));
 
-/** One-click starting points on the admin page; the boxes can still be adjusted after */
+/** Every permission of these sections, plus seeing projects */
+export const sectionsPermissions = (keys: SectionAccess["key"][]): Permission[] => {
+  const picked = SECTION_ACCESS.filter((sct) => keys.includes(sct.key));
+  return [...(picked.some((sct) => !sct.noProjects) ? [BASE_PERMISSION] : []), ...picked.flatMap((sct) => sct.permissions)];
+};
+
+/** One-click starting points on the admin page, made of whole sections; the ticks can still be changed after */
 export const PRESETS: { label: string; permissions: Permission[] }[] = [
-  { label: "Everything", permissions: ALL_PERMISSIONS },
-  { label: "Site engineer", permissions: ["project.view", "tasks.progress", "materials.view", "requirements.create", "requests.create", "stock.issue", "attendance.view", "attendance.write", "attendance.punch", "drawings.use", "equipment.view"] },
-  { label: "Storekeeper", permissions: ["project.view", "materials.view", "stock.receive", "stock.issue", "stock.reserve", "stock.adjust", "requests.approve", "attendance.punch", "equipment.view", "equipment.manage"] },
-  { label: "View only", permissions: ["project.view"] },
+  { label: "Every section", permissions: sectionsPermissions(["overview", "boq", "drawings", "materials", "labour", "equipment", "general", "diaryReview"]) },
+  { label: "Site engineer", permissions: sectionsPermissions(["drawings", "materials", "labour", "equipment", "diary"]) },
+  { label: "View only", permissions: [BASE_PERMISSION] },
   { label: "None", permissions: [] },
 ];
 
@@ -106,9 +163,20 @@ export interface MyAccess {
 
 export interface AdminUser {
   id: string;
+  name: string | null;
   email: string;
   isAdmin: boolean;
   permissions: Permission[];
+  createdAt: string;
+}
+
+/** One line of the admin page's "Recent access changes" */
+export interface AccessLogEntry {
+  id: string;
+  userId: string | null;
+  summary: string;
+  changes: Record<string, { from: unknown; to: unknown }> | null;
+  actor: string;
   createdAt: string;
 }
 

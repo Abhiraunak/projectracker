@@ -1,5 +1,5 @@
 import { request } from "@/lib/api";
-import type { AdminUser, AuditEntity, AuditPage, MyAccess, Permission } from "@/lib/access/types";
+import type { AccessLogEntry, AdminUser, AuditEntity, AuditPage, MyAccess, Permission } from "@/lib/access/types";
 
 export interface AuditQuery {
   entityType?: AuditEntity;
@@ -19,6 +19,8 @@ export const accessApi = {
 
   updateUserAccess: (userId: string, input: AccessInput) =>
     request<{ user: AdminUser }>(`/admin/users/${userId}/access`, { method: "PUT", body: JSON.stringify(input) }).then((r) => r.user),
+
+  accessLog: (limit = 15) => request<{ items: AccessLogEntry[] }>(`/admin/access-log?limit=${limit}`).then((r) => r.items),
 
   listAudit: (projectId: string, { entityType, page, pageSize }: AuditQuery) => {
     const query = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
