@@ -63,7 +63,10 @@ function UserMenu() {
   const name = user?.name ?? user?.email?.split("@")[0] ?? "Account";
   const email = user?.email ?? "";
   // The pages that used to be in the sidebar (only those this person may open). Dashboard is the logo.
-  const pages = MENU_ROUTES.filter((r) => r.href !== "/dashboard" && r.href !== "/dashboard/projects" && routeAllowed(r, access));
+  // Admin is for admins only: checked here as well as in the route list, so it never shows to anyone else
+  const pages = MENU_ROUTES.filter(
+    (r) => r.href !== "/dashboard" && r.href !== "/dashboard/projects" && routeAllowed(r, access) && (r.needs !== "admin" || access.isAdmin === true),
+  );
   const active = currentRoute(pathname)?.href;
 
   // Close on a click outside, or Escape (focus goes back to the tile)

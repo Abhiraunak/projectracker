@@ -1,8 +1,9 @@
 import type { IconType } from "react-icons";
-import { FiBox, FiBriefcase, FiFileText, FiGrid, FiLayers, FiPenTool, FiShield, FiUserCheck } from "react-icons/fi";
+import { FiBriefcase, FiFileText, FiGrid, FiLayers, FiPenTool, FiShield, FiUserCheck } from "react-icons/fi";
 import type { Permission } from "@/lib/access/types";
 import { isFeatureOn, type Feature } from "@/lib/features";
-import { activeHref } from "./Routematch"; // must match the file's name exactly, capitals included
+import { activeHref } from "./Routematch";
+
 
 // FiClock, FiTruck,  FiUsers
 export interface AppRoute {
@@ -24,20 +25,19 @@ export interface AppRoute {
  * The one list of pages. The sidebar, the phone top bar and the page guard all read it, so they always agree.
  * There is no Team item: access is company-wide now, and who can do what is set on the Admin page.
  *
- * For now the menu is Dashboard, Projects, BOQ, Clients and Admin: drawings, labour and materials are worked on
+ * For now the menu is Dashboard, Projects, Site diary (engineers) and Admin (admins only); BOQ and Clients are off the menu: drawings, labour and materials are worked on
  * inside each project (its Drawings, Labour and Materials tabs). Set inMenu back to true to show one again.
  */
 const ALL_ROUTES: AppRoute[] = [
   { title: "Dashboard", href: "/dashboard", Icon: FiGrid, needs: "project.view" },
   { title: "Projects", href: "/dashboard/projects", Icon: FiLayers, needs: "project.view", feature: "projectHub" },
-  { title: "BOQ", href: "/dashboard/boq", Icon: FiFileText, needs: "boq.use" },
+  { title: "BOQ", href: "/dashboard/boq", Icon: FiFileText, needs: "boq.use", inMenu: false }, // in each project: BOQ
+  // { title: "Site diary", href: "/dashboard/site-diary", Icon: FiBookOpen, needs: "diary.write" }, // the site engineer's daily report
   { title: "Drawing", href: "/dashboard/drawing", Icon: FiPenTool, needs: "drawings.use", inMenu: false }, // in each project: Drawings
   { title: "Labour", href: "/dashboard/labour", Icon: FiBriefcase, needs: "project.view", inMenu: false }, // in each project: Labour
-  { title: "Inventory", href: "/dashboard/inventory", Icon: FiBox, needs: "materials.view", inMenu: false }, // in each project: Materials
-  // { title: "Deliveries", href: "/dashboard/deliveries", Icon: FiTruck, needs: ["stock.receive", "deliveries.approve"] },
   // { title: "Attendance", href: "/dashboard/attendance", Icon: FiClock, needs: "attendance.punch" },
   // { title: "Team attendance", href: "/dashboard/attendance/team", Icon: FiUsers, needs: "attendance.team" },
-  { title: "Clients", href: "/dashboard/clients", Icon: FiUserCheck, needs: "admin" },
+  { title: "Clients", href: "/dashboard/clients", Icon: FiUserCheck, needs: "admin", inMenu: false }, // page still opens by link, admins only
   { title: "Admin", href: "/dashboard/admin", Icon: FiShield, needs: "admin" },
 ];
 
