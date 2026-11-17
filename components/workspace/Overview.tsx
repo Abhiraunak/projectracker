@@ -4,7 +4,7 @@ import { memo, useState } from "react";
 import { FiChevronRight, FiEdit2 } from "react-icons/fi";
 import { useCan } from "@/hooks/useProjectAccess";
 import { hrefFor, onPlaceClick } from "@/hooks/useWorkspacePlace";
-import { plural, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
+import { plural, rupees, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
 import { EditDetailsDialog } from "./EditDetailsDialog";
 import { useSpend, type Spend } from "./sections/expenditure/useSpend";
 import type { SectionDef } from "./sections";
@@ -64,33 +64,87 @@ export const Overview = memo(function Overview({
 
 /* ---------------------------------------- money ---------------------------------------- */
 
+/** One colour per money head, the same on the bar, the dot and the share pill */
+const HEAD_COLORS = {
+  labour: { color: "#D85A30", tint: "#FAECE7", ink: "#712B13" },
+  material: { color: "#1D9E75", tint: "#E1F5EE", ink: "#085041" },
+  equipment: { color: "#378ADD", tint: "#E6F1FB", ink: "#0C447C" },
+  general: { color: "#7F77DD", tint: "#EEEDFE", ink: "#3C3489" },
+} as const;
+
+/** How much of the project cost is used: the "Remaining" card and the small meter under "Spent so far" */
+const HEALTH = {
+  none: { bg: "#111111", ink: "#FFFFFF", soft: "rgba(255,255,255,0.7)", meter: "#8C8C8C" },
+  good: { bg: "#EAF3DE", ink: "#27500A", soft: "#3B6D11", meter: "#1D9E75" },
+  near: { bg: "#FAEEDA", ink: "#633806", soft: "#854F0B", meter: "#EF9F27" },
+  over: { bg: "#FCEBEB", ink: "#791F1F", soft: "#A32D2D", meter: "#E24B4A" },
+} as const;
+
 /**
  * The money, plainly: what the client pays (BOQ), our budget (project cost, editable), what has actually been spent
  * and what remains of the budget. Then where the spending went: one bar and a small table, actual spending only.
- * Built from useSpend, the same figures as the Expenditure tab; saving a payment, delivery or expense refreshes it.
+ * Built from useSpend (GET /spend: attendance, contract work, deliveries, equipment hire, General expenses), the same figures as the
+ * Expenditure tab and the project cards; saving attendance, a payment, a delivery or an expense refreshes it.
  */
 function MoneyAtAGlance({ m, onEditCost }: { m: Spend; onEditCost?: () => void }) {
   const over = m.left !== null && m.left < 0;
+  const { labour: L, material: M } = m.parts;
+  // Each head says where its figure comes from, in the section's own words, so it can be checked section by section
+  const join = (bits: (string | false)[]) => bits.filter(Boolean).join(" + ") || "Nothing yet";
   const heads = [
-    { label: "Labour", hint: "Attendance, contract work, labour payments", value: m.labour, color: "#111111" },
-    { label: "Materials", hint: "Deliveries and material expenses", value: m.material, color: "#8C8C8C" },
-    { label: "General", hint: "General expenses", value: m.general, color: "#D3D1C7" },
+    {
+      label: "Labour",
+      hint: join([
+        L.attendance > 0 && `Attendance ${rupeesShort(L.attendance)}`,
+        L.contract > 0 && `Contract work ${rupeesShort(L.contract)}`,
+      ]),
+      note: m.labourToPay > 0 ? `${rupeesShort(m.labourToPay)} of it still to pay` : L.paid > 0 ? "All paid" : null,
+      value: m.labour,
+      ...HEAD_COLORS.labour,
+    },
+    {
+      label: "Materials",
+      hint: M.deliveries > 0 ? "Deliveries" : "Nothing yet",
+      note: null,
+      value: m.material,
+      ...HEAD_COLORS.material,
+    },
+    { label: "Equipment", hint: m.equipment > 0 ? "Hire so far" : "Nothing yet", note: null, value: m.equipment, ...HEAD_COLORS.equipment },
+    { label: "General", hint: m.general > 0 ? "General expenses" : "Nothing yet", note: null, value: m.general, ...HEAD_COLORS.general },
   ];
   // The bar is the project cost when set (so what remains shows as empty space), otherwise just the spending
   const whole = Math.max(m.projectCost ?? 0, m.spent, 1);
   const share = (v: number) => (m.spent > 0 ? Math.round((v / m.spent) * 100) : 0);
   const ofCost = (v: number) => (m.projectCost ? `${Math.round((v / m.projectCost) * 100)}% of project cost` : "");
+  // Budget health: green below 80% of the project cost, amber from 80%, red once over it; grey when no cost is set
+  const usedPct = m.projectCost ? (m.spent / m.projectCost) * 100 : null;
+  const health = usedPct === null ? HEALTH.none : over ? HEALTH.over : usedPct >= 80 ? HEALTH.near : HEALTH.good;
 
   return (
     <section aria-label="Money" className="space-y-3">
       <dl className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
         <Box label="BOQ amount" value={m.boqTotal !== null ? rupeesShort(m.boqTotal) : "No BOQ"} note="What the client pays" muted={m.boqTotal === null} />
         <CostBox cost={m.projectCost} onEdit={onEditCost} />
-        <Box label="Spent so far" value={rupeesShort(m.spent)} note={ofCost(m.spent) || "Labour + materials + general"} />
-        <div className={`min-w-0 rounded-2xl px-4 py-3 text-white ${over ? "bg-[#B3261E]" : "bg-[#111111]"}`}>
-          <dt className="text-xs text-white/70">{over ? "Over the project cost" : "Remaining project amount"}</dt>
+        <div className="min-w-0 rounded-2xl border border-[#E8E8E6] bg-white px-4 py-3">
+          <dt className="text-xs text-[#666666]">Spent so far</dt>
+          <dd title={rupees(m.spent)} className="mt-0.5 truncate text-xl font-semibold tabular-nums tracking-[-0.01em] text-[#111111]">
+            {rupeesShort(m.spent)}
+          </dd>
+          {usedPct !== null && (
+            <dd aria-hidden className="mt-1.5 h-1 overflow-hidden rounded-full bg-[#F1F1EF]">
+              <span className="block h-full rounded-full" style={{ width: `${Math.min(100, usedPct)}%`, background: health.meter }} />
+            </dd>
+          )}
+          <dd className="mt-0.5 truncate text-xs text-[#666666]">{ofCost(m.spent) || "Labour + materials + equipment + general"}</dd>
+        </div>
+        <div className="min-w-0 rounded-2xl px-4 py-3" style={{ background: health.bg, color: health.ink }}>
+          <dt className="text-xs" style={{ color: health.soft }}>
+            {over ? "Over the project cost" : "Remaining project amount"}
+          </dt>
           <dd className="mt-0.5 truncate text-xl font-semibold tabular-nums tracking-[-0.01em]">{m.left !== null ? rupeesShort(Math.abs(m.left)) : "–"}</dd>
-          <dd className="truncate text-xs text-white/70">{m.left === null ? "Set the project cost first" : over ? "spent above the budget" : ofCost(m.left)}</dd>
+          <dd className="truncate text-xs" style={{ color: health.soft }}>
+            {m.left === null ? "Set the project cost first" : over ? "spent above the budget" : `${ofCost(m.left)} left`}
+          </dd>
         </div>
       </dl>
 
@@ -101,7 +155,11 @@ function MoneyAtAGlance({ m, onEditCost }: { m: Spend; onEditCost?: () => void }
         </div>
         <div aria-hidden className="mt-3 flex h-3 overflow-hidden rounded-full bg-[#F1F1EF]">
           {heads.map((h) => (
-            <span key={h.label} style={{ width: `${(h.value / whole) * 100}%`, background: h.color }} />
+            <span
+              key={h.label}
+              className="border-r-2 border-white last:border-r-0"
+              style={{ width: `${(h.value / whole) * 100}%`, minWidth: h.value > 0 ? 4 : 0, background: h.color, display: h.value > 0 ? undefined : "none" }}
+            />
           ))}
         </div>
         {m.projectCost !== null && !over && <p className="mt-1.5 text-right text-xs text-[#8C8C8C]">Empty part: {rupeesShort(m.left ?? 0)} of the project cost not spent yet</p>}
@@ -125,15 +183,25 @@ function MoneyAtAGlance({ m, onEditCost }: { m: Spend; onEditCost?: () => void }
               <tr key={h.label}>
                 <th scope="row" className="py-2.5 text-left font-normal">
                   <span className="flex items-center gap-2">
-                    <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-sm border border-[#E8E8E6]" style={{ background: h.color }} />
+                    <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: h.value > 0 ? h.color : "#D3D1C7" }} />
                     <span className="min-w-0">
                       <span className="block font-medium text-[#111111]">{h.label}</span>
-                      <span className="block truncate text-xs text-[#8C8C8C]">{h.hint}</span>
+                      <span className="block text-xs text-[#8C8C8C]">{h.hint}</span>
+                      {h.note && <span className="block text-xs font-medium text-[#666666]">{h.note}</span>}
                     </span>
                   </span>
                 </th>
-                <td className="py-2.5 text-right font-semibold tabular-nums text-[#111111]">{rupeesShort(h.value)}</td>
-                <td className="py-2.5 text-right tabular-nums text-[#666666]">{share(h.value)}%</td>
+                <td className="py-2.5 text-right align-top font-semibold tabular-nums text-[#111111]" title={rupees(h.value)}>
+                  {rupeesShort(h.value)}
+                </td>
+                <td className="py-2.5 text-right align-top">
+                  <span
+                    className="inline-block rounded-full px-2 py-0.5 text-xs font-medium tabular-nums"
+                    style={h.value > 0 ? { background: h.tint, color: h.ink } : { background: "#F1F1EF", color: "#8C8C8C" }}
+                  >
+                    {share(h.value)}%
+                  </span>
+                </td>
               </tr>
             ))}
             <tr>
@@ -189,11 +257,11 @@ function CostBox({ cost, onEdit }: { cost: number | null; onEdit?: () => void })
   );
 }
 
-function Box({ label, value, note, muted }: { label: string; value: string; note?: string; muted?: boolean }) {
+function Box({ label, value, note, muted, title }: { label: string; value: string; note?: string; muted?: boolean; title?: string }) {
   return (
     <div className="min-w-0 rounded-2xl border border-[#E8E8E6] bg-white px-4 py-3">
       <dt className="text-xs text-[#666666]">{label}</dt>
-      <dd className={`mt-0.5 truncate text-xl font-semibold tabular-nums tracking-[-0.01em] ${muted ? "text-[#8C8C8C]" : "text-[#111111]"}`}>{value}</dd>
+      <dd title={title} className={`mt-0.5 truncate text-xl font-semibold tabular-nums tracking-[-0.01em] ${muted ? "text-[#8C8C8C]" : "text-[#111111]"}`}>{value}</dd>
       {note && <dd className="truncate text-xs text-[#666666]">{note}</dd>}
     </div>
   );

@@ -4,12 +4,12 @@ import { useProject } from "@/hooks/useLabourProjects";
 import { rupees } from "@/lib/projects/hub";
 import { useSpend } from "./useSpend";
 
-const COLORS = { labour: "#378ADD", material: "#BA7517", general: "#888780" };
+const COLORS = { labour: "#378ADD", material: "#BA7517", equipment: "#1D9E75", general: "#888780" };
 
 /**
  * The top of the Expenditure tab, kept simple and made only from figures the project already has:
  *  1. what the project should cost (the project cost you set, and the BOQ amount) against what has been spent;
- *  2. one bar each for where it went: labour, material, general;
+ *  2. one bar each for where it went: labour, material, equipment, general;
  *  3. work-wise: what was set for each work, what has been given, and what is left to pay.
  */
 export function MoneyOverview({ projectId }: { projectId: string }) {
@@ -17,7 +17,7 @@ export function MoneyOverview({ projectId }: { projectId: string }) {
   const project = useProject(projectId); // the work items (Progress)
 
   if (!money) return <div aria-busy="true" className="h-72 animate-pulse rounded-xl bg-stone-100 motion-reduce:animate-none" />;
-  const { hub: h, labour: labourSpent, material: materialSpent, general: generalSpent, spent, projectCost, boqTotal, againstName, pct, left } = money;
+  const { hub: h, labour: labourSpent, material: materialSpent, equipment: equipmentSpent, general: generalSpent, spent, projectCost, boqTotal, againstName, pct, left } = money;
   const against = money.against;
 
   return (
@@ -34,7 +34,7 @@ export function MoneyOverview({ projectId }: { projectId: string }) {
           <Stat
             label="Spent so far"
             value={rupees(spent)}
-            note={pct !== null && left !== null ? (left >= 0 ? `${pct}% of ${againstName} · ${rupees(left)} left` : `${rupees(-left)} over ${againstName}`) : "Labour + material + general"}
+            note={pct !== null && left !== null ? (left >= 0 ? `${pct}% of ${againstName} · ${rupees(left)} left` : `${rupees(-left)} over ${againstName}`) : "Labour + material + equipment + general"}
             tone={left !== null && left < 0 ? "text-red-700" : undefined}
           />
         </dl>
@@ -59,6 +59,7 @@ export function MoneyOverview({ projectId }: { projectId: string }) {
           parts={[
             { label: "Labour", value: labourSpent, color: COLORS.labour },
             { label: "Material", value: materialSpent, color: COLORS.material },
+            { label: "Equipment", value: equipmentSpent, color: COLORS.equipment },
             { label: "General", value: generalSpent, color: COLORS.general },
           ]}
         />

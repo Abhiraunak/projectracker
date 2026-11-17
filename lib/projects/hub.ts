@@ -16,8 +16,24 @@ export interface ProjectHub {
   equipment?: { items: number; hireThisMonth: number } | null;
 }
 
+/**
+ * What a project has actually spent, only from the workspace sections (GET /projects/:id/spend):
+ * labour = attendance + contract work, materials = deliveries, equipment = hire so far, general = General expenses.
+ */
+export interface ProjectSpend {
+  labour: { attendance: number; contract: number; total: number; paid: number; toPay: number };
+  material: { deliveries: number; total: number; planned: number };
+  equipment: number;
+  general: number;
+  total: number;
+}
+
+/** Under "attendance", so every labour save refreshes it; deliveries, expenses and payments refresh it by name */
+export const spendKey = (projectId: string) => ["attendance", "spend", projectId] as const;
+
 export const hubApi = {
   get: (projectId: string) => request<ProjectHub>(`/projects/${encodeURIComponent(projectId)}/hub`),
+  spend: (projectId: string) => request<ProjectSpend>(`/projects/${encodeURIComponent(projectId)}/spend`),
   setDetails: (projectId: string, body: { title?: string; firmName?: string | null; projectCost?: number | null }) =>
     request<unknown>(`/projects/${encodeURIComponent(projectId)}`, { method: "PATCH", body: JSON.stringify(body) }),
 };

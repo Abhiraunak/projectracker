@@ -27,6 +27,7 @@ function useRefresh() {
   return () => {
     void qc.invalidateQueries({ queryKey: equipmentKeys.all });
     void qc.invalidateQueries({ queryKey: ["projects", "hub"] }); // the hub tiles' "n items here" line
+    void qc.invalidateQueries({ queryKey: ["attendance", "spend"] }); // every site's spending (hire moves with the item)
   };
 }
 
@@ -46,4 +47,3 @@ export function useUndoMove() {
   const refresh = useRefresh();
   return useMutation({ mutationFn: ({ id, moveId }: { id: string; moveId: string }) => equipmentApi.undo(id, moveId), onSuccess: refresh });
 }
-
