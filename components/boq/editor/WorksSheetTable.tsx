@@ -63,8 +63,8 @@ export const WorksSheetTable = memo(function WorksSheetTable({ sheet, isFirst, i
       </div>
 
       {/* A wide grid, like a spreadsheet: it scrolls sideways on small screens rather than squashing */}
-      <div className="overflow-x-auto rounded border border-stone-300">
-        <table className="w-full min-w-[1080px] border-collapse">
+      <div className="relative overflow-x-auto rounded border border-stone-300">
+        <table className="w-full min-w-270 border-collapse">
           <colgroup>
             {WIDTHS.map((width, i) => (
               <col key={i} style={{ width }} />

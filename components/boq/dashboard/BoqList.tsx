@@ -91,7 +91,7 @@ export function BoqList({ items, onDuplicate, onDelete, busyId, onOpen, hideProj
         ))}
       </ul>
 
-      <div className="hidden overflow-x-auto md:block">
+      <div className="hidden relative overflow-x-auto md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-stone-200 text-left text-xs font-semibold uppercase tracking-wide text-stone-500">

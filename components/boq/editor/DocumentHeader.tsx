@@ -14,7 +14,10 @@ export const DocumentHeader = memo(function DocumentHeader({ doc }: { doc: BoqDo
   const { apply, readOnly } = useBoqEdit();
   const company = (field: keyof Company) => (value: string) => apply((d) => setCompany(d, { [field]: value }), `company:${field}`);
   const header = (field: HeaderField) => (value: string) => apply((d) => setHeader(d, field, value), `header:${field}`);
-  const shown = companyHeaderShown(doc);
+  // A final BOQ with no logo and no company details: nothing to show, so no empty block at the top
+  const c = doc.company;
+  const blank = !doc.logo && ![c.name, c.address, c.phone, c.email, c.gstin].some((v) => v && v.trim());
+  const shown = companyHeaderShown(doc) && !(readOnly && blank);
   const setShown = (next: boolean) => apply((d) => setCompanyHeaderShown(d, next));
 
   return (
@@ -77,12 +80,12 @@ export const DocumentHeader = memo(function DocumentHeader({ doc }: { doc: BoqDo
         </div>
         <p className="pt-2 text-center text-sm font-bold tracking-wide">BILL OF QUANTITIES: SUMMARY OF PRICES</p>
         <div data-grid-row className="mx-auto flex max-w-md flex-col gap-1 pt-1 sm:flex-row sm:items-center sm:justify-center sm:gap-4">
-          <label className="flex items-center gap-1 text-sm text-stone-500">
-            BOQ No.
-            <EditableText value={doc.boqNumber} onValue={header("boqNumber")} label="BOQ number" col={2} className="w-36" placeholder="e.g. BOQ-001" />
+          <label className="flex min-w-0 items-center gap-1 text-sm text-stone-500">
+            <span className="shrink-0 whitespace-nowrap">BOQ No.</span>
+            <EditableText value={doc.boqNumber} onValue={header("boqNumber")} label="BOQ number" col={2} className="w-36 min-w-0" placeholder="e.g. BOQ-001" />
           </label>
-          <label className="flex items-center gap-1 text-sm text-stone-500">
-            Date
+          <label className="flex min-w-0 items-center gap-1 text-sm text-stone-500">
+            <span className="shrink-0 whitespace-nowrap">Date</span>
             <input
               type="date"
               value={doc.date}

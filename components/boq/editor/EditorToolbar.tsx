@@ -53,12 +53,12 @@ export function EditorToolbar({ boqId, editor, onPrint, onExport, exporting, emb
     <div
       className={
         embedded
-          ? "rounded-[22px] border border-[#E8E8E6] bg-white px-4 py-3 sm:px-5"
+          ? "rounded-[22px] border border-[#E8E8E6] bg-white px-3 py-3 sm:px-5"
           : "sticky top-14 z-20 -mx-4 border-b border-stone-200 bg-white px-4 py-3 sm:-mx-6 sm:px-6 lg:-top-6 lg:-mx-8 lg:px-8"
       }
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           {embedded ? (
             <button type="button" onClick={embedded.onBack} aria-label="Back to this project's BOQs" className={back}>
               <FiArrowLeft aria-hidden />
@@ -81,12 +81,16 @@ export function EditorToolbar({ boqId, editor, onPrint, onExport, exporting, emb
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={editor.undo} disabled={!editor.canUndo} aria-label="Undo (Ctrl+Z)" title="Undo (Ctrl+Z)" className={BTN}>
-            <FiCornerUpLeft aria-hidden />
-          </button>
-          <button type="button" onClick={editor.redo} disabled={!editor.canRedo} aria-label="Redo (Ctrl+Y)" title="Redo (Ctrl+Y)" className={BTN}>
-            <FiCornerUpRight aria-hidden />
-          </button>
+          {editor.status === "DRAFT" && (
+            <>
+              <button type="button" onClick={editor.undo} disabled={!editor.canUndo} aria-label="Undo (Ctrl+Z)" title="Undo (Ctrl+Z)" className={BTN}>
+                <FiCornerUpLeft aria-hidden />
+              </button>
+              <button type="button" onClick={editor.redo} disabled={!editor.canRedo} aria-label="Redo (Ctrl+Y)" title="Redo (Ctrl+Y)" className={BTN}>
+                <FiCornerUpRight aria-hidden />
+              </button>
+            </>
+          )}
           <ShortcutsHelp />
           <button type="button" onClick={onPrint} className={BTN}>
             <FiPrinter aria-hidden /> Print
@@ -104,7 +108,8 @@ export function EditorToolbar({ boqId, editor, onPrint, onExport, exporting, emb
               <FiLock aria-hidden /> Mark final
             </button>
           ) : (
-            <button type="button" onClick={editor.reopen} className={BTN}>
+            // On phones the banner below has this button; on wider screens it's here too
+            <button type="button" onClick={editor.reopen} className={`${BTN} hidden sm:flex`}>
               <FiUnlock aria-hidden /> Reopen as draft
             </button>
           )}

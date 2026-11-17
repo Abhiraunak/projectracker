@@ -14,7 +14,7 @@ const SHORTCUTS: [string, string][] = [
 /** A small panel listing the keyboard shortcuts (Cmd instead of Ctrl on a Mac) */
 export function ShortcutsHelp() {
   return (
-    <details className="relative">
+    <details className="relative hidden sm:block">{/* keyboard shortcuts: not on phones */}
       <summary className="flex cursor-pointer list-none items-center gap-1.5 rounded border border-stone-300 px-2.5 py-2 text-sm text-stone-700 transition-colors hover:bg-stone-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 [&::-webkit-details-marker]:hidden">
         <FiCommand aria-hidden /> <span className="hidden sm:inline">Shortcuts</span>
       </summary>

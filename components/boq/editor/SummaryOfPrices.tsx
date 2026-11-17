@@ -95,8 +95,8 @@ export const SummaryOfPrices = memo(function SummaryOfPrices({ totals }: { total
 
   return (
     <section aria-label="Summary of prices" className="mx-auto mt-6 max-w-3xl">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] border-collapse">
+      <div className="relative overflow-x-auto">
+        <table className="w-full min-w-140 border-collapse">
           <colgroup>
             <col style={{ width: "3.5rem" }} />
             <col />
