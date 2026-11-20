@@ -4,7 +4,7 @@ import type { BoqDocument, BoqRecord, BoqStatus, BoqSummary } from "./types";
 export interface BoqListQuery {
   q?: string;
   status?: BoqStatus;
-  projectId?: string; // only this project's BOQs (the project workspace)
+  projectId?: string; // a project id: only its BOQs (Material estimate); "none": only BOQs with no project (the BOQ page)
   page: number;
   pageSize: number;
 }

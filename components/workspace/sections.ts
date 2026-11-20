@@ -44,7 +44,7 @@ export const SECTIONS: SectionDef[] = [
   }),
   def({
     key: "drawings",
-    label: "Drawings",
+    label: "Project files",
     Icon: FiPenTool,
     needs: "drawings.use",
     load: () => import("./sections/DrawingsBook"),
