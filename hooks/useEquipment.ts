@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { equipmentApi, type EquipmentChanges, type NewEquipment, type NewMove } from "@/lib/equipment/api";
+import { equipmentApi, type EquipmentChanges, type NewEquipment, type NewHireChange, type NewMove } from "@/lib/equipment/api";
 
 /*
  * Every equipment page sits under "equipment", so one refresh after any change reaches the register, each site and
@@ -46,4 +46,15 @@ export function useMoveEquipment() {
 export function useUndoMove() {
   const refresh = useRefresh();
   return useMutation({ mutationFn: ({ id, moveId }: { id: string; moveId: string }) => equipmentApi.undo(id, moveId), onSuccess: refresh });
+}
+
+
+/** A hired item's cost changed: log a new rate or a one-off amount, or remove one; hire figures everywhere refresh */
+export function useAddHireChange() {
+  const refresh = useRefresh();
+  return useMutation({ mutationFn: ({ id, body }: { id: string; body: NewHireChange }) => equipmentApi.addHireChange(id, body), onSuccess: refresh });
+}
+export function useRemoveHireChange() {
+  const refresh = useRefresh();
+  return useMutation({ mutationFn: ({ id, changeId }: { id: string; changeId: string }) => equipmentApi.removeHireChange(id, changeId), onSuccess: refresh });
 }

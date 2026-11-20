@@ -1,9 +1,8 @@
 import type { IconType } from "react-icons";
-import { FiBriefcase, FiFileText, FiGrid, FiLayers, FiPenTool, FiShield, FiUserCheck } from "react-icons/fi";
+import { FiBookOpen, FiBriefcase, FiFileText, FiGrid, FiLayers, FiPenTool, FiShield, FiUserCheck } from "react-icons/fi";
 import type { Permission } from "@/lib/access/types";
 import { isFeatureOn, type Feature } from "@/lib/features";
-import { activeHref } from "./Routematch";
-
+import { activeHref } from "./Routematch"; // must match the file's name exactly, capitals included
 
 // FiClock, FiTruck,  FiUsers
 export interface AppRoute {
@@ -25,14 +24,14 @@ export interface AppRoute {
  * The one list of pages. The sidebar, the phone top bar and the page guard all read it, so they always agree.
  * There is no Team item: access is company-wide now, and who can do what is set on the Admin page.
  *
- * For now the menu is Dashboard, Projects, Site diary (engineers) and Admin (admins only); BOQ and Clients are off the menu: drawings, labour and materials are worked on
+ * For now the menu is Dashboard, Projects, BOQ, Site diary (engineers) and Admin (admins only); Clients is off the menu: drawings, labour and materials are worked on
  * inside each project (its Drawings, Labour and Materials tabs). Set inMenu back to true to show one again.
  */
 const ALL_ROUTES: AppRoute[] = [
   { title: "Dashboard", href: "/dashboard", Icon: FiGrid, needs: "project.view" },
   { title: "Projects", href: "/dashboard/projects", Icon: FiLayers, needs: "project.view", feature: "projectHub" },
-  { title: "BOQ", href: "/dashboard/boq", Icon: FiFileText, needs: "boq.use", inMenu: false }, // in each project: BOQ
-  // { title: "Site diary", href: "/dashboard/site-diary", Icon: FiBookOpen, needs: "diary.write" }, // the site engineer's daily report
+  { title: "BOQ", href: "/dashboard/boq", Icon: FiFileText, needs: "boq.use" }, // every BOQ; also in each project as Material estimate
+  { title: "Site diary", href: "/dashboard/site-diary", Icon: FiBookOpen, needs: "diary.write", inMenu: false }, // the site engineer's daily report
   { title: "Drawing", href: "/dashboard/drawing", Icon: FiPenTool, needs: "drawings.use", inMenu: false }, // in each project: Drawings
   { title: "Labour", href: "/dashboard/labour", Icon: FiBriefcase, needs: "project.view", inMenu: false }, // in each project: Labour
   // { title: "Attendance", href: "/dashboard/attendance", Icon: FiClock, needs: "attendance.punch" },

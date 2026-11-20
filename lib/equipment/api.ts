@@ -23,6 +23,8 @@ interface ItemDetails {
   ownership: "owned" | "hired";
   hireRate: number | null;
   hirePer: "day" | "month";
+  /** The rate in force today, after any rate changes (left out by older servers) */
+  rateNow?: number | null;
   supplier: string | null;
   serviceDue: string | null;
   notes: string;
@@ -69,8 +71,26 @@ export interface HistoryEntry {
   createdAt: string;
 }
 
+/** A change to what a hired item costs: a new rate from a date, or a one-off amount charged to a site */
+export interface HireChange {
+  id: string;
+  kind: "rate" | "amount";
+  date: string;
+  rate: number | null;
+  amount: number | null; // below 0: taken off
+  site: { projectId: string; title: string } | null;
+  note: string;
+  by: string;
+  createdAt: string;
+}
+
+export type NewHireChange =
+  | { kind: "rate"; date: string; rate: number; note: string }
+  | { kind: "amount"; date: string; amount: number; projectId: string; note: string };
+
 export interface EquipmentDetail extends RegisterItem {
   addedBy: string;
+  hireChanges?: HireChange[]; // left out by older servers
   use: { projectId: string | null; title: string; unitDays: number; charge: number; chargeThisMonth: number }[];
   history: HistoryEntry[];
 }
@@ -132,6 +152,8 @@ export const equipmentApi = {
   update: (id: string, body: EquipmentChanges) => request<{ id: string }>(`/equipment/${enc(id)}`, { method: "PATCH", body: JSON.stringify(body) }),
   move: (id: string, body: NewMove) => request<{ id: string }>(`/equipment/${enc(id)}/moves`, { method: "POST", body: JSON.stringify(body) }),
   undo: (id: string, moveId: string) => request<{ ok: true }>(`/equipment/${enc(id)}/moves/${enc(moveId)}`, { method: "DELETE" }),
+  addHireChange: (id: string, body: NewHireChange) => request<{ id: string }>(`/equipment/${enc(id)}/hire-changes`, { method: "POST", body: JSON.stringify(body) }),
+  removeHireChange: (id: string, changeId: string) => request<{ ok: true }>(`/equipment/${enc(id)}/hire-changes/${enc(changeId)}`, { method: "DELETE" }),
 };
 
 /* ---------------------------------------- formatting ---------------------------------------- */
@@ -141,5 +163,8 @@ export const totalAt = (units: number, each: number | null) => (each === null ? 
 
 export const qty = (n: number) => (Number.isInteger(n) ? n.toLocaleString("en-IN") : n.toLocaleString("en-IN", { maximumFractionDigits: 2 }));
 export const CONDITION_LABEL: Record<Condition, string> = { good: "Good", repair: "Needs repair", damaged: "Damaged" };
-export const hireLabel = (i: { ownership: "owned" | "hired"; hireRate: number | null; hirePer: "day" | "month"; unit: string }) =>
-  i.ownership === "owned" ? "Owned" : i.hireRate ? `Hired · ₹${i.hireRate.toLocaleString("en-IN")} per ${i.unit === "nos" ? "piece" : i.unit} a ${i.hirePer}` : "Hired";
+/** "Hired · ₹1,350 per piece a day": today's rate, after any rate changes */
+export const hireLabel = (i: { ownership: "owned" | "hired"; hireRate: number | null; rateNow?: number | null; hirePer: "day" | "month"; unit: string }) => {
+  const rate = i.rateNow ?? i.hireRate;
+  return i.ownership === "owned" ? "Owned" : rate ? `Hired · ₹${rate.toLocaleString("en-IN")} per ${i.unit === "nos" ? "piece" : i.unit} a ${i.hirePer}` : "Hired";
+};

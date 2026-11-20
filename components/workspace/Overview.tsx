@@ -1,8 +1,10 @@
 "use client";
 
-import { memo, useState } from "react";
-import { FiChevronRight, FiEdit2 } from "react-icons/fi";
+import { Fragment, memo, useState } from "react";
+import { FiChevronDown, FiChevronRight, FiEdit2 } from "react-icons/fi";
 import { useCan } from "@/hooks/useProjectAccess";
+import { useWorkItems } from "@/hooks/useAttendance";
+import { useMaterialPurchases } from "@/hooks/useMaterialPurchases";
 import { hrefFor, onPlaceClick } from "@/hooks/useWorkspacePlace";
 import { plural, rupees, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
 import { EditDetailsDialog } from "./EditDetailsDialog";
@@ -31,6 +33,28 @@ export const Overview = memo(function Overview({
   const money = useSpend(projectId);
   const p = hub.progress;
   const canEdit = useCan("project.manage");
+  // The two breakdowns under the money table, each only for people who may see that section
+  const workItems = useWorkItems(projectId, useCan("attendance.view"));
+  const purchases = useMaterialPurchases(projectId, useCan("materials.view"));
+
+  // Labour by work item: attendance marked under each (General last), then contract work on its own line
+  const byWork = workItems.data
+    ? [
+      ...workItems.data.items.filter((w) => w.total > 0).map((w) => ({ label: w.work, value: w.total })),
+      ...(workItems.data.general.total > 0 ? [{ label: "General", value: workItems.data.general.total }] : []),
+    ]
+    : null;
+  // Materials against what was ordered (from the estimate or added by hand): value arrived at the planned rate
+  const items = purchases.data?.items ?? null;
+  const procurement =
+    items && items.length > 0
+      ? {
+        count: items.length,
+        full: items.filter((i) => i.state === "all" || i.state === "extra").length,
+        ordered: items.reduce((s, i) => s + i.amount, 0),
+        arrived: items.reduce((s, i) => s + Math.min(i.arrived, i.quantity) * i.rate, 0),
+      }
+      : null;
   const [settingCost, setSettingCost] = useState(false);
 
   return (
@@ -46,7 +70,9 @@ export const Overview = memo(function Overview({
       </p>
 
       {/* 2 · money */}
-      {money ? <MoneyAtAGlance m={money} onEditCost={canEdit ? () => setSettingCost(true) : undefined} /> : <div aria-busy="true" className="h-64 animate-pulse rounded-[22px] bg-[#EFEFED] motion-reduce:animate-none" />}
+      {money ? (
+        <MoneyAtAGlance m={money} estimates={hub.boqs?.length ?? null} byWork={byWork} procurement={procurement} onEditCost={canEdit ? () => setSettingCost(true) : undefined} />
+      ) : <div aria-busy="true" className="h-64 animate-pulse rounded-[22px] bg-[#EFEFED] motion-reduce:animate-none" />}
 
       {settingCost && money && (
         <EditDetailsDialog project={{ id: projectId, title: hub.project.title, firmName: hub.project.firmName, projectCost: money.projectCost }} onClose={() => setSettingCost(false)} />
@@ -86,7 +112,30 @@ const HEALTH = {
  * Built from useSpend (GET /spend: attendance, contract work, deliveries, equipment hire, General expenses), the same figures as the
  * Expenditure tab and the project cards; saving attendance, a payment, a delivery or an expense refreshes it.
  */
-function MoneyAtAGlance({ m, onEditCost }: { m: Spend; onEditCost?: () => void }) {
+interface Procurement {
+  count: number; // materials on the list
+  full: number; // all of it arrived
+  ordered: number; // quantity × planned rate, all materials
+  arrived: number; // what has arrived, at the planned rate
+}
+
+function MoneyAtAGlance({
+  m,
+  estimates,
+  byWork,
+  procurement,
+  onEditCost,
+}: {
+  m: Spend;
+  /** How many Material estimates the project has (null: not known) */
+  estimates: number | null;
+  /** Labour attendance by work item, for the Labour row's breakdown (null: not loaded or no access) */
+  byWork: { label: string; value: number }[] | null;
+  /** Materials arrived against ordered, for the Materials row (null: none yet or no access) */
+  procurement: Procurement | null;
+  onEditCost?: () => void;
+}) {
+  const [open, setOpen] = useState<Record<string, boolean>>({ Labour: true, Materials: true });
   const over = m.left !== null && m.left < 0;
   const { labour: L, material: M } = m.parts;
   // Each head says where its figure comes from, in the section's own words, so it can be checked section by section
@@ -105,13 +154,46 @@ function MoneyAtAGlance({ m, onEditCost }: { m: Spend; onEditCost?: () => void }
     {
       label: "Materials",
       hint: M.deliveries > 0 ? "Deliveries" : "Nothing yet",
-      note: null,
+      note: procurement ? `${procurement.full} of ${plural(procurement.count, "material")} fully arrived` : null,
       value: m.material,
       ...HEAD_COLORS.material,
     },
     { label: "Equipment", hint: m.equipment > 0 ? "Hire so far" : "Nothing yet", note: null, value: m.equipment, ...HEAD_COLORS.equipment },
     { label: "General", hint: m.general > 0 ? "General expenses" : "Nothing yet", note: null, value: m.general, ...HEAD_COLORS.general },
   ];
+  // Under Labour: each work item's attendance, then contract work
+  const labourRows = [...(byWork ?? []), ...(L.contract > 0 ? [{ label: "Contract work", value: L.contract }] : [])];
+  // Rows under a head: no lines between them, only one under the last (the table's lines separate the heads)
+  const sub = (label: string, value: number, last = false) => (
+    <tr key={label} className={last ? "" : "border-0"}>
+      <th scope="row" className="py-1 pl-11.5 text-left text-[13px] font-normal text-[#666666]">
+        {label}
+      </th>
+      <td className="py-1 text-right text-[13px] tabular-nums text-[#333333]" title={rupees(value)}>
+        {rupeesShort(value)}
+      </td>
+      <td />
+    </tr>
+  );
+  const labourDetail = byWork && labourRows.length > 0 ? <>{labourRows.map((r, i) => sub(r.label, r.value, i === labourRows.length - 1))}</> : null;
+  const arrivedPct = procurement && procurement.ordered > 0 ? Math.min(100, (procurement.arrived / procurement.ordered) * 100) : null;
+  const materialsDetail = procurement ? (
+    <>
+      {sub("Arrived so far", m.material)}
+      {sub("Ordered (estimate and added)", procurement.ordered, arrivedPct === null)}
+      {arrivedPct !== null && (
+        <tr>
+          <td colSpan={3} className="pb-2.5 pl-11.5 pt-1">
+            <span aria-hidden className="block h-1.5 overflow-hidden rounded-full bg-[#F1F1EF]">
+              <span className="block h-full rounded-full" style={{ width: `${arrivedPct}%`, background: HEAD_COLORS.material.color }} />
+            </span>
+            <span className="mt-1 block text-xs text-[#666666]">{Math.round(arrivedPct)}% of the ordered materials have arrived</span>
+          </td>
+        </tr>
+      )}
+    </>
+  ) : null;
+
   // The bar is the project cost when set (so what remains shows as empty space), otherwise just the spending
   const whole = Math.max(m.projectCost ?? 0, m.spent, 1);
   const share = (v: number) => (m.spent > 0 ? Math.round((v / m.spent) * 100) : 0);
@@ -123,7 +205,12 @@ function MoneyAtAGlance({ m, onEditCost }: { m: Spend; onEditCost?: () => void }
   return (
     <section aria-label="Money" className="space-y-3">
       <dl className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
-        <Box label="BOQ amount" value={m.boqTotal !== null ? rupeesShort(m.boqTotal) : "No BOQ"} note="What the client pays" muted={m.boqTotal === null} />
+        <Box
+          label="Material estimate"
+          value={m.boqTotal !== null ? rupeesShort(m.boqTotal) : "No estimate"}
+          note={estimates ? `From ${plural(estimates, "estimate")}` : "Make one in Material estimate"}
+          muted={m.boqTotal === null}
+        />
         <CostBox cost={m.projectCost} onEdit={onEditCost} />
         <div className="min-w-0 rounded-2xl border border-[#E8E8E6] bg-white px-4 py-3">
           <dt className="text-xs text-[#666666]">Spent so far</dt>
@@ -179,31 +266,58 @@ function MoneyAtAGlance({ m, onEditCost }: { m: Spend; onEditCost?: () => void }
             </tr>
           </thead>
           <tbody className="divide-y divide-[#EFEFED]">
-            {heads.map((h) => (
-              <tr key={h.label}>
-                <th scope="row" className="py-2.5 text-left font-normal">
-                  <span className="flex items-center gap-2">
-                    <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: h.value > 0 ? h.color : "#D3D1C7" }} />
-                    <span className="min-w-0">
-                      <span className="block font-medium text-[#111111]">{h.label}</span>
-                      <span className="block text-xs text-[#8C8C8C]">{h.hint}</span>
-                      {h.note && <span className="block text-xs font-medium text-[#666666]">{h.note}</span>}
-                    </span>
+            {heads.map((h) => {
+              // Labour opens to its work items, Materials to arrived vs ordered; the others have nothing under them
+              const detail = h.label === "Labour" ? labourDetail : h.label === "Materials" ? materialsDetail : null;
+              const isOpen = !!detail && !!open[h.label];
+              const name = (
+                <span className="flex items-center gap-2">
+                  {detail ? (
+                    isOpen ? <FiChevronDown aria-hidden className="shrink-0 text-[#8C8C8C]" /> : <FiChevronRight aria-hidden className="shrink-0 text-[#8C8C8C]" />
+                  ) : (
+                    <span aria-hidden className="w-3.5 shrink-0" />
+                  )}
+                  <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: h.value > 0 ? h.color : "#D3D1C7" }} />
+                  <span className="min-w-0">
+                    <span className="block font-medium text-[#111111]">{h.label}</span>
+                    <span className="block text-xs text-[#8C8C8C]">{h.hint}</span>
+                    {h.note && <span className="block text-xs font-medium text-[#666666]">{h.note}</span>}
                   </span>
-                </th>
-                <td className="py-2.5 text-right align-top font-semibold tabular-nums text-[#111111]" title={rupees(h.value)}>
-                  {rupeesShort(h.value)}
-                </td>
-                <td className="py-2.5 text-right align-top">
-                  <span
-                    className="inline-block rounded-full px-2 py-0.5 text-xs font-medium tabular-nums"
-                    style={h.value > 0 ? { background: h.tint, color: h.ink } : { background: "#F1F1EF", color: "#8C8C8C" }}
-                  >
-                    {share(h.value)}%
-                  </span>
-                </td>
-              </tr>
-            ))}
+                </span>
+              );
+              return (
+                <Fragment key={h.label}>
+                  <tr className={isOpen ? "border-0" : ""}>
+                    <th scope="row" className="py-2.5 text-left font-normal">
+                      {detail ? (
+                        <button
+                          type="button"
+                          onClick={() => setOpen((o) => ({ ...o, [h.label]: !isOpen }))}
+                          aria-expanded={isOpen}
+                          className="w-full rounded text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#111111]"
+                        >
+                          {name}
+                        </button>
+                      ) : (
+                        name
+                      )}
+                    </th>
+                    <td className="py-2.5 text-right align-top font-semibold tabular-nums text-[#111111]" title={rupees(h.value)}>
+                      {rupeesShort(h.value)}
+                    </td>
+                    <td className="py-2.5 text-right align-top">
+                      <span
+                        className="inline-block rounded-full px-2 py-0.5 text-xs font-medium tabular-nums"
+                        style={h.value > 0 ? { background: h.tint, color: h.ink } : { background: "#F1F1EF", color: "#8C8C8C" }}
+                      >
+                        {share(h.value)}%
+                      </span>
+                    </td>
+                  </tr>
+                  {isOpen && detail}
+                </Fragment>
+              );
+            })}
             <tr>
               <th scope="row" className="py-2.5 text-left font-semibold text-[#111111]">
                 Total

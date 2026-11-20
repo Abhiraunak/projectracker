@@ -3,7 +3,7 @@
 import { memo, useMemo, useState } from "react";
 import { FiAlertTriangle, FiArrowLeft, FiChevronRight, FiCornerDownLeft, FiEdit2, FiMinusCircle, FiPlus, FiPrinter, FiSearch, FiTool, FiTruck } from "react-icons/fi";
 import { useCan } from "@/hooks/useProjectAccess";
-import { useEquipmentItem, useEquipmentRegister, useSiteEquipment, useUndoMove } from "@/hooks/useEquipment";
+import { useEquipmentItem, useEquipmentRegister, useRemoveHireChange, useSiteEquipment, useUndoMove } from "@/hooks/useEquipment";
 import { useProjectHub } from "@/hooks/useProjectHub";
 import { hrefFor, onPlaceClick, useWorkspaceItem } from "@/hooks/useWorkspacePlace";
 import { describeError } from "@/lib/api";
@@ -13,6 +13,7 @@ import { EmptyState, SectionError, SectionSkeleton } from "../ui";
 import { EquipmentForm } from "./equipment/EquipmentForm";
 import { BringDialog, MoveDialog, type Movable } from "./equipment/MoveDialog";
 import { PrintRegister, PrintSite } from "./equipment/EquipmentPrint";
+import { HireChangeDialog } from "./equipment/HireChangeDialog";
 import { CATEGORY_LABEL, ConditionBadge, daysSince, field, longDate, outlineBtn, primaryBtn, todayLocal } from "./equipment/shared";
 
 const REGISTER = "register"; // ?i=register: every item, at every site and in the yard
@@ -469,6 +470,8 @@ function ItemView({ projectId, id }: { projectId: string; id: string }) {
 
       {d.use.some((u) => u.unitDays > 0) && <UseTable item={d} />}
 
+      {d.ownership === "hired" && <HireChanges item={d} projectId={projectId} canManage={canManage} />}
+
       <History item={d} canManage={canManage} />
 
       <Dialogs projectId={projectId} dialog={dialog} onClose={() => setDialog(null)} />
@@ -540,6 +543,85 @@ function UseTable({ item }: { item: EquipmentDetail }) {
         </tbody>
       </table>
       {hired && !item.hireRate && <p className="px-4 pb-3 text-xs text-amber-700">No hire rate set, so charges show as ₹0. Add it in Edit details.</p>}
+    </section>
+  );
+}
+
+/**
+ * A hired item's cost changes, logged like deliveries: new rates from a date, and one-off amounts (+ extra,
+ * − credit) charged to a site. Hire by site above already includes them.
+ */
+function HireChanges({ item, projectId, canManage }: { item: EquipmentDetail; projectId: string; canManage: boolean }) {
+  const remove = useRemoveHireChange();
+  const [logging, setLogging] = useState(false);
+  const changes = item.hireChanges ?? [];
+  const per = item.hirePer === "month" ? "month" : "day";
+  // For each rate change, what it changed from: the rate before it (oldest first), else the rate it was hired at
+  const byDate = changes.filter((c) => c.kind === "rate").slice().reverse();
+  const before = new Map(byDate.map((c, i) => [c.id, i === 0 ? item.hireRate : byDate[i - 1]!.rate]));
+
+  return (
+    <section aria-label="Hire changes" className="rounded-xl border border-stone-200">
+      <div className="flex items-center justify-between gap-3 border-b border-stone-100 px-4 py-3">
+        <h3 className="font-semibold">Hire changes</h3>
+        {canManage && (
+          <button type="button" onClick={() => setLogging(true)} className={outlineBtn}>
+            <FiPlus aria-hidden /> Log change
+          </button>
+        )}
+      </div>
+      {remove.isError && (
+        <p role="alert" className="flex items-center gap-2 bg-red-50 px-4 py-2 text-sm text-red-700">
+          <FiAlertTriangle aria-hidden /> {describeError(remove.error)}
+        </p>
+      )}
+      {changes.length === 0 ? (
+        <p className="px-4 py-3 text-sm text-stone-500">
+          No changes. Hired at {item.hireRate ? `${rupees(item.hireRate)} a ${per}` : "no rate yet"}. Log a change when the hirer changes the rate or adds or takes off an amount.
+        </p>
+      ) : (
+        <ol className="divide-y divide-stone-100">
+          {changes.map((c) => {
+            const was = before.get(c.id) ?? null;
+            const up = c.kind === "rate" ? (c.rate ?? 0) - (was ?? 0) : (c.amount ?? 0);
+            const tone = up > 0 ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700";
+            return (
+              <li key={c.id} className="flex gap-3 px-4 py-3 text-sm">
+                <span className="w-24 shrink-0 tabular-nums text-stone-500">{longDate(c.date)}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-stone-900">
+                    {c.kind === "rate" ? (
+                      <>
+                        New rate {rupees(c.rate ?? 0)} a {per} from this day
+                        {was !== null && up !== 0 && <span className={`ml-2 rounded px-1.5 py-0.5 text-xs font-medium tabular-nums ${tone}`}>{up > 0 ? "+" : "−"}{rupees(Math.abs(up))}</span>}
+                      </>
+                    ) : (
+                      <>
+                        <span className={`mr-2 rounded px-1.5 py-0.5 text-xs font-medium tabular-nums ${tone}`}>{(c.amount ?? 0) > 0 ? "+" : "−"}{rupees(Math.abs(c.amount ?? 0))}</span>
+                        {(c.amount ?? 0) > 0 ? "Added" : "Taken off"} at {c.site?.title ?? "a removed project"}
+                      </>
+                    )}
+                  </span>
+                  <span className="block text-xs text-stone-500">{[c.note, `by ${c.by}`].filter(Boolean).join(" · ")}</span>
+                </span>
+                {canManage && (
+                  <button
+                    type="button"
+                    disabled={remove.isPending}
+                    onClick={() => {
+                      if (window.confirm("Remove this hire change? The hire charges are worked out again without it.")) remove.mutate({ id: item.id, changeId: c.id });
+                    }}
+                    className="min-h-10 shrink-0 self-start rounded-lg px-2 text-sm font-medium text-stone-600 hover:bg-stone-100 disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      {logging && <HireChangeDialog item={item} projectId={projectId} onClose={() => setLogging(false)} />}
     </section>
   );
 }
