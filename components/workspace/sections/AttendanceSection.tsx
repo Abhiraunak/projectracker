@@ -21,7 +21,7 @@ const RatesSection = lazy(() => import("./RatesSection")); // contractor vs in-h
 type View = "week" | "sheet" | "saved" | "month" | "contract" | "rates";
 const VIEWS: { key: View; label: string; Icon: IconType }[] = [
   { key: "week", label: "This week", Icon: FiCalendar },
-  { key: "sheet", label: "Hourly sheet", Icon: FiClipboard },
+  { key: "sheet", label: "Mark attendance", Icon: FiClipboard },
   { key: "saved", label: "Saved attendance", Icon: FiFolder },
   { key: "month", label: "Monthly", Icon: FiGrid },
   { key: "contract", label: "Contract work", Icon: FiTool },
@@ -31,7 +31,7 @@ const VIEWS: { key: View; label: string; Icon: IconType }[] = [
 /**
  * The project's labour, in the order it is used:
  *  - This week: each contractor's pay week (Mon–Sun): earned, carried from last week, paid, left; pay and settle.
- *  - Hourly sheet: attendance by the hour (or by day, present/absent), the existing entry form and saved records.
+ *  - Mark attendance: pick the work item (or General), then attendance by the hour or by day, as before.
  *  - Monthly: one contractor's labour sheet, or every contractor together.
  *  - Contract work: measured work × rate per sqft (or rft, nos…).
  *  - Rate comparison. (Payments are made from each contractor's card in This week.)
@@ -80,9 +80,8 @@ export default function AttendanceSection({ projectId }: { projectId: string }) 
                 type="button"
                 aria-pressed={on}
                 onClick={() => show(key)}
-                className={`flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 text-sm font-medium sm:flex-1 sm:justify-center ${mono.motion} ${mono.ring} ${
-                  on ? "bg-white text-[#111111] shadow-[0_1px_2px_rgba(17,17,17,0.08)]" : "text-[#666666] hover:text-[#111111]"
-                }`}
+                className={`flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3.5 text-sm font-medium sm:flex-1 sm:justify-center ${mono.motion} ${mono.ring} ${on ? "bg-white text-[#111111] shadow-[0_1px_2px_rgba(17,17,17,0.08)]" : "text-[#666666] hover:text-[#111111]"
+                  }`}
               >
                 <Icon aria-hidden className="shrink-0" />
                 {label}

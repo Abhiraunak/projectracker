@@ -5,6 +5,7 @@ import type { FormEvent } from "react";
 import { FiCheck, FiEdit2, FiPlus, FiTrendingDown, FiTrendingUp, FiX } from "react-icons/fi";
 import { ComparisonGrid } from "@/components/labour/ComparisonGrid";
 import { useCan } from "@/hooks/useProjectAccess";
+import { useWorkItems } from "@/hooks/useAttendance";
 import { useProject, useUpdateProject } from "@/hooks/useLabourProjects";
 import { hrefFor, onPlaceClick } from "@/hooks/useWorkspacePlace";
 import { describeError, toFormData, type ApiProject, type ApiTask } from "@/lib/api";
@@ -115,7 +116,76 @@ export default function RatesSection({ projectId }: { projectId: string }) {
                 </div>
             )}
             <ComparisonGrid items={items} title="Contractor vs In-house Comparison" />
+            <ActualLabour projectId={projectId} tasks={project.data.tasks} />
         </div>
+    );
+}
+
+/* ------------------------------------ actual labour by work item ------------------------------------ */
+
+/** Green under 80% of the in-house estimate, amber from 80%, red over it */
+const meter = (pct: number) => (pct > 100 ? "#E24B4A" : pct >= 80 ? "#EF9F27" : "#1D9E75");
+
+/**
+ * What each work item has actually cost in labour so far (the attendance marked under it), against its two estimates:
+ * area × contractor rate and area × in-house rate. General has no area or rates, so it isn't listed here.
+ */
+function ActualLabour({ projectId, tasks }: { projectId: string; tasks: ApiTask[] }) {
+    const marked = useWorkItems(projectId);
+    if (!marked.data) return null; // loading, or no access to attendance: the comparison above still shows
+    const spent = new Map(marked.data.items.map((w) => [w.id, w.total]));
+
+    return (
+        <section aria-labelledby="actual-labour-heading" className="rounded-xl border border-stone-200 bg-white">
+            <div className="border-b border-stone-200 px-4 py-3">
+                <h3 id="actual-labour-heading" className="text-sm font-semibold text-stone-900">
+                    Actual labour so far
+                </h3>
+                <p className="text-xs text-stone-500">Attendance marked under each work item, against what its rates estimate.</p>
+            </div>
+            <div className="relative overflow-x-auto">
+                <table className="w-full min-w-160 text-sm">
+                    <thead>
+                        <tr className="text-xs text-stone-500">
+                            <th scope="col" className="px-4 py-2 text-left font-medium">Work item</th>
+                            <th scope="col" className="px-4 py-2 text-right font-medium">Contractor estimate</th>
+                            <th scope="col" className="px-4 py-2 text-right font-medium">In-house estimate</th>
+                            <th scope="col" className="w-56 px-4 py-2 text-right font-medium">Actual labour</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                        {tasks.map((t) => {
+                            const area = toNumber(t.area);
+                            const contractor = area * toNumber(t.contractorRate);
+                            const inHouse = area * toNumber(t.inHouseRate);
+                            const actual = spent.get(t.id) ?? 0;
+                            const pct = inHouse > 0 ? (actual / inHouse) * 100 : null;
+                            return (
+                                <tr key={t.id}>
+                                    <th scope="row" className="px-4 py-2.5 text-left font-medium text-stone-900">
+                                        {t.work}
+                                    </th>
+                                    <td className="px-4 py-2.5 text-right tabular-nums text-stone-600">{contractor > 0 ? rupees(contractor) : "–"}</td>
+                                    <td className="px-4 py-2.5 text-right tabular-nums text-stone-600">{inHouse > 0 ? rupees(inHouse) : "–"}</td>
+                                    <td className="px-4 py-2.5 text-right">
+                                        <span className={`tabular-nums ${actual > 0 ? "font-semibold text-stone-900" : "text-stone-400"}`}>{actual > 0 ? rupees(actual) : "Nothing yet"}</span>
+                                        {pct !== null && actual > 0 && (
+                                            <>
+                                                <span className="ml-1.5 text-xs text-stone-500">{Math.round(pct)}% of in-house</span>
+                                                <span aria-hidden className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-stone-100">
+                                                    <span className="block h-full rounded-full" style={{ width: `${Math.min(100, pct)}%`, background: meter(pct) }} />
+                                                </span>
+                                            </>
+                                        )}
+                                        {pct === null && actual > 0 && <span className="mt-0.5 block text-xs text-stone-500">Add the area and in-house rate to compare</span>}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </section>
     );
 }
 

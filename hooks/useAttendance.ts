@@ -97,3 +97,16 @@ export const useMonthSheet = (projectId: string, month: string, contractor?: str
     queryFn: () => attendanceApi.month(projectId, month, contractor?.trim() || undefined),
     placeholderData: keepPreviousData,
   });
+
+/** The project's work items to mark attendance under, with what each has so far (refreshed after every save) */
+export const useWorkItems = (projectId: string) =>
+  useQuery({ queryKey: ["attendance", "work-items", projectId], queryFn: () => attendanceApi.workItems(projectId), staleTime: 15_000 });
+
+/** Add a work item by name: it joins the project's work items, so the Overview and Rate comparison refresh too */
+export function useAddWorkItem(projectId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (work: string) => attendanceApi.addWorkItem(projectId, work),
+    onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: ["attendance", "work-items", projectId] }), qc.invalidateQueries({ queryKey: ["project", projectId] }), qc.invalidateQueries({ queryKey: ["projects"] })]),
+  });
+}

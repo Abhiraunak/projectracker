@@ -65,6 +65,8 @@ export interface AttendancePayload {
   payMode?: "amount" | "hourly"; // left out: paid by amount ("Paid monthly")
   contractorName: string;
   trade: string;
+  /** The work item the days are for; null = General; left out = keep what the entry has */
+  taskId?: string | null;
   date: string;
   workers: { label: string; amount: number; dayRate?: number; hours?: number; otHours?: number; extra?: number }[];
   extras: number;
@@ -164,6 +166,10 @@ export interface TradesResponse {
 export interface Register {
   key: string;
   contractorName: string;
+  /** The work item of this row; null = General */
+  taskId: string | null;
+  work: string; // "" = General
+  workTotal: number; // this contractor's attendance under this work item, all time
   openDays: { date: string; total: number }[];
   openTotal: number;
   settledWeeks: { start: string; end: string; total: number }[];
@@ -176,16 +182,37 @@ export interface Register {
 /** A contractor's open days in full, to open as one sheet; `ids` are the entries that saving replaces */
 export interface OpenSheet {
   contractorName: string;
+  /** The work item the sheet is for (null = General); left out by older servers */
+  taskId?: string | null;
+  work?: string;
   ids: string[];
   sheet: AttendanceBatch | null;
   settledWeeks: { start: string; end: string; total: number }[];
 }
 
+/** A work item to mark attendance under, with what is marked so far */
+export interface WorkItem {
+  id: string;
+  work: string;
+  total: number;
+  days: number;
+}
+export interface WorkItemsResponse {
+  items: WorkItem[];
+  general: { total: number; days: number };
+}
+
 export const attendanceApi = {
   registers: (projectId: string, q?: string) =>
     request<{ items: Register[] }>(`/attendance/registers?projectId=${encodeURIComponent(projectId)}${q ? `&q=${encodeURIComponent(q)}` : ""}`),
-  sheet: (projectId: string, contractor: string) =>
-    request<OpenSheet>(`/attendance/sheet?projectId=${encodeURIComponent(projectId)}&contractor=${encodeURIComponent(contractor)}`),
+  /** taskId: only that work item's days (null = General); left out = every day */
+  sheet: (projectId: string, contractor: string, taskId?: string | null) =>
+    request<OpenSheet>(
+      `/attendance/sheet?projectId=${encodeURIComponent(projectId)}&contractor=${encodeURIComponent(contractor)}${taskId === undefined ? "" : `&task=${encodeURIComponent(taskId ?? "general")}`}`
+    ),
+  workItems: (projectId: string) => request<WorkItemsResponse>(`/attendance/work-items?projectId=${encodeURIComponent(projectId)}`),
+  addWorkItem: (projectId: string, work: string) =>
+    request<{ item: { id: string; work: string }; created: boolean }>("/attendance/work-items", { method: "POST", body: JSON.stringify({ projectId, work }) }),
   saveSheet: (data: AttendanceManyPayload & { replaceIds: string[] }) =>
     request<{ attendance: AttendanceRecord[]; count: number; batchId: string | null }>("/attendance/sheet", { method: "PUT", body: JSON.stringify(data) }),
   list: ({ projectId, q, trade, page, pageSize, grouped }: AttendanceListParams) => {
