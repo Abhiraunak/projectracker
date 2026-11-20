@@ -84,7 +84,8 @@ export function RegisterPrint({ open, register, projectTitle, onDone }: { open: 
       people.set(k, p);
     }
   const rows = [...people.values()];
-  const earlier = Math.round((register.toPay - register.openTotal) * 100) / 100;
+  // The work item of the sheet ("" = General): its own days only; what is still owed is the contractor's for all work
+  const work = register.work?.trim() || "General";
   const first = days[0]?.date;
   const last = days.at(-1)?.date;
 
@@ -93,7 +94,9 @@ export function RegisterPrint({ open, register, projectTitle, onDone }: { open: 
       <style>{CSS}</style>
       {createPortal(
         <div id="register-print-root" className="hidden">
-          <h1 style={{ fontSize: "16pt", fontWeight: 700, margin: 0 }}>Attendance sheet: {open.contractorName}</h1>
+          <h1 style={{ fontSize: "16pt", fontWeight: 700, margin: 0 }}>
+            Attendance sheet: {open.contractorName} · {work}
+          </h1>
           <p style={{ margin: "3pt 0 0", color: "#333" }}>
             {projectTitle ? `${projectTitle} · ` : ""}
             {first && last ? `${formatDay(first)} to ${formatDay(last)} · ${days.length} ${days.length === 1 ? "day" : "days"} not yet settled` : "No open days"} · printed{" "}
@@ -167,19 +170,15 @@ export function RegisterPrint({ open, register, projectTitle, onDone }: { open: 
 
           <table style={{ width: "50%", marginLeft: "auto", marginTop: "10pt", breakInside: "avoid" }}>
             <tbody>
-              <tr>
-                <td>These days</td>
-                <td className="num">{rupees(register.openTotal)}</td>
-              </tr>
-              <tr>
-                <td>{earlier < 0 ? "Paid in advance earlier" : "Still owed from settled weeks"}</td>
-                <td className="num">{rupees(Math.abs(earlier))}</td>
-              </tr>
               <tr className="shade">
-                <td style={{ fontWeight: 700 }}>Still to pay</td>
+                <td style={{ fontWeight: 700 }}>These days ({work})</td>
                 <td className="num" style={{ fontWeight: 700 }}>
-                  {rupees(register.toPay)}
+                  {rupees(register.openTotal)}
                 </td>
+              </tr>
+              <tr>
+                <td>{register.toPay < 0 ? `Paid in advance to ${open.contractorName} (all work)` : `Still to pay ${open.contractorName} (all work)`}</td>
+                <td className="num">{rupees(Math.abs(register.toPay))}</td>
               </tr>
             </tbody>
           </table>

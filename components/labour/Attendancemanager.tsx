@@ -15,9 +15,11 @@ import { RegistersPanel } from "./attendance/RegistersPanel";
 import { useAttendanceForm } from "./attendance/useAttendanceForm";
 import { useTeamPrefill } from "./attendance/useTeamPrefill";
 import { MonthSheet } from "./attendance/MonthSheet";
+import { WorkItemPicker, workLabel, type PickedWorkItem } from "./attendance/WorkItemPicker";
 
 /**
- * Labour attendance for one project: the entry form and saved records. No trades: attendance is by contractor.
+ * Labour attendance for one project: first the work item (Flooring, Plastering… or General), then the entry form and
+ * saved records as before. No trades: attendance is by contractor; the work item rides along with every save.
  * This file only puts the parts together; each part lives in ./attendance and the rules in lib/attendance/form.ts.
  */
 export function AttendanceManager({
@@ -48,10 +50,13 @@ export function AttendanceManager({
   const [savedNote, setSavedNote] = useState<string | null>(null);
   const [savedCount, setSavedCount] = useState(0); // tells the records list to show page 1 again
   const submitRef = useRef<HTMLButtonElement>(null);
+  // The work item being marked; null = not picked yet, so the picker shows
+  const [workItem, setWorkItem] = useState<PickedWorkItem | null>(null);
 
   // Open a contractor's sheet in the form (from the records below, or from the Saved attendance tab)
   const openSheet = (open: OpenSheet) => {
     api.startSheet(open);
+    setWorkItem({ taskId: open.taskId ?? null, work: workLabel(open) }); // the sheet's own work item
     setSavedNote(null);
     setError(null);
     setTimeout(() => document.getElementById("labour-details")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
@@ -65,7 +70,8 @@ export function AttendanceManager({
   const total = formTotal(form, severalDays);
   // A title typed by the user wins; otherwise "Payment details: <contractor name>"
   const contractor = form.contractorName.trim();
-  const defaultTitle = contractor ? `Payment details: ${contractor}` : "Payment details";
+  const forWork = workItem ? ` · ${workItem.work}` : "";
+  const defaultTitle = contractor ? `Payment details: ${contractor}${forWork}` : `Payment details${forWork}`;
   const slipTitle = printTitle.trim() || defaultTitle;
 
   const handleSubmit = async (e: FormEvent) => {
@@ -81,13 +87,13 @@ export function AttendanceManager({
     try {
       if (api.sheet) {
         // A contractor's open sheet: its open days are replaced by the days as edited
-        const result = await saveSheet.mutateAsync({ ...toManyPayload(form, projectId), replaceIds: api.sheet.ids });
+        const result = await saveSheet.mutateAsync({ ...toManyPayload(form, projectId), taskId: workItem?.taskId ?? null, replaceIds: api.sheet.ids });
         setSavedNote(`Saved ${form.contractorName.trim()}'s sheet: ${result.count} open ${result.count === 1 ? "day" : "days"}.`);
       } else if (severalDays) {
-        const result = await saveDays.mutateAsync({ batchId: editingBatchId ?? undefined, data: toManyPayload(form, projectId) });
+        const result = await saveDays.mutateAsync({ batchId: editingBatchId ?? undefined, data: { ...toManyPayload(form, projectId), taskId: workItem?.taskId ?? null } });
         setSavedNote(savedManyNote(result.count, form, editingBatchId !== null));
       } else {
-        await save.mutateAsync({ id: editingId ?? undefined, data: toPayload(form, projectId) });
+        await save.mutateAsync({ id: editingId ?? undefined, data: { ...toPayload(form, projectId), taskId: workItem?.taskId ?? null } });
       }
     } catch (err) {
       setError(describeError(err));
@@ -107,24 +113,38 @@ export function AttendanceManager({
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <PrintSlip title={slipTitle} form={form} total={total} days={severalDays ? form.days : null} />
-      <AttendanceHeader printTitle={printTitle} onPrintTitle={setPrintTitle} defaultTitle={defaultTitle} onPrint={() => printWithTitle(slipTitle)} />
+      {workItem === null ? (
+        <WorkItemPicker projectId={projectId} onPick={setWorkItem} />
+      ) : (
+        <>
+          {/* The work item on top; Change goes back to the list (what is typed in the sheet stays) */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-stone-500">Work item</span>
+            <span className="rounded-full bg-stone-900 px-3 py-1 text-sm font-semibold text-white">{workItem.work}</span>
+            <button type="button" onClick={() => setWorkItem(null)} disabled={saving} className="rounded-lg border border-stone-300 px-3 py-1 text-sm font-medium text-stone-800 hover:border-stone-900 disabled:opacity-50">
+              Change
+            </button>
+          </div>
+          <PrintSlip title={slipTitle} form={form} total={total} days={severalDays ? form.days : null} />
+          <AttendanceHeader printTitle={printTitle} onPrintTitle={setPrintTitle} defaultTitle={defaultTitle} onPrint={() => printWithTitle(slipTitle)} />
 
-      <EntryForm
-        api={api}
-        projectId={projectId}
-        team={team}
-        choices={trades.data?.choices ?? DEFAULT_TRADES}
-        usual={trades.data?.usual}
-        total={total}
-        saving={saving}
-        error={error}
-        savedNote={savedNote}
-        submitRef={submitRef}
-        tradeStorageKey={`attendance-trades:${projectId}`}
-        onSubmit={handleSubmit}
-        onCancelEdit={cancelEdit}
-      />
+          <EntryForm
+            api={api}
+            projectId={projectId}
+            team={team}
+            choices={trades.data?.choices ?? DEFAULT_TRADES}
+            usual={trades.data?.usual}
+            total={total}
+            saving={saving}
+            error={error}
+            savedNote={savedNote}
+            submitRef={submitRef}
+            tradeStorageKey={`attendance-trades:${projectId}`}
+            onSubmit={handleSubmit}
+            onCancelEdit={cancelEdit}
+          />
+        </>
+      )}
 
       {showRecords && <RegistersPanel key={savedCount} projectId={projectId} onOpen={openSheet} />}
 
