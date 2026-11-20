@@ -15,7 +15,6 @@ import { QueryError } from "@/components/materials/QueryError";
 import { Pagination } from "@/components/labour/Pagination";
 import { BoqFilters, type StatusFilter } from "./BoqFilters";
 import { BoqList } from "./BoqList";
-import { BoqStats } from "./BoqStats";
 
 const PAGE_SIZE = 10;
 
@@ -113,7 +112,6 @@ export function BoqDashboard() {
         </p>
       )}
 
-      {data && <BoqStats stats={data.stats} />}
 
       <BoqFilters search={search} onSearch={changeSearch} status={status} onStatus={changeStatus} />
 
