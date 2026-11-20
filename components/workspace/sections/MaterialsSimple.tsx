@@ -1,7 +1,7 @@
 "use client";
 
-import { memo, useState } from "react";
-import { FiEdit2, FiFileText, FiImage, FiPlus, FiPrinter, FiTruck } from "react-icons/fi";
+import { memo, useDeferredValue, useState } from "react";
+import { FiDownload, FiEdit2, FiFileText, FiImage, FiPlus, FiPrinter, FiSearch, FiTruck, FiX } from "react-icons/fi";
 import { useCan } from "@/hooks/useProjectAccess";
 import { useMaterialPurchases } from "@/hooks/useMaterialPurchases";
 import { useProjectHub } from "@/hooks/useProjectHub";
@@ -14,8 +14,13 @@ import { QuickDelivery } from "./materials/QuickDelivery";
 import { MaterialsPrint } from "./materials/MaterialsPrint";
 import { mono } from "./materials/mono";
 import { PurchaseDialog } from "./materials/PurchaseDialog";
+import { EstimateImportDialog } from "./materials/EstimateImportDialog";
 import { money, qtyText } from "./materials/purchaseFormat";
 
+/** Lower case, spaces squeezed: "  Red  Bricks" and "red bricks" match */
+export const norm = (v: string | null | undefined) => (v ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+/** A material matches when its name, note or unit has the search in it */
+const materialMatches = (p: Purchase, q: string) => !q || [p.name, p.note, p.unit, p.section].some((v) => norm(v).includes(q));
 
 type View = "materials" | "deliveries";
 const VIEWS: { key: View; label: string }[] = [
@@ -38,11 +43,14 @@ export default function MaterialsSimple({ projectId }: { projectId: string }) {
   const [view, setView] = useState<View>("materials");
   const [opened, setOpened] = useState<Set<View>>(() => new Set(["materials"]));
   const [dialog, setDialog] = useState<{ editing: Purchase | null } | null>(null);
-  
+  const [fromEstimate, setFromEstimate] = useState(false); // "From estimate": bring the Material estimate's lines in
+
   // the material whose deliveries are open; `log`: open with the Log delivery form ready
   const [logFor, setLogFor] = useState<{ id: string; log: boolean } | null>(null);
   const [quick, setQuick] = useState(false); // Log delivery from the top: pick the material, then the numbers
   const [printing, setPrinting] = useState(false);
+  const [search, setSearch] = useState(""); // one search for both tabs
+  const q = norm(useDeferredValue(search)); // typing stays smooth on a long list
 
   const show = (v: View) => {
     setView(v);
@@ -57,6 +65,7 @@ export default function MaterialsSimple({ projectId }: { projectId: string }) {
   const open = logFor ? items.find((i) => i.id === logFor.id) : null; // follows the list, so it updates after a delivery
   const pct = total > 0 ? Math.round((spent / total) * 100) : null;
   const over = spent > total + 0.5 && total > 0;
+  const shown = q ? items.filter((p) => materialMatches(p, q)) : items;
 
   return (
     <div className="space-y-6">
@@ -108,6 +117,11 @@ export default function MaterialsSimple({ projectId }: { projectId: string }) {
                 <FiPlus aria-hidden /> Add material
               </button>
             )}
+            {view === "materials" && canAdd && (
+              <button type="button" onClick={() => setFromEstimate(true)} className={mono.secondary}>
+                <FiDownload aria-hidden /> From estimate
+              </button>
+            )}
             {view === "materials" && items.length > 0 && (
               <button type="button" onClick={() => setPrinting(true)} className={`${mono.secondary} max-sm:hidden`}>
                 <FiPrinter aria-hidden /> Print
@@ -117,17 +131,35 @@ export default function MaterialsSimple({ projectId }: { projectId: string }) {
         )}
       </div>
 
+      {items.length > 0 && (
+        <MaterialSearch
+          value={search}
+          onChange={setSearch}
+          label={view === "materials" ? "Search materials" : "Search deliveries by material"}
+          note={q ? `${shown.length} of ${items.length} ${items.length === 1 ? "material" : "materials"}` : null}
+        />
+      )}
+
       <div hidden={view !== "materials"}>
         {items.length === 0 ? (
           <div className={`${mono.card} px-6 py-14 text-center`}>
             <p className="text-[17px] font-semibold text-[#111111]">No materials added yet</p>
-            {canAdd && <p className="mt-1.5 text-sm text-[#666666]">Use Add material: for example 5,000 bricks at ₹8.</p>}
+            {canAdd && <p className="mt-1.5 text-sm text-[#666666]">Use Add material (for example 5,000 bricks at ₹8), or From estimate to bring in the Material estimate.</p>}
+          </div>
+        ) : shown.length === 0 ? (
+          <div className={`${mono.card} px-6 py-12 text-center`}>
+            <p className="text-[17px] font-semibold text-[#111111]">No material matches “{search.trim()}”</p>
+            <p className="mt-1.5 text-sm text-[#666666]">Check the spelling, or clear the search to see every material.</p>
+            <button type="button" onClick={() => setSearch("")} className={`${mono.secondary} mt-4`}>
+              Clear search
+            </button>
           </div>
         ) : (
           <>
             {/* phones and small tablets: one card per material, big buttons */}
             <MaterialCards
-              items={items}
+              items={shown}
+              searching={!!q}
               total={total}
               spent={spent}
               canEdit={canAdd}
@@ -136,7 +168,7 @@ export default function MaterialsSimple({ projectId }: { projectId: string }) {
             />
             {/* wider screens: the table */}
             <div className="hidden md:block">
-              <MaterialsTable items={items} canEdit={canAdd} onEdit={(p) => setDialog({ editing: p })} onLog={(p) => setLogFor({ id: p.id, log: false })} />
+              <MaterialsTable items={shown} canEdit={canAdd} onEdit={(p) => setDialog({ editing: p })} onLog={(p) => setLogFor({ id: p.id, log: false })} />
             </div>
           </>
         )}
@@ -144,14 +176,50 @@ export default function MaterialsSimple({ projectId }: { projectId: string }) {
 
       {opened.has("deliveries") && (
         <div hidden={view !== "deliveries"}>
-          <DeliveriesTable projectId={projectId} items={items} canEdit={canAdd} />
+          {/* your DeliveriesTable takes the materials to show: the search filters them here */}
+          <DeliveriesTable projectId={projectId} items={shown} canEdit={canAdd} />
         </div>
       )}
 
       {open && <DeliveryLog projectId={projectId} purchase={open} canEdit={canAdd} startLogging={logFor?.log} onClose={() => setLogFor(null)} />}
       {quick && <QuickDelivery projectId={projectId} items={items} onClose={() => setQuick(false)} />}
+      {fromEstimate && <EstimateImportDialog projectId={projectId} onClose={() => setFromEstimate(false)} />}
       {dialog && <PurchaseDialog projectId={projectId} names={names} editing={dialog.editing} onClose={() => setDialog(null)} />}
       {printing && <MaterialsPrint items={items} total={total} spent={spent} site={site} onDone={() => setPrinting(false)} />}
+    </div>
+  );
+}
+
+const searchField = mono.field.replace("mt-1.5 ", ""); // no gap above: the magnifier sits centred
+
+/** The search box, in the monochrome look, with a clear button and how many match */
+function MaterialSearch({ value, onChange, label, note }: { value: string; onChange: (v: string) => void; label: string; note: string | null }) {
+  return (
+    <div role="search" className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="relative w-full sm:max-w-md">
+        <FiSearch aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8C8C8C]" />
+        <input
+          type="search"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => e.key === "Escape" && onChange("")}
+          aria-label={label}
+          placeholder={label}
+          enterKeyHint="search"
+          autoComplete="off"
+          className={`${searchField} h-12 pl-10 pr-11 sm:h-11 [&::-webkit-search-cancel-button]:hidden`}
+        />
+        {value && (
+          <button type="button" onClick={() => onChange("")} aria-label="Clear search" className={`${mono.icon} absolute right-1 top-1/2 -translate-y-1/2`}>
+            <FiX aria-hidden />
+          </button>
+        )}
+      </div>
+      {note && (
+        <p aria-live="polite" className="text-sm text-[#666666]">
+          {note}
+        </p>
+      )}
     </div>
   );
 }
@@ -177,6 +245,7 @@ const MaterialCards = memo(function MaterialCards({
   items,
   total,
   spent,
+  searching,
   canEdit,
   onEdit,
   onOpen,
@@ -184,6 +253,8 @@ const MaterialCards = memo(function MaterialCards({
   items: Purchase[];
   total: number;
   spent: number;
+  /** while searching the list is partial, so the totals of every material are left out */
+  searching: boolean;
   canEdit: boolean;
   onEdit: (p: Purchase) => void;
   onOpen: (p: Purchase, log: boolean) => void;
@@ -195,7 +266,7 @@ const MaterialCards = memo(function MaterialCards({
           <MaterialCard key={p.id} n={i + 1} p={p} canEdit={canEdit} onEdit={onEdit} onOpen={onOpen} />
         ))}
       </ul>
-      <div className={`${mono.card} grid grid-cols-2 gap-3 px-5 py-4`}>
+      <div hidden={searching} className={`${mono.card} grid grid-cols-2 gap-3 px-5 py-4`}>
         <div className="min-w-0">
           <p className={mono.label}>Total preset cost</p>
           <p className="mt-0.5 truncate text-lg font-semibold tabular-nums text-[#111111]">{money(total)}</p>
@@ -235,6 +306,7 @@ const MaterialCard = memo(function MaterialCard({
             {qtyText(p.quantity)} {p.unit} at {money(p.rate)}
             {p.note && ` · ${p.note}`}
           </p>
+          <AddedHistory p={p} />
         </div>
         {canEdit && (
           <span className="-mr-2 flex shrink-0">
@@ -365,6 +437,7 @@ const Row = memo(function Row({
           {shortDate(p.date)}
           {p.note && ` · ${p.note}`}
         </p>
+        <AddedHistory p={p} />
       </td>
       <td className={`${mono.td} whitespace-nowrap text-right tabular-nums`}>
         <span className="text-[#111111]">
@@ -414,3 +487,23 @@ const Row = memo(function Row({
     </tr>
   );
 });
+/**
+ * When more of a material was added later: the first lot and each addition with its date,
+ * e.g. "10,000 on 1 Nov · +5,000 on 8 Nov". Nothing when it was added once.
+ */
+function AddedHistory({ p }: { p: Purchase }) {
+  const adds = p.additions ?? [];
+  if (adds.length === 0) return null;
+  return (
+    <ul aria-label={`How ${p.name} was added`} className="mt-1 flex flex-wrap gap-1">
+      <li className="rounded-md bg-[#F1F1EF] px-1.5 py-0.5 text-[11px] tabular-nums text-[#333333]">
+        {qtyText(p.firstQuantity ?? p.quantity)} on {shortDate(p.date)}
+      </li>
+      {adds.map((a) => (
+        <li key={a.id} title={a.note || `Added by ${a.addedBy}`} className="rounded-md bg-[#111111] px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-white">
+          +{qtyText(a.quantity)} on {shortDate(a.date)}
+        </li>
+      ))}
+    </ul>
+  );
+}

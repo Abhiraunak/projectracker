@@ -23,6 +23,22 @@ export interface Purchase {
   toCome: number;
   extra: number; // arrived beyond what was ordered
   state: "none" | "part" | "all" | "extra";
+  /** The first lot (on `date`); `quantity` is it plus every addition */
+  firstQuantity?: number;
+  /** More added later to the same material, oldest first: "+5,000 on 8 Nov" */
+  additions?: Addition[];
+}
+
+export interface Addition {
+  id: string;
+  date: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+  note: string;
+  billUrl: string | null;
+  billKind: "pdf" | "image" | null;
+  addedBy: string;
 }
 
 export interface Delivery {
@@ -31,6 +47,8 @@ export interface Delivery {
   quantity: number;
   rate: number; // what was actually paid per unit
   amount: number; // quantity × rate
+  /** From the site diary: arrived, the manager hasn't added the rate yet (so it doesn't count as spending yet) */
+  ratePending?: boolean;
   billUrl: string | null;
   billKind: "pdf" | "image" | null;
   addedBy: string;
@@ -120,26 +138,6 @@ async function send(method: "POST" | "PUT", path: string, p: PurchaseInput) {
   return body.purchase;
 }
 
-/** One material the BOQ needs under one sheet, with the standard rate */
-export interface BoqLine {
-  section: string;
-  materialId: string;
-  name: string;
-  unit: string;
-  quantity: number;
-  rate: number;
-  amount: number;
-  added: boolean; // already on the list under this section
-}
-
-export interface BoqLineInput {
-  section: string;
-  name: string;
-  unit: string;
-  quantity: number;
-  rate: number;
-}
-
 /** Renews an expired session once, like request() does */
 async function withRenew<T>(run: () => Promise<T>) {
   try {
@@ -169,15 +167,32 @@ async function sendDelivery(projectId: string, purchaseId: string, d: DeliveryIn
   return body.purchase;
 }
 
+/** One priced line of a Material estimate (BOQ), ready to become a material */
+export interface EstimateLine {
+  partId: string;
+  section: string;
+  name: string;
+  unit: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+  imported: boolean; // a material with this name is already on the list
+}
+export interface EstimateBook {
+  estimates: { id: string; title: string; lines: EstimateLine[] }[];
+}
+
 export const purchasesApi = {
+  /** The project's Material estimates and their lines */
+  estimate: (projectId: string) => request<EstimateBook>(`/projects/${id(projectId)}/material-purchases/estimate`),
+  /** Bring the chosen lines in as materials; names already on the list are skipped */
+  importFromEstimate: (projectId: string, boqId: string, partIds: string[]) =>
+    request<{ added: number; skipped: string[] }>(`/projects/${id(projectId)}/material-purchases/from-estimate`, { method: "POST", body: JSON.stringify({ boqId, partIds }) }),
   addDelivery: (projectId: string, purchaseId: string, d: DeliveryInput) => withRenew(() => sendDelivery(projectId, purchaseId, d)),
   removeDelivery: (projectId: string, purchaseId: string, deliveryId: string) =>
     request<{ purchase: Purchase }>(`/projects/${id(projectId)}/material-purchases/${id(purchaseId)}/deliveries/${id(deliveryId)}`, { method: "DELETE" }).then((r) => r.purchase),
   list: (projectId: string) => request<PurchaseBook>(`/projects/${id(projectId)}/material-purchases`),
   add: (projectId: string, p: PurchaseInput) => withRenew(() => send("POST", `/projects/${id(projectId)}/material-purchases`, p)),
   update: (projectId: string, purchaseId: string, p: PurchaseInput) => withRenew(() => send("PUT", `/projects/${id(projectId)}/material-purchases/${id(purchaseId)}`, p)),
-  fromBoq: (projectId: string) => request<{ lines: BoqLine[]; boqItems: number }>(`/projects/${id(projectId)}/material-purchases/from-boq`),
-  addFromBoq: (projectId: string, body: { date: string; lines: BoqLineInput[] }) =>
-    request<{ added: number; total: number }>(`/projects/${id(projectId)}/material-purchases/from-boq`, { method: "POST", body: JSON.stringify(body) }),
   remove: (projectId: string, purchaseId: string) => request<{ ok: true }>(`/projects/${id(projectId)}/material-purchases/${id(purchaseId)}`, { method: "DELETE" }),
 };

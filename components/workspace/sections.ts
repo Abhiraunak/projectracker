@@ -4,6 +4,7 @@ import { FiBox, FiPaperclip, FiClipboard, FiFileText, FiPenTool, FiTruck } from 
 import type { Permission } from "@/lib/access/types";
 import type { SectionKey } from "@/lib/projects/place";
 import { plural, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
+// FiBookOpen,
 
 type SectionProps = { projectId: string };
 
@@ -33,13 +34,13 @@ const def = (d: Omit<SectionDef, "Section">): SectionDef => ({ ...d, Section: la
 // Rate comparison now sits inside the Labour tab (its fourth button); old ?s=rates links open Labour on it.
 export const SECTIONS: SectionDef[] = [
   def({
-    key: "boq",
-    label: "BOQ",
+    key: "boq", // the key stays "boq" so old links (?s=boq) still open it
+    label: "Material estimate",
     Icon: FiFileText,
     needs: "boq.use",
     load: () => import("./sections/BoqSection"),
     summary: ({ boqs }) =>
-      !boqs || boqs.length === 0 ? { text: "No BOQ yet" } : { text: `${plural(boqs.length, "BOQ")} · ${rupeesShort(boqs.reduce((s, b) => s + b.grandTotal, 0))}` },
+      !boqs || boqs.length === 0 ? { text: "No estimate yet" } : { text: `${plural(boqs.length, "estimate")} · ${rupeesShort(boqs.reduce((s, b) => s + b.grandTotal, 0))}` },
   }),
   def({
     key: "drawings",
@@ -84,10 +85,18 @@ export const SECTIONS: SectionDef[] = [
     key: "expenses",
     label: "General",
     Icon: FiPaperclip,
-    needs: "project.view",
+    needs: "expenses.manage", // the General tick on the admin page
     load: () => import("./sections/ExpenditureSection"), // money at a glance, then the daily expenses
     summary: () => ({ text: "Cost vs spent, and general expenses" }),
   }),
+  // def({
+  //   key: "diary",
+  //   label: "Site engineer",
+  //   Icon: FiBookOpen,
+  //   needs: "diary.review", // managers only; engineers fill the reports from Site diary in the menu, on their phone
+  //   load: () => import("./sections/SiteDiarySection"),
+  //   summary: () => ({ text: "Daily reports: teams, material used and arrived" }),
+  // }),
 ];
 
 export const sectionByKey = new Map(SECTIONS.map((s) => [s.key, s]));

@@ -99,8 +99,8 @@ export const useMonthSheet = (projectId: string, month: string, contractor?: str
   });
 
 /** The project's work items to mark attendance under, with what each has so far (refreshed after every save) */
-export const useWorkItems = (projectId: string) =>
-  useQuery({ queryKey: ["attendance", "work-items", projectId], queryFn: () => attendanceApi.workItems(projectId), staleTime: 15_000 });
+export const useWorkItems = (projectId: string, enabled = true) =>
+  useQuery({ queryKey: ["attendance", "work-items", projectId], queryFn: () => attendanceApi.workItems(projectId), staleTime: 15_000, enabled });
 
 /** Add a work item by name: it joins the project's work items, so the Overview and Rate comparison refresh too */
 export function useAddWorkItem(projectId: string) {

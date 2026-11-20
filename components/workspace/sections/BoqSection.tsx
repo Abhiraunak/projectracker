@@ -86,7 +86,7 @@ function BoqBook({ projectId }: { projectId: string }) {
             <FiFileText aria-hidden /> From sample
           </button>
           <button type="button" onClick={() => void startNew("blank")} disabled={create.isPending} className={mono.primary}>
-            <FiPlus aria-hidden /> {create.isPending ? "Creating…" : "New BOQ"}
+            <FiPlus aria-hidden /> {create.isPending ? "Creating…" : "New estimate"}
           </button>
         </div>
       </div>
@@ -119,8 +119,8 @@ function BoqBook({ projectId }: { projectId: string }) {
           </div>
         ) : data!.items.length === 0 ? (
           <div className="px-6 py-14 text-center">
-            <p className="text-[17px] font-semibold text-[#111111]">{filtering ? "No BOQ matches" : "No BOQ for this project yet"}</p>
-            <p className="mt-1.5 text-sm text-[#666666]">{filtering ? "Try another search, or show all." : "Create one with New BOQ or start from the sample. It belongs to this project only."}</p>
+            <p className="text-[17px] font-semibold text-[#111111]">{filtering ? "No estimate matches" : "No Material estimate for this project yet"}</p>
+            <p className="mt-1.5 text-sm text-[#666666]">{filtering ? "Try another search, or show all." : "Create one with New estimate or start from the sample. It belongs to this project only."}</p>
           </div>
         ) : (
           <>
@@ -136,9 +136,9 @@ function BoqBook({ projectId }: { projectId: string }) {
         open={deleting !== null}
         onClose={() => setDeleting(null)}
         onConfirm={confirmDelete}
-        title="Delete this BOQ?"
-        itemName={deleting?.title || "Untitled BOQ"}
-        description="The BOQ and all its sheets will be deleted. Export it to Excel first if you might need it."
+        title="Delete this estimate?"
+        itemName={deleting?.title || "Untitled estimate"}
+        description="The estimate and all its sheets will be deleted. Export it to Excel first if you might need it."
         pending={remove.isPending}
         error={remove.isError ? describeError(remove.error) : null}
       />
@@ -157,7 +157,7 @@ function OpenBoq({ projectId, id, onBack }: { projectId: string; id: string; onB
       <div className="space-y-3">
         <SectionError error={boq.error} onRetry={() => void boq.refetch()} />
         <button type="button" onClick={onBack} className={mono.secondary}>
-          Back to this project&apos;s BOQs
+          Back to this project&apos;s estimates
         </button>
       </div>
     );
@@ -165,9 +165,9 @@ function OpenBoq({ projectId, id, onBack }: { projectId: string; id: string; onB
   if (boq.data.project?.id !== projectId)
     return (
       <div className={`${mono.card} px-6 py-12 text-center`}>
-        <p className="text-[17px] font-semibold text-[#111111]">This BOQ isn&apos;t part of this project</p>
+        <p className="text-[17px] font-semibold text-[#111111]">This estimate isn&apos;t part of this project</p>
         <button type="button" onClick={onBack} className={`${mono.secondary} mt-4`}>
-          Back to this project&apos;s BOQs
+          Back to this project&apos;s estimates
         </button>
       </div>
     );
