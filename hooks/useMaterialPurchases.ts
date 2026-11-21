@@ -43,11 +43,44 @@ export function useAddDelivery(projectId: string) {
   });
 }
 
+/** Correct a delivery: date, how many, rate or amount */
+export function useUpdateDelivery(projectId: string) {
+  const refresh = useRefresh(projectId);
+  return useMutation({
+    mutationFn: ({ purchaseId, deliveryId, ...d }: { purchaseId: string; deliveryId: string } & Omit<DeliveryInput, "bill">) => purchasesApi.updateDelivery(projectId, purchaseId, deliveryId, d),
+    onSuccess: refresh,
+  });
+}
+
+/** Archive a delivery (it stops counting) or restore it */
+export function useArchiveDelivery(projectId: string) {
+  const refresh = useRefresh(projectId);
+  return useMutation({
+    mutationFn: ({ purchaseId, deliveryId, archived }: { purchaseId: string; deliveryId: string; archived: boolean }) => purchasesApi.archiveDelivery(projectId, purchaseId, deliveryId, archived),
+    onSuccess: refresh,
+  });
+}
+
+/** Delete an archived delivery for good */
 export function useRemoveDelivery(projectId: string) {
   const refresh = useRefresh(projectId);
   return useMutation({
     mutationFn: ({ purchaseId, deliveryId }: { purchaseId: string; deliveryId: string }) => purchasesApi.removeDelivery(projectId, purchaseId, deliveryId),
     onSuccess: refresh,
+  });
+}
+
+/**
+ * Delete several archived deliveries for good, one after another with the same call as a single delete (no new
+ * server route). Stops at the first that fails; the list refreshes either way, showing what is left.
+ */
+export function useRemoveDeliveries(projectId: string) {
+  const refresh = useRefresh(projectId);
+  return useMutation({
+    mutationFn: async ({ purchaseId, deliveryIds }: { purchaseId: string; deliveryIds: string[] }) => {
+      for (const deliveryId of deliveryIds) await purchasesApi.removeDelivery(projectId, purchaseId, deliveryId);
+    },
+    onSettled: refresh,
   });
 }
 

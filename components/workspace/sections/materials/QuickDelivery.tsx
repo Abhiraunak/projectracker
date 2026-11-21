@@ -45,7 +45,7 @@ export function QuickDelivery({ projectId, items, onClose }: { projectId: string
               <div className="min-w-0 pt-1.5">
                 <h2 className="wrap-break-word text-xl font-semibold tracking-[-0.01em] text-[#111111]">{picked.name}</h2>
                 <p className="mt-0.5 text-sm text-[#666666]">
-                  {qtyText(picked.arrived)} of {qtyText(picked.quantity)} {picked.unit} arrived · preset {money(picked.rate)}
+                  {qtyText(picked.arrived)} of {qtyText(picked.quantity)} {picked.unit} came · rate {money(picked.rate)}
                 </p>
               </div>
             </div>
@@ -99,10 +99,10 @@ export function QuickDelivery({ projectId, items, onClose }: { projectId: string
                       <span className="block truncate text-[15px] font-medium text-[#111111]">{p.name}</span>
                       <span className={`block text-sm ${p.state === "all" ? "text-[#1A6B3C]" : "text-[#666666]"}`}>
                         {p.state === "all"
-                          ? "All arrived"
+                          ? "All here"
                           : p.state === "extra"
                             ? `${qtyText(p.extra)} ${p.unit} extra`
-                            : `${qtyText(p.toCome)} ${p.unit} left of ${qtyText(p.quantity)}`}
+                            : `${qtyText(p.toCome)} ${p.unit} still to come of ${qtyText(p.quantity)}`}
                       </span>
                     </span>
                     <FiChevronRight aria-hidden className="shrink-0 text-[#8C8C8C]" />

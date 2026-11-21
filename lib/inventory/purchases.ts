@@ -19,6 +19,8 @@ export interface Purchase {
   createdAt: string;
   /** Deliveries, newest first: on what date how many arrived and at what rate. `quantity` above is what was ordered. */
   deliveries: Delivery[];
+  /** Archived deliveries: counted nowhere; can be restored, or deleted for good (left out by older servers) */
+  archived?: Delivery[];
   arrived: number;
   toCome: number;
   extra: number; // arrived beyond what was ordered
@@ -47,8 +49,10 @@ export interface Delivery {
   quantity: number;
   rate: number; // what was actually paid per unit
   amount: number; // quantity × rate
-  /** From the site diary: arrived, the manager hasn't added the rate yet (so it doesn't count as spending yet) */
+  /** No rate or amount yet ("Not set"): from the site diary, or logged before the bill came. Counts ₹0 until edited. */
   ratePending?: boolean;
+  /** When it was archived; null while it counts */
+  archivedAt?: string | null;
   billUrl: string | null;
   billKind: "pdf" | "image" | null;
   addedBy: string;
@@ -151,7 +155,10 @@ async function withRenew<T>(run: () => Promise<T>) {
 export interface DeliveryInput {
   date: string;
   quantity: number;
-  rate: number; // per unit, what was actually paid
+  /** Per unit, what was paid; null when not given */
+  rate: number | null;
+  /** What the delivery cost in all; null to work it out from the rate (or leave it "Not set") */
+  amount: number | null;
   bill: File | null;
 }
 
@@ -159,7 +166,8 @@ async function sendDelivery(projectId: string, purchaseId: string, d: DeliveryIn
   const form = new FormData();
   form.append("date", d.date);
   form.append("quantity", String(d.quantity));
-  form.append("rate", String(d.rate));
+  if (d.rate !== null) form.append("rate", String(d.rate));
+  if (d.amount !== null) form.append("amount", String(d.amount));
   if (d.bill) form.append("file", d.bill);
   const res = await fetch(apiUrl(`/projects/${id(projectId)}/material-purchases/${id(purchaseId)}/deliveries`), { method: "POST", body: form, credentials: "include", headers: { "X-Requested-With": "fetch" } });
   const body = (await res.json().catch(() => null)) as { purchase?: Purchase; error?: string; details?: unknown } | null;
@@ -189,6 +197,16 @@ export const purchasesApi = {
   importFromEstimate: (projectId: string, boqId: string, partIds: string[]) =>
     request<{ added: number; skipped: string[] }>(`/projects/${id(projectId)}/material-purchases/from-estimate`, { method: "POST", body: JSON.stringify({ boqId, partIds }) }),
   addDelivery: (projectId: string, purchaseId: string, d: DeliveryInput) => withRenew(() => sendDelivery(projectId, purchaseId, d)),
+  updateDelivery: (projectId: string, purchaseId: string, deliveryId: string, d: Omit<DeliveryInput, "bill">) =>
+    request<{ purchase: Purchase }>(`/projects/${id(projectId)}/material-purchases/${id(purchaseId)}/deliveries/${id(deliveryId)}`, {
+      method: "PUT",
+      body: JSON.stringify({ date: d.date, quantity: d.quantity, ...(d.rate !== null && { rate: d.rate }), ...(d.amount !== null && { amount: d.amount }) }),
+    }).then((r) => r.purchase),
+  archiveDelivery: (projectId: string, purchaseId: string, deliveryId: string, archived: boolean) =>
+    request<{ purchase: Purchase }>(`/projects/${id(projectId)}/material-purchases/${id(purchaseId)}/deliveries/${id(deliveryId)}/archive`, {
+      method: "POST",
+      body: JSON.stringify({ archived }),
+    }).then((r) => r.purchase),
   removeDelivery: (projectId: string, purchaseId: string, deliveryId: string) =>
     request<{ purchase: Purchase }>(`/projects/${id(projectId)}/material-purchases/${id(purchaseId)}/deliveries/${id(deliveryId)}`, { method: "DELETE" }).then((r) => r.purchase),
   list: (projectId: string) => request<PurchaseBook>(`/projects/${id(projectId)}/material-purchases`),

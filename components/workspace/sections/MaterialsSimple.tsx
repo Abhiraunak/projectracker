@@ -1,7 +1,7 @@
 "use client";
 
-import { memo, useDeferredValue, useState } from "react";
-import { FiDownload, FiEdit2, FiFileText, FiImage, FiPlus, FiPrinter, FiSearch, FiTruck, FiX } from "react-icons/fi";
+import { Fragment, memo, useDeferredValue, useState } from "react";
+import { FiChevronDown, FiDownload, FiEdit2, FiFileText, FiImage, FiPlus, FiPrinter, FiSearch, FiTruck, FiX } from "react-icons/fi";
 import { useCan } from "@/hooks/useProjectAccess";
 import { useMaterialPurchases } from "@/hooks/useMaterialPurchases";
 import { useProjectHub } from "@/hooks/useProjectHub";
@@ -9,7 +9,7 @@ import type { Purchase } from "@/lib/inventory/purchases";
 import { shortDate } from "@/lib/projects/hub";
 import { SectionError, SectionSkeleton } from "../ui";
 import { DeliveriesTable } from "./materials/DeliveriesTable";
-import { ArrivalMeter, DeliveryLog, leftText } from "./materials/DeliveryLog";
+import { ArrivalMeter, DeliveriesPanel, leftText } from "./materials/DeliveryLog";
 import { QuickDelivery } from "./materials/QuickDelivery";
 import { MaterialsPrint } from "./materials/MaterialsPrint";
 import { mono } from "./materials/mono";
@@ -30,8 +30,9 @@ const VIEWS: { key: View; label: string }[] = [
 
 /**
  * The Materials tab, in the dashboard's monochrome look:
- *  - the preset cost of everything ordered against what the deliveries actually cost;
- *  - Materials: S.No, material, ordered (at the preset rate), arrived, left, preset cost and actual spend;
+ *  - the planned cost of everything (quantity × rate) against what the deliveries cost (spent so far);
+ *  - Materials: S.No, material, quantity (at the rate), ordered (what has come), still to come, planned cost and
+ *    spent; Deliveries opens that material's deliveries right inside its row, with Add delivery there;
  *    each row opens its deliveries, where Log delivery asks for the quantity and the rate paid;
  *  - Delivery log: every delivery of every material in one table;
  *  - Expenses: material and general expenses.
@@ -46,7 +47,8 @@ export default function MaterialsSimple({ projectId }: { projectId: string }) {
   const [fromEstimate, setFromEstimate] = useState(false); // "From estimate": bring the Material estimate's lines in
 
   // the material whose deliveries are open; `log`: open with the Log delivery form ready
-  const [logFor, setLogFor] = useState<{ id: string; log: boolean } | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null); // the material whose deliveries are open in its row
+  const toggle = (id: string) => setOpenId((o) => (o === id ? null : id));
   const [quick, setQuick] = useState(false); // Log delivery from the top: pick the material, then the numbers
   const [printing, setPrinting] = useState(false);
   const [search, setSearch] = useState(""); // one search for both tabs
@@ -62,20 +64,19 @@ export default function MaterialsSimple({ projectId }: { projectId: string }) {
   const { items, total, names } = book.data;
   const spent = book.data.spentTotal ?? 0; // older servers don't send it
   const deliveries = items.reduce((s, p) => s + p.deliveries.length, 0);
-  const open = logFor ? items.find((i) => i.id === logFor.id) : null; // follows the list, so it updates after a delivery
   const pct = total > 0 ? Math.round((spent / total) * 100) : null;
   const over = spent > total + 0.5 && total > 0;
   const shown = q ? items.filter((p) => materialMatches(p, q)) : items;
 
   return (
     <div className="space-y-6">
-      {/* preset cost against actual spending */}
+      {/* planned cost against what was spent */}
       <section aria-label="Material cost" className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-        <Figure label="Preset cost" value={money(total)} note={`${items.length} ${items.length === 1 ? "material" : "materials"} ordered`} />
+        <Figure label="Planned cost" value={money(total)} note={`${items.length} ${items.length === 1 ? "material" : "materials"} · quantity × rate`} />
         <Figure
-          label="Actual spend"
+          label="Spent so far"
           value={money(spent)}
-          note={pct === null ? "What the deliveries cost" : over ? `${money(spent - total)} over the preset` : `${pct}% of the preset cost`}
+          note={pct === null ? "What the deliveries cost" : over ? `${money(spent - total)} over the plan` : `${pct}% of the planned cost`}
           tone={over ? "text-[#B3261E]" : undefined}
           meter={pct === null ? null : Math.min(100, pct)}
           meterTone={over ? "bg-[#C4302B]" : "bg-[#111111]"}
@@ -164,11 +165,13 @@ export default function MaterialsSimple({ projectId }: { projectId: string }) {
               spent={spent}
               canEdit={canAdd}
               onEdit={(p) => setDialog({ editing: p })}
-              onOpen={(p, log) => setLogFor({ id: p.id, log })}
+              projectId={projectId}
+              openId={openId}
+              onToggle={toggle}
             />
             {/* wider screens: the table */}
             <div className="hidden md:block">
-              <MaterialsTable items={shown} canEdit={canAdd} onEdit={(p) => setDialog({ editing: p })} onLog={(p) => setLogFor({ id: p.id, log: false })} />
+              <MaterialsTable projectId={projectId} items={shown} canEdit={canAdd} onEdit={(p) => setDialog({ editing: p })} openId={openId} onToggle={toggle} />
             </div>
           </>
         )}
@@ -181,7 +184,6 @@ export default function MaterialsSimple({ projectId }: { projectId: string }) {
         </div>
       )}
 
-      {open && <DeliveryLog projectId={projectId} purchase={open} canEdit={canAdd} startLogging={logFor?.log} onClose={() => setLogFor(null)} />}
       {quick && <QuickDelivery projectId={projectId} items={items} onClose={() => setQuick(false)} />}
       {fromEstimate && <EstimateImportDialog projectId={projectId} onClose={() => setFromEstimate(false)} />}
       {dialog && <PurchaseDialog projectId={projectId} names={names} editing={dialog.editing} onClose={() => setDialog(null)} />}
@@ -248,7 +250,9 @@ const MaterialCards = memo(function MaterialCards({
   searching,
   canEdit,
   onEdit,
-  onOpen,
+  projectId,
+  openId,
+  onToggle,
 }: {
   items: Purchase[];
   total: number;
@@ -257,22 +261,24 @@ const MaterialCards = memo(function MaterialCards({
   searching: boolean;
   canEdit: boolean;
   onEdit: (p: Purchase) => void;
-  onOpen: (p: Purchase, log: boolean) => void;
+  projectId: string;
+  openId: string | null;
+  onToggle: (id: string) => void;
 }) {
   return (
     <div className="space-y-3 md:hidden">
       <ul className="space-y-3">
         {items.map((p, i) => (
-          <MaterialCard key={p.id} n={i + 1} p={p} canEdit={canEdit} onEdit={onEdit} onOpen={onOpen} />
+          <MaterialCard key={p.id} n={i + 1} p={p} canEdit={canEdit} onEdit={onEdit} projectId={projectId} open={openId === p.id} onToggle={onToggle} />
         ))}
       </ul>
       <div hidden={searching} className={`${mono.card} grid grid-cols-2 gap-3 px-5 py-4`}>
         <div className="min-w-0">
-          <p className={mono.label}>Total preset cost</p>
+          <p className={mono.label}>Total planned cost</p>
           <p className="mt-0.5 truncate text-lg font-semibold tabular-nums text-[#111111]">{money(total)}</p>
         </div>
         <div className="min-w-0 text-right">
-          <p className={mono.label}>Total actual spend</p>
+          <p className={mono.label}>Total spent so far</p>
           <p className={`mt-0.5 truncate text-lg font-semibold tabular-nums ${spent > total + 0.5 ? "text-[#B3261E]" : "text-[#111111]"}`}>{money(spent)}</p>
         </div>
       </div>
@@ -285,13 +291,17 @@ const MaterialCard = memo(function MaterialCard({
   p,
   canEdit,
   onEdit,
-  onOpen,
+  projectId,
+  open,
+  onToggle,
 }: {
   n: number;
   p: Purchase;
   canEdit: boolean;
   onEdit: (p: Purchase) => void;
-  onOpen: (p: Purchase, log: boolean) => void;
+  projectId: string;
+  open: boolean;
+  onToggle: (id: string) => void;
 }) {
   const left = leftText(p);
   const over = p.spent > p.amount + 0.5;
@@ -321,36 +331,41 @@ const MaterialCard = memo(function MaterialCard({
       <div className="mt-3">
         <div className="flex items-baseline justify-between gap-3 text-sm">
           <span className="tabular-nums text-[#111111]">
-            {qtyText(p.arrived)} <span className="text-[#666666]">arrived</span>
+            {qtyText(p.arrived)} <span className="text-[#666666]">of {qtyText(p.quantity)} {p.unit} ordered</span>
           </span>
-          <span className={`tabular-nums ${left.cls}`}>{p.state === "part" || p.state === "none" ? `${left.text} left` : left.text}</span>
+          <span className={`tabular-nums ${left.cls}`}>{p.state === "part" || p.state === "none" ? `${left.text} to come` : left.text}</span>
         </div>
         <ArrivalMeter p={p} />
       </div>
 
-      {/* preset cost and actual spend */}
+      {/* planned cost and spent */}
       <dl className="mt-3 grid grid-cols-2 gap-2">
         <div className={mono.tile}>
-          <dt className={mono.label}>Preset cost</dt>
+          <dt className={mono.label}>Planned cost</dt>
           <dd className="mt-0.5 truncate text-[15px] font-semibold tabular-nums text-[#111111]">{money(p.amount)}</dd>
         </div>
         <div className={mono.tile}>
-          <dt className={mono.label}>Actual spend</dt>
+          <dt className={mono.label}>Spent so far</dt>
           <dd className={`mt-0.5 truncate text-[15px] font-semibold tabular-nums ${over ? "text-[#B3261E]" : "text-[#111111]"}`}>{money(p.spent ?? 0)}</dd>
         </div>
       </dl>
 
-      {/* big buttons for the thumb */}
-      <div className={`mt-3 grid gap-2 ${canEdit ? "grid-cols-2" : "grid-cols-1"}`}>
-        {canEdit && (
-          <button type="button" onClick={() => onOpen(p, true)} className={`${mono.secondary} h-12 px-3 font-semibold`}>
-            <FiTruck aria-hidden /> Log delivery
-          </button>
-        )}
-        <button type="button" onClick={() => onOpen(p, false)} className={`${mono.secondary} h-12 px-3`}>
-          History{p.deliveries.length > 0 && <span className="tabular-nums text-[#666666]">· {p.deliveries.length}</span>}
-        </button>
-      </div>
+      {/* one big button: the deliveries open right here, with Add delivery */}
+      <button
+        type="button"
+        onClick={() => onToggle(p.id)}
+        aria-expanded={open}
+        className={`${mono.secondary} mt-3 h-12 w-full px-3 font-semibold`}
+      >
+        <FiTruck aria-hidden /> Deliveries
+        {p.deliveries.length > 0 && <span className="font-normal tabular-nums text-[#666666]">· {p.deliveries.length}</span>}
+        <FiChevronDown aria-hidden className={`ml-auto transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="-mx-4 mt-3 border-t border-[#EFEFED] px-4 pt-4">
+          <DeliveriesPanel projectId={projectId} purchase={p} canEdit={canEdit} />
+        </div>
+      )}
     </li>
   );
 });
@@ -358,15 +373,19 @@ const MaterialCard = memo(function MaterialCard({
 /* ------------------------------------------ the table ------------------------------------------ */
 
 const MaterialsTable = memo(function MaterialsTable({
+  projectId,
   items,
   canEdit,
   onEdit,
-  onLog,
+  openId,
+  onToggle,
 }: {
+  projectId: string;
   items: Purchase[];
   canEdit: boolean;
   onEdit: (p: Purchase) => void;
-  onLog: (p: Purchase) => void;
+  openId: string | null;
+  onToggle: (id: string) => void;
 }) {
   return (
     <section aria-label="Materials" className={`${mono.card} overflow-hidden`}>
@@ -388,13 +407,13 @@ const MaterialsTable = memo(function MaterialsTable({
                 Ordered
               </th>
               <th scope="col" className={`${mono.th} text-right`}>
-                Left
+                Still to come
               </th>
               <th scope="col" className={`${mono.th} text-right`}>
-                Preset cost
+                Planned cost
               </th>
               <th scope="col" className={`${mono.th} text-right`}>
-                Actual spend
+                Spent
               </th>
               <th scope="col" className={`${mono.th} w-46`}>
                 <span className="sr-only">Deliveries, bill and actions</span>
@@ -403,7 +422,7 @@ const MaterialsTable = memo(function MaterialsTable({
           </thead>
           <tbody className="divide-y divide-[#EFEFED]">
             {items.map((p, i) => (
-              <Row key={p.id} n={i + 1} p={p} canEdit={canEdit} onEdit={onEdit} onLog={onLog} />
+              <Row key={p.id} n={i + 1} p={p} canEdit={canEdit} onEdit={onEdit} projectId={projectId} open={openId === p.id} onToggle={onToggle} />
             ))}
           </tbody>
         </table>
@@ -417,74 +436,94 @@ const Row = memo(function Row({
   p,
   canEdit,
   onEdit,
-  onLog,
+  projectId,
+  open,
+  onToggle,
 }: {
   n: number;
   p: Purchase;
   canEdit: boolean;
   onEdit: (p: Purchase) => void;
-  onLog: (p: Purchase) => void;
+  projectId: string;
+  open: boolean;
+  onToggle: (id: string) => void;
 }) {
   const left = leftText(p);
   const over = p.spent > p.amount + 0.5;
 
   return (
-    <tr className="align-top">
-      <td className={`${mono.td} tabular-nums text-[#8C8C8C]`}>{n}</td>
-      <td className={mono.td}>
-        <p className="font-medium text-[#111111]">{p.name}</p>
-        <p className="mt-0.5 text-xs text-[#666666]">
-          {shortDate(p.date)}
-          {p.note && ` · ${p.note}`}
-        </p>
-        <AddedHistory p={p} />
-      </td>
-      <td className={`${mono.td} whitespace-nowrap text-right tabular-nums`}>
-        <span className="text-[#111111]">
-          {qtyText(p.quantity)} <span className="text-[#666666]">{p.unit}</span>
-        </span>
-        <span className="mt-0.5 block text-xs text-[#666666]">
-          at {money(p.rate)}
-          {p.unit && `/${p.unit}`}
-        </span>
-      </td>
-      <td className={mono.td}>
-        <span className="block whitespace-nowrap tabular-nums text-[#111111]">
-          {p.arrived > 0 ? (
-            <>
-              {qtyText(p.arrived)} <span className="text-[#666666]">{p.unit}</span>
-            </>
-          ) : (
-            <span className="text-[#8C8C8C]">Nothing yet</span>
-          )}
-        </span>
-        <ArrivalMeter p={p} />
-      </td>
-      <td className={`${mono.td} whitespace-nowrap text-right tabular-nums ${left.cls}`}>{left.text}</td>
-      <td className={`${mono.td} whitespace-nowrap text-right tabular-nums text-[#111111]`}>{money(p.amount)}</td>
-      <td className={`${mono.td} whitespace-nowrap text-right font-semibold tabular-nums ${over ? "text-[#B3261E]" : "text-[#111111]"}`}>
-        {p.spent > 0 ? money(p.spent) : <span className="font-normal text-[#8C8C8C]">₹0</span>}
-      </td>
-      <td className="whitespace-nowrap px-2 py-2 text-right">
-        <span className="inline-flex items-center gap-0.5">
-          <button type="button" onClick={() => onLog(p)} className={`${mono.secondary} min-h-10 px-3 text-sm`} aria-label={`Deliveries of ${p.name}: ${qtyText(p.arrived)} of ${qtyText(p.quantity)} arrived`}>
-            <FiTruck aria-hidden /> Deliveries
-          </button>
-          {p.billUrl ? (
-            <a href={p.billUrl} target="_blank" rel="noreferrer" className={mono.icon} aria-label={`Open the bill for ${p.name}`} title="Open the bill">
-              {p.billKind === "pdf" ? <FiFileText aria-hidden /> : <FiImage aria-hidden />}
-            </a>
-          ) : (
-            <span aria-hidden className="inline-block h-10 w-10" /> // keeps the buttons in one column
-          )}
-          {canEdit && (
-            <button type="button" onClick={() => onEdit(p)} className={mono.icon} aria-label={`Edit ${p.name}`} title="Edit">
-              <FiEdit2 aria-hidden />
+    <Fragment>
+      <tr className={`align-top ${open ? "bg-[#FAFAF9]" : ""}`}>
+        <td className={`${mono.td} tabular-nums text-[#8C8C8C]`}>{n}</td>
+        <td className={mono.td}>
+          <p className="font-medium text-[#111111]">{p.name}</p>
+          <p className="mt-0.5 text-xs text-[#666666]">
+            {shortDate(p.date)}
+            {p.note && ` · ${p.note}`}
+          </p>
+          <AddedHistory p={p} />
+        </td>
+        <td className={`${mono.td} whitespace-nowrap text-right tabular-nums`}>
+          <span className="text-[#111111]">
+            {qtyText(p.quantity)} <span className="text-[#666666]">{p.unit}</span>
+          </span>
+          <span className="mt-0.5 block text-xs text-[#666666]">
+            at {money(p.rate)}
+            {p.unit && `/${p.unit}`}
+          </span>
+        </td>
+        <td className={mono.td}>
+          <span className="block whitespace-nowrap tabular-nums text-[#111111]">
+            {p.arrived > 0 ? (
+              <>
+                {qtyText(p.arrived)} <span className="text-[#666666]">{p.unit}</span>
+              </>
+            ) : (
+              <span className="text-[#8C8C8C]">Nothing yet</span>
+            )}
+          </span>
+          <ArrivalMeter p={p} />
+        </td>
+        <td className={`${mono.td} whitespace-nowrap text-right tabular-nums ${left.cls}`}>{left.text}</td>
+        <td className={`${mono.td} whitespace-nowrap text-right tabular-nums text-[#111111]`}>{money(p.amount)}</td>
+        <td className={`${mono.td} whitespace-nowrap text-right font-semibold tabular-nums ${over ? "text-[#B3261E]" : "text-[#111111]"}`}>
+          {p.spent > 0 ? money(p.spent) : <span className="font-normal text-[#8C8C8C]">₹0</span>}
+        </td>
+        <td className="whitespace-nowrap px-2 py-2 text-right">
+          <span className="inline-flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={() => onToggle(p.id)}
+              aria-expanded={open}
+              className={`${mono.secondary} min-h-10 px-3 text-sm ${open ? "border-[#111111]" : ""}`}
+              aria-label={`Deliveries of ${p.name}: ${qtyText(p.arrived)} of ${qtyText(p.quantity)} came`}
+            >
+              <FiTruck aria-hidden /> Deliveries <FiChevronDown aria-hidden className={`transition-transform ${open ? "rotate-180" : ""}`} />
             </button>
-          )}
-        </span>
-      </td>
-    </tr>
+            {p.billUrl ? (
+              <a href={p.billUrl} target="_blank" rel="noreferrer" className={mono.icon} aria-label={`Open the bill for ${p.name}`} title="Open the bill">
+                {p.billKind === "pdf" ? <FiFileText aria-hidden /> : <FiImage aria-hidden />}
+              </a>
+            ) : (
+              <span aria-hidden className="inline-block h-10 w-10" /> // keeps the buttons in one column
+            )}
+            {canEdit && (
+              <button type="button" onClick={() => onEdit(p)} className={mono.icon} aria-label={`Edit ${p.name}`} title="Edit">
+                <FiEdit2 aria-hidden />
+              </button>
+            )}
+          </span>
+        </td>
+      </tr>
+      {/* the deliveries, right under the material, with Add delivery */}
+      {open && (
+        <tr className="bg-[#FAFAF9]">
+          <td colSpan={8} className="border-t border-[#EFEFED] px-4 pb-5 pt-4 sm:pl-14">
+            <DeliveriesPanel projectId={projectId} purchase={p} canEdit={canEdit} />
+          </td>
+        </tr>
+      )}
+    </Fragment>
   );
 });
 /**
