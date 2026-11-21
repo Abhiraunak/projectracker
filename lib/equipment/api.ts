@@ -33,6 +33,8 @@ interface ItemDetails {
   marketValue: number | null;
   /** When the market value was last set (YYYY-MM-DD) */
   marketValueOn: string | null;
+  /** Date of purchase (YYYY-MM-DD), from the simple Add equipment form (left out by older servers) */
+  purchasedOn?: string | null;
   retired: boolean;
   updatedAt: string;
 }
@@ -125,6 +127,7 @@ export interface NewEquipment {
   notes: string;
   unitCost: number | null;
   marketValue: number | null;
+  purchasedOn?: string | null;
   quantity: number;
   to: string | null; // null: the yard
   date: string;
@@ -153,6 +156,7 @@ export const equipmentApi = {
   move: (id: string, body: NewMove) => request<{ id: string }>(`/equipment/${enc(id)}/moves`, { method: "POST", body: JSON.stringify(body) }),
   undo: (id: string, moveId: string) => request<{ ok: true }>(`/equipment/${enc(id)}/moves/${enc(moveId)}`, { method: "DELETE" }),
   addHireChange: (id: string, body: NewHireChange) => request<{ id: string }>(`/equipment/${enc(id)}/hire-changes`, { method: "POST", body: JSON.stringify(body) }),
+  remove: (id: string) => request<{ ok: true }>(`/equipment/${enc(id)}`, { method: "DELETE" }),
   removeHireChange: (id: string, changeId: string) => request<{ ok: true }>(`/equipment/${enc(id)}/hire-changes/${enc(changeId)}`, { method: "DELETE" }),
 };
 

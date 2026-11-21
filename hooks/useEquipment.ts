@@ -39,6 +39,11 @@ export function useUpdateEquipment() {
   const refresh = useRefresh();
   return useMutation({ mutationFn: ({ id, body }: { id: string; body: EquipmentChanges }) => equipmentApi.update(id, body), onSuccess: refresh });
 }
+/** Remove an item added by mistake, with its moves and hire changes */
+export function useDeleteEquipment() {
+  const refresh = useRefresh();
+  return useMutation({ mutationFn: (id: string) => equipmentApi.remove(id), onSuccess: refresh });
+}
 export function useMoveEquipment() {
   const refresh = useRefresh();
   return useMutation({ mutationFn: ({ id, body }: { id: string; body: NewMove }) => equipmentApi.move(id, body), onSuccess: refresh });

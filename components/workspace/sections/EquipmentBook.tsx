@@ -1,20 +1,21 @@
 "use client";
 
 import { memo, useMemo, useState } from "react";
-import { FiAlertTriangle, FiArrowLeft, FiChevronRight, FiCornerDownLeft, FiEdit2, FiMinusCircle, FiPlus, FiPrinter, FiSearch, FiTool, FiTruck } from "react-icons/fi";
+import { FiAlertTriangle, FiArrowLeft, FiChevronRight, FiCornerDownLeft, FiEdit2, FiMinusCircle, FiPlus, FiPrinter, FiSearch, FiTrash2, FiTruck } from "react-icons/fi";
 import { useCan } from "@/hooks/useProjectAccess";
-import { useEquipmentItem, useEquipmentRegister, useRemoveHireChange, useSiteEquipment, useUndoMove } from "@/hooks/useEquipment";
+import { useDeleteEquipment, useEquipmentItem, useEquipmentRegister, useRemoveHireChange, useSiteEquipment, useUndoMove } from "@/hooks/useEquipment";
 import { useProjectHub } from "@/hooks/useProjectHub";
-import { hrefFor, onPlaceClick, useWorkspaceItem } from "@/hooks/useWorkspacePlace";
+import { goTo, hrefFor, onPlaceClick, useWorkspaceItem } from "@/hooks/useWorkspacePlace";
 import { describeError } from "@/lib/api";
-import { CONDITION_LABEL, hireLabel, qty, totalAt, type CategoryKey, type EquipmentDetail, type HistoryEntry, type MoveKind, type RegisterItem, type SiteItem } from "@/lib/equipment/api";
-import { rupees, rupeesShort } from "@/lib/projects/hub";
+import { CONDITION_LABEL, hireLabel, qty, type EquipmentDetail, type HistoryEntry, type MoveKind, type RegisterItem, type SiteItem } from "@/lib/equipment/api";
+import { rupees } from "@/lib/projects/hub";
 import { EmptyState, SectionError, SectionSkeleton } from "../ui";
-import { EquipmentForm } from "./equipment/EquipmentForm";
+import { EquipmentForm, type EditableItem } from "./equipment/EquipmentForm";
 import { BringDialog, MoveDialog, type Movable } from "./equipment/MoveDialog";
 import { PrintRegister, PrintSite } from "./equipment/EquipmentPrint";
 import { HireChangeDialog } from "./equipment/HireChangeDialog";
-import { CATEGORY_LABEL, ConditionBadge, daysSince, field, longDate, outlineBtn, primaryBtn, todayLocal } from "./equipment/shared";
+import { CATEGORY_LABEL, field, longDate, outlineBtn, primaryBtn } from "./equipment/shared";
+import { ConfirmDeleteDialog } from "@/components/utilites/Confirmdeletedialog";
 
 const REGISTER = "register"; // ?i=register: every item, at every site and in the yard
 
@@ -34,19 +35,47 @@ export default function EquipmentBook({ projectId }: { projectId: string }) {
 type Dialog =
   | { type: "bring" }
   | { type: "new" }
-  | { type: "edit"; item: RegisterItem }
+  | { type: "edit"; item: EditableItem }
+  | { type: "delete"; item: { id: string; name: string }; then?: () => void }
   | { type: "move"; item: Movable; kind: MoveKind; from?: string; to?: string };
 
 /** The dialogs need the register (for the list of sites and items); it is fetched only once a dialog opens */
 function Dialogs({ projectId, dialog, onClose }: { projectId: string; dialog: Dialog | null; onClose: () => void }) {
-  const register = useEquipmentRegister(dialog !== null);
+  const needsRegister = dialog?.type === "bring" || dialog?.type === "move";
+  const register = useEquipmentRegister(needsRegister);
   if (!dialog) return null;
+  // The simple form and delete need nothing else loaded
+  if (dialog.type === "new") return <EquipmentForm projectId={projectId} onClose={onClose} />;
+  if (dialog.type === "edit") return <EquipmentForm projectId={projectId} item={dialog.item} onClose={onClose} />;
+  if (dialog.type === "delete") return <DeleteEquipment item={dialog.item} onClose={onClose} onDeleted={dialog.then} />;
   if (!register.data) return register.isError ? <p role="alert" className="text-sm text-red-700">{describeError(register.error)}</p> : null;
   const projects = register.data.projects;
   if (dialog.type === "bring") return <BringDialog projectId={projectId} register={register.data} onClose={onClose} />;
-  if (dialog.type === "new") return <EquipmentForm projectId={projectId} projects={projects} nextNumber={register.data.nextNumber} onClose={onClose} />;
-  if (dialog.type === "edit") return <EquipmentForm projectId={projectId} projects={projects} item={dialog.item} onClose={onClose} />;
   return <MoveDialog item={dialog.item} kind={dialog.kind} projects={projects} from={dialog.from} to={dialog.to} onClose={onClose} />;
+}
+
+/** Delete an item (added by mistake) with the app's usual delete dialog */
+function DeleteEquipment({ item, onClose, onDeleted }: { item: { id: string; name: string }; onClose: () => void; onDeleted?: () => void }) {
+  const remove = useDeleteEquipment();
+  return (
+    <ConfirmDeleteDialog
+      open
+      onClose={onClose}
+      title="Delete equipment?"
+      itemName={item.name}
+      warning="Its moves and hire charges are deleted too. If it is worn out or sold, use Write off on its page instead to keep its history."
+      pending={remove.isPending}
+      error={remove.error ? describeError(remove.error) : null}
+      onConfirm={() =>
+        remove.mutate(item.id, {
+          onSuccess: () => {
+            onClose();
+            onDeleted?.();
+          },
+        })
+      }
+    />
+  );
 }
 
 function Crumbs({ projectId, current }: { projectId: string; current: "site" | "register" | "item" }) {
@@ -77,38 +106,28 @@ function SiteView({ projectId }: { projectId: string }) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [printing, setPrinting] = useState(false);
   const siteName = useProjectHub(projectId).data?.project.title ?? "this site"; // already loaded by the project page
-  const [category, setCategory] = useState<CategoryKey | null>(null);
   const all = { projectId, section: "equipment" as const, item: REGISTER };
 
   if (site.isPending) return <SectionSkeleton />;
   if (site.isError) return <SectionError error={site.error} onRetry={() => void site.refetch()} />;
   const data = site.data;
-  const present = data.categories.filter((c) => data.items.some((i) => i.category === c.key));
-  const shown = category ? data.items.filter((i) => i.category === category) : data.items;
-  const today = todayLocal();
+  const shown = data.items;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-stone-600">
           <span className="font-semibold text-stone-900">{data.totals.items}</span> {data.totals.items === 1 ? "item" : "items"} here
-          {data.totals.hireThisMonth > 0 && (
-            <>
-              {" "}
-              · <span className="font-semibold text-stone-900">{rupeesShort(data.totals.hireThisMonth)}</span> hire this month
-            </>
-          )}
-          {data.totals.serviceDue > 0 && <span className="ml-2 text-amber-700">· {data.totals.serviceDue} due for service</span>}
         </p>
         <div className="flex flex-wrap gap-2">
           {canManage && (
-            <button type="button" onClick={() => setDialog({ type: "bring" })} className={`${primaryBtn} inline-flex items-center gap-2`}>
-              <FiTruck aria-hidden /> Bring equipment here
+            <button type="button" onClick={() => setDialog({ type: "new" })} className={`${primaryBtn} inline-flex items-center gap-2`}>
+              <FiPlus aria-hidden /> Add equipment
             </button>
           )}
           {canManage && (
-            <button type="button" onClick={() => setDialog({ type: "new" })} className={outlineBtn}>
-              <FiPlus aria-hidden /> Add equipment
+            <button type="button" onClick={() => setDialog({ type: "bring" })} className={outlineBtn}>
+              <FiTruck aria-hidden /> Bring equipment here
             </button>
           )}
           {data.items.length > 0 && (
@@ -122,26 +141,25 @@ function SiteView({ projectId }: { projectId: string }) {
         </div>
       </div>
 
-      {present.length > 1 && (
-        <div role="group" aria-label="Kind" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-          <CategoryChip label={`All (${data.items.length})`} on={category === null} onClick={() => setCategory(null)} />
-          {present.map((c) => (
-            <CategoryChip key={c.key} label={`${c.label} (${data.items.filter((i) => i.category === c.key).length})`} on={category === c.key} onClick={() => setCategory(c.key)} />
-          ))}
-        </div>
-      )}
-
       {data.items.length === 0 ? (
         <EmptyState
           title="No equipment at this site"
-          hint={canManage ? "Use Bring equipment here to send shuttering or machines from the yard or another site." : "When equipment is sent here, it will show up here."}
+          hint={canManage ? "Use Add equipment for something new, or Bring equipment here to send it from the yard or another site." : "When equipment is sent here, it will show up here."}
         />
       ) : (
-        <ul className="divide-y divide-stone-100 rounded-xl border border-stone-200">
-          {shown.map((i) => (
-            <SiteRow key={i.id} projectId={projectId} item={i} today={today} canManage={canManage} onSend={setDialog} />
-          ))}
-        </ul>
+        <div className="rounded-xl border border-stone-200">
+          <div className="hidden grid-cols-[minmax(0,1fr)_8rem_7rem_8.5rem] gap-3 border-b border-stone-100 px-4 py-2 text-xs font-medium text-stone-500 sm:grid">
+            <span>Name</span>
+            <span>Purchased</span>
+            <span className="text-right">Cost</span>
+            <span />
+          </div>
+          <ul className="divide-y divide-stone-100">
+            {shown.map((i) => (
+              <SiteRow key={i.id} projectId={projectId} item={i} canManage={canManage} onOpen={setDialog} />
+            ))}
+          </ul>
+        </div>
       )}
 
       {data.earlier.length > 0 && (
@@ -172,89 +190,76 @@ function SiteView({ projectId }: { projectId: string }) {
   );
 }
 
-/** What the listed equipment cost and what it is worth today (own equipment with those amounts set) */
-function ValueTotals({ items }: { items: RegisterItem[] }) {
-  const cost = items.reduce((s, i) => s + (totalAt(i.total, i.unitCost) ?? 0), 0);
-  const value = items.reduce((s, i) => s + (totalAt(i.total, i.marketValue) ?? 0), 0);
-  if (!cost && !value) return null;
-  return (
-    <dl className="flex flex-wrap gap-x-8 gap-y-1 text-sm text-stone-600">
-      <div>
-        <dt className="inline">Cost </dt>
-        <dd className="inline font-semibold tabular-nums text-stone-900">{rupees(cost)}</dd>
-      </div>
-      <div>
-        <dt className="inline">Current market value </dt>
-        <dd className="inline font-semibold tabular-nums text-stone-900">{rupees(value)}</dd>
-      </div>
-    </dl>
-  );
+/** Cost as a short line: "₹45,000", "₹1,500 each" when there are several, or the hire rate for hired items */
+function costText(i: { ownership: "owned" | "hired"; unitCost: number | null; hireRate: number | null; rateNow?: number | null; hirePer: "day" | "month"; unit: string }, count: number) {
+  if (i.unitCost !== null) return `${rupees(i.unitCost)}${count > 1 ? " each" : ""}`;
+  if (i.ownership === "hired") return hireLabel(i).replace("Hired · ", "");
+  return null;
 }
 
-function CategoryChip({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
+/** Edit and Delete, the same on every row */
+function RowActions({ item, onOpen, then }: { item: EditableItem; onOpen: (d: Dialog) => void; then?: () => void }) {
+  const icon = "inline-flex h-11 w-11 items-center justify-center rounded-lg border border-stone-200 text-stone-600 hover:border-stone-400 hover:text-stone-900";
   return (
-    <button
-      type="button"
-      aria-pressed={on}
-      onClick={onClick}
-      className={`min-h-10 shrink-0 rounded-full border px-3 text-sm transition-colors ${on ? "border-stone-900 bg-stone-900 text-white" : "border-stone-300 text-stone-700 hover:border-stone-500"}`}
-    >
-      {label}
-    </button>
+    <>
+      <button type="button" onClick={() => onOpen({ type: "edit", item })} aria-label={`Edit ${item.name}`} title="Edit" className={icon}>
+        <FiEdit2 aria-hidden />
+      </button>
+      <button type="button" onClick={() => onOpen({ type: "delete", item, then })} aria-label={`Delete ${item.name}`} title="Delete" className={`${icon} text-red-600 hover:border-red-300 hover:text-red-700`}>
+        <FiTrash2 aria-hidden />
+      </button>
+    </>
   );
 }
 
 const SiteRow = memo(function SiteRow({
   projectId,
   item: i,
-  today,
   canManage,
-  onSend,
+  onOpen,
 }: {
   projectId: string;
   item: SiteItem;
-  today: string;
   canManage: boolean;
-  onSend: (d: Dialog) => void;
+  onOpen: (d: Dialog) => void;
 }) {
   const place = { projectId, section: "equipment" as const, item: i.id };
-  const due = i.serviceDue && i.serviceDue <= today;
+  const cost = costText(i, i.here);
   return (
-    <li className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:gap-4">
-      <a href={hrefFor(place)} onClick={onPlaceClick(place)} className="min-w-0 flex-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-xs text-stone-500">{i.number}</span>
-          <span className="font-medium text-stone-900 hover:underline">{i.name}</span>
-          <ConditionBadge condition={i.condition} />
-          {due && (
-            <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800">
-              <FiTool aria-hidden /> Service due
-            </span>
-          )}
-        </span>
-        <span className="mt-0.5 block text-xs text-stone-500">
-          {CATEGORY_LABEL[i.category]}
-          {i.since && ` · here since ${longDate(i.since)} (${daysSince(i.since)} days)`}
-          {i.ownership === "hired" && ` · hired${i.supplier ? ` from ${i.supplier}` : ""}`}
-        </span>
-      </a>
-      <div className="flex items-center justify-between gap-4 sm:justify-end">
-        <span className="sm:text-right">
-          <span className="block font-semibold tabular-nums text-stone-900">
-            {qty(i.here)} <span className="font-normal text-stone-500">{i.unit}</span>
+    <li className="grid grid-cols-1 gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_8rem_7rem_8.5rem] sm:items-center sm:gap-3">
+      <a href={hrefFor(place)} onClick={onPlaceClick(place)} className="min-w-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500">
+        <span className="font-medium text-stone-900 hover:underline">{i.name}</span>
+        {i.here !== 1 && (
+          <span className="ml-2 text-sm text-stone-500">
+            × {qty(i.here)} {i.unit}
           </span>
-          {i.hireThisMonth > 0 && <span className="block text-xs tabular-nums text-stone-500">{rupees(i.hireThisMonth)} this month</span>}
-        </span>
-        {canManage && (
+        )}
+        {i.notes && <span className="mt-0.5 block truncate text-xs text-stone-500">{i.notes}</span>}
+      </a>
+      <span className="text-sm text-stone-600">
+        <span className="text-stone-500 sm:hidden">Purchased </span>
+        {i.purchasedOn ? longDate(i.purchasedOn) : "—"}
+      </span>
+      <span className="text-sm tabular-nums text-stone-900 sm:text-right">
+        <span className="text-stone-500 sm:hidden">Cost </span>
+        {cost ?? "—"}
+      </span>
+      {canManage ? (
+        <div className="flex gap-1.5 sm:justify-end">
           <button
             type="button"
-            onClick={() => onSend({ type: "move", kind: "move", item: { id: i.id, name: i.name, unit: i.unit, yard: 0, sites: [{ projectId, title: "This site", qty: i.here }] }, from: projectId, to: "" })}
-            className={outlineBtn}
+            onClick={() => onOpen({ type: "move", kind: "move", item: { id: i.id, name: i.name, unit: i.unit, yard: 0, sites: [{ projectId, title: "This site", qty: i.here }] }, from: projectId, to: "" })}
+            aria-label={`Send back ${i.name}`}
+            title="Send back"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-stone-200 text-stone-600 hover:border-stone-400 hover:text-stone-900"
           >
-            <FiCornerDownLeft aria-hidden /> Send back
+            <FiCornerDownLeft aria-hidden />
           </button>
-        )}
-      </div>
+          <RowActions item={i} onOpen={onOpen} />
+        </div>
+      ) : (
+        <span />
+      )}
     </li>
   );
 });
@@ -267,20 +272,18 @@ function RegisterView({ projectId }: { projectId: string }) {
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [printing, setPrinting] = useState(false);
   const [q, setQ] = useState("");
-  const [category, setCategory] = useState<CategoryKey | null>(null);
   const [retired, setRetired] = useState(false);
 
   const list = useMemo(() => {
     const words = q.trim().toLowerCase();
     return (register.data?.items ?? [])
-      .filter((i) => (retired || !i.retired) && (!category || i.category === category) && (!words || `${i.number} ${i.name} ${i.code ?? ""} ${i.supplier ?? ""}`.toLowerCase().includes(words)))
+      .filter((i) => (retired || !i.retired) && (!words || `${i.number} ${i.name} ${i.code ?? ""} ${i.supplier ?? ""}`.toLowerCase().includes(words)))
       .sort((x, y) => Number(y.total > 0) - Number(x.total > 0)); // none left: at the end
-  }, [register.data, q, category, retired]);
+  }, [register.data, q, retired]);
 
   if (register.isPending) return <SectionSkeleton />;
   if (register.isError) return <SectionError error={register.error} onRetry={() => void register.refetch()} />;
   const data = register.data;
-  const present = data.categories.filter((c) => data.items.some((i) => i.category === c.key && (retired || !i.retired)));
   const anyRetired = data.items.some((i) => i.retired);
 
   return (
@@ -304,17 +307,6 @@ function RegisterView({ projectId }: { projectId: string }) {
         )}
       </div>
 
-      <ValueTotals items={list} />
-
-      {present.length > 1 && (
-        <div role="group" aria-label="Kind" className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
-          <CategoryChip label="All" on={category === null} onClick={() => setCategory(null)} />
-          {present.map((c) => (
-            <CategoryChip key={c.key} label={c.label} on={category === c.key} onClick={() => setCategory(c.key)} />
-          ))}
-        </div>
-      )}
-
       {data.items.length === 0 ? (
         <EmptyState title="No equipment yet" hint={canManage ? "Add your shuttering, scaffolding and machines once; then send them between the yard and sites." : "Nothing has been added to the register yet."} />
       ) : list.length === 0 ? (
@@ -322,7 +314,7 @@ function RegisterView({ projectId }: { projectId: string }) {
       ) : (
         <ul className="divide-y divide-stone-100 rounded-xl border border-stone-200">
           {list.map((i) => (
-            <RegisterRow key={i.id} projectId={projectId} item={i} />
+            <RegisterRow key={i.id} projectId={projectId} item={i} canManage={canManage} onOpen={setDialog} />
           ))}
         </ul>
       )}
@@ -336,7 +328,7 @@ function RegisterView({ projectId }: { projectId: string }) {
       {printing && (
         <PrintRegister
           items={list}
-          heading={[category ? data.categories.find((c) => c.key === category)?.label : "All kinds", q.trim() && `matching "${q.trim()}"`].filter(Boolean).join(" · ")}
+          heading={q.trim() ? `Matching "${q.trim()}"` : "All equipment"}
           onDone={() => setPrinting(false)}
         />
       )}
@@ -344,16 +336,21 @@ function RegisterView({ projectId }: { projectId: string }) {
   );
 }
 
-const RegisterRow = memo(function RegisterRow({ projectId, item: i }: { projectId: string; item: RegisterItem }) {
+const RegisterRow = memo(function RegisterRow({ projectId, item: i, canManage, onOpen }: { projectId: string; item: RegisterItem; canManage: boolean; onOpen: (d: Dialog) => void }) {
   const place = { projectId, section: "equipment" as const, item: i.id };
   const here = i.sites.find((s) => s.projectId === projectId)?.qty ?? 0;
+  const cost = costText(i, i.total);
   return (
-    <li>
-      <a href={hrefFor(place)} onClick={onPlaceClick(place)} className={`flex min-h-16 items-center gap-3 px-4 py-3 hover:bg-stone-50 ${i.retired ? "opacity-60" : ""}`}>
+    <li className={`flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-3 ${i.retired ? "opacity-60" : ""}`}>
+      <a href={hrefFor(place)} onClick={onPlaceClick(place)} className="flex min-w-0 flex-1 items-center gap-3 rounded hover:bg-stone-50">
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs text-stone-500">{i.number}</span>
             <span className="font-medium text-stone-900">{i.name}</span>
+            {i.total !== 1 && (
+              <span className="text-sm text-stone-500">
+                × {qty(i.total)} {i.unit}
+              </span>
+            )}
             {i.retired && <span className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600">Retired</span>}
             {here > 0 && <span className="rounded bg-orange-50 px-1.5 py-0.5 text-xs font-medium text-orange-800">{qty(here)} here</span>}
           </span>
@@ -361,16 +358,13 @@ const RegisterRow = memo(function RegisterRow({ projectId, item: i }: { projectI
             {[i.yard > 0 && `Yard ${qty(i.yard)}`, ...i.sites.map((s) => `${s.title} ${qty(s.qty)}`)].filter(Boolean).join(" · ") || "None left"}
           </span>
         </span>
-        <span className="shrink-0 text-right">
-          <span className="block font-semibold tabular-nums text-stone-900">
-            {qty(i.total)} <span className="font-normal text-stone-500">{i.unit}</span>
-          </span>
-          <span className="block text-xs text-stone-500">
-            {i.ownership === "hired" ? "Hired" : totalAt(i.total, i.marketValue) !== null ? `worth ${rupeesShort(totalAt(i.total, i.marketValue)!)}` : CATEGORY_LABEL[i.category]}
-          </span>
-        </span>
-        <FiChevronRight aria-hidden className="shrink-0 text-stone-300" />
+        <span className="shrink-0 text-right text-sm tabular-nums text-stone-900">{cost ?? <span className="text-stone-400">—</span>}</span>
       </a>
+      {canManage && (
+        <div className="flex gap-1.5">
+          <RowActions item={i} onOpen={onOpen} />
+        </div>
+      )}
     </li>
   );
 });
@@ -392,7 +386,7 @@ function ItemView({ projectId, id }: { projectId: string; id: string }) {
     );
   const d = item.data;
   const open = (kind: MoveKind, from?: string, to?: string) => setDialog({ type: "move", kind, item: d, from, to });
-  const today = todayLocal();
+  const site = { projectId, section: "equipment" as const, item: null };
 
   return (
     <div className="space-y-5">
@@ -403,40 +397,24 @@ function ItemView({ projectId, id }: { projectId: string; id: string }) {
           <p className="font-mono text-sm text-stone-500">{d.number}</p>
           <h2 className="text-xl font-semibold">{d.name}</h2>
           <p className="mt-0.5 text-sm text-stone-500">
-            {[CATEGORY_LABEL[d.category], hireLabel(d), d.supplier && `${d.ownership === "hired" ? "from" : "bought from"} ${d.supplier}`, d.code && `Maker's serial ${d.code}`].filter(Boolean).join(" · ")}
+            {[d.category !== "other" && CATEGORY_LABEL[d.category], hireLabel(d), d.supplier && `${d.ownership === "hired" ? "from" : "bought from"} ${d.supplier}`, d.code && `Maker's serial ${d.code}`].filter(Boolean).join(" · ")}
           </p>
-          {d.serviceDue && (
-            <p className={`mt-1 inline-flex items-center gap-1 text-sm ${d.serviceDue <= today ? "font-medium text-amber-800" : "text-stone-500"}`}>
-              <FiTool aria-hidden /> {d.serviceDue <= today ? "Service due since" : "Next service"} {longDate(d.serviceDue)}
+          {(d.purchasedOn || d.unitCost !== null) && (
+            <p className="mt-1 text-sm text-stone-600">
+              {[d.purchasedOn && `Purchased ${longDate(d.purchasedOn)}`, d.unitCost !== null && `cost ${costText(d, d.total)}`].filter(Boolean).join(" · ")}
             </p>
-          )}
-          {(d.unitCost !== null || d.marketValue !== null) && (
-            <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
-              {d.unitCost !== null && (
-                <div>
-                  <dt className="inline text-stone-500">Cost </dt>
-                  <dd className="inline tabular-nums text-stone-900">
-                    {rupees(d.unitCost)} each · <span className="font-semibold">{rupees(totalAt(d.total, d.unitCost)!)}</span> for {qty(d.total)}
-                  </dd>
-                </div>
-              )}
-              {d.marketValue !== null && (
-                <div>
-                  <dt className="inline text-stone-500">Market value </dt>
-                  <dd className="inline tabular-nums text-stone-900">
-                    {rupees(d.marketValue)} each · <span className="font-semibold">{rupees(totalAt(d.total, d.marketValue)!)}</span> for {qty(d.total)}
-                    {d.marketValueOn && <span className="text-stone-500"> (as of {longDate(d.marketValueOn)})</span>}
-                  </dd>
-                </div>
-              )}
-            </dl>
           )}
           {d.notes && <p className="mt-2 max-w-prose whitespace-pre-line text-sm text-stone-600">{d.notes}</p>}
         </div>
         {canManage && (
-          <button type="button" onClick={() => setDialog({ type: "edit", item: d })} className={outlineBtn}>
-            <FiEdit2 aria-hidden /> Edit details
-          </button>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setDialog({ type: "edit", item: d })} className={outlineBtn}>
+              <FiEdit2 aria-hidden /> Edit
+            </button>
+            <button type="button" onClick={() => setDialog({ type: "delete", item: d, then: () => goTo(site) })} className={`${outlineBtn} text-red-700 hover:border-red-400`}>
+              <FiTrash2 aria-hidden /> Delete
+            </button>
+          </div>
         )}
       </header>
 
