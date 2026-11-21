@@ -47,6 +47,9 @@ export interface ProjectSummary {
   progress: number;
   startDate: string | null;
   endDate: string | null;
+  /** The project's own dates set on Edit project (null = from the work items); left out by older servers */
+  ownStartDate?: string | null;
+  ownEndDate?: string | null;
   updatedAt: string;
 }
 
@@ -122,8 +125,10 @@ export async function request<T>(path: string, init: RequestInit = {}, isRetry =
     },
   });
 
-  // Expired access token: renew once and retry. Auth routes themselves are excluded to avoid loops.
-  if (res.status === 401 && !isRetry && !path.startsWith("/auth/")) {
+  // Expired access token: renew once and retry. Auth routes are excluded to avoid loops, except changing the
+  // password, which needs a signed-in user like any other page (after a quiet spell its access token has expired)
+  const renewable = !path.startsWith("/auth/") || path === "/auth/password/change";
+  if (res.status === 401 && !isRetry && renewable) {
     if (await renewSession()) return request<T>(path, init, true);
     notifySessionExpired();
   }

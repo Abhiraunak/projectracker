@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { hubApi } from "@/lib/projects/hub";
+import { hubApi, type ProjectDetails } from "@/lib/projects/hub";
 
 /*
  * Under "projects", so anything that already refreshes the project lists (saving progress, a payment, a status
@@ -31,7 +31,7 @@ export function usePrefetchProject() {
 export function useSetProjectDetails(projectId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { title?: string; firmName?: string | null; projectCost?: number | null }) => hubApi.setDetails(projectId, body),
+    mutationFn: (body: ProjectDetails) => hubApi.setDetails(projectId, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }), // the tiles and this hub
   });
 }

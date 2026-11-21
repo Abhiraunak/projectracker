@@ -76,10 +76,10 @@ export const ProjectTile = memo(function ProjectTile({
   // On the Projects page the tile moves inside the workspace; elsewhere it goes to the Projects page
   const open = linkBase
     ? (e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-        e.preventDefault();
-        router.push(href);
-      }
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      router.push(href);
+    }
     : onPlaceClick(place);
   const intent = useCallback(() => onIntent(p.id), [onIntent, p.id]);
 
@@ -180,7 +180,7 @@ function TileMenu({ project: p }: { project: ProjectSummary }) {
 
   if (!canEdit) return null;
   // firmName is optional on ProjectSummary (older APIs leave it out), so undefined becomes null
-  const editable = { id: p.id, title: p.title, firmName: p.firmName ?? null, projectCost: p.projectCost };
+  const editable = { id: p.id, title: p.title, firmName: p.firmName ?? null, projectCost: p.projectCost, startDate: p.ownStartDate ?? null, endDate: p.ownEndDate ?? null };
 
   return (
     <div ref={wrap} className="relative z-1 -my-1.5 -mr-1.5">

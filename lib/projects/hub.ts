@@ -2,7 +2,16 @@ import { request } from "@/lib/api";
 
 /** GET /projects/:id/hub. A section's part is null when this person may not open that section. */
 export interface ProjectHub {
-  project: { id: string; title: string; firmName: string | null; status: "ONGOING" | "COMPLETED" | "ARCHIVED"; updatedAt: string };
+  project: {
+    id: string;
+    title: string;
+    firmName: string | null;
+    status: "ONGOING" | "COMPLETED" | "ARCHIVED";
+    updatedAt: string;
+    /** Set on Edit project; null = worked out from the work items (left out by older servers) */
+    startDate?: string | null;
+    endDate?: string | null;
+  };
   progress: { percent: number; items: number; start: string | null; end: string | null; daysLeft: number | null; late: boolean };
   money: { budget: number; budgetIsSet: boolean; labourPaid: number; materialSpent: number; spent: number; left: number; usedPct: number };
   labour: { agreed: number; paid: number; earned: number; due: number; paidAhead: number };
@@ -31,10 +40,19 @@ export interface ProjectSpend {
 /** Under "attendance", so every labour save refreshes it; deliveries, expenses and payments refresh it by name */
 export const spendKey = (projectId: string) => ["attendance", "spend", projectId] as const;
 
+/** What Edit project saves; dates are "2026-11-21", null clears them */
+export interface ProjectDetails {
+  title?: string;
+  firmName?: string | null;
+  projectCost?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
 export const hubApi = {
   get: (projectId: string) => request<ProjectHub>(`/projects/${encodeURIComponent(projectId)}/hub`),
   spend: (projectId: string) => request<ProjectSpend>(`/projects/${encodeURIComponent(projectId)}/spend`),
-  setDetails: (projectId: string, body: { title?: string; firmName?: string | null; projectCost?: number | null }) =>
+  setDetails: (projectId: string, body: ProjectDetails) =>
     request<unknown>(`/projects/${encodeURIComponent(projectId)}`, { method: "PATCH", body: JSON.stringify(body) }),
 };
 

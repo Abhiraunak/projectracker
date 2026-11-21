@@ -75,7 +75,10 @@ export const Overview = memo(function Overview({
       ) : <div aria-busy="true" className="h-64 animate-pulse rounded-[22px] bg-[#EFEFED] motion-reduce:animate-none" />}
 
       {settingCost && money && (
-        <EditDetailsDialog project={{ id: projectId, title: hub.project.title, firmName: hub.project.firmName, projectCost: money.projectCost }} onClose={() => setSettingCost(false)} />
+        <EditDetailsDialog
+          project={{ id: projectId, title: hub.project.title, firmName: hub.project.firmName, projectCost: money.projectCost, startDate: hub.project.startDate ?? null, endDate: hub.project.endDate ?? null }}
+          onClose={() => setSettingCost(false)}
+        />
       )}
 
       {/* 4 · the other sections */}
