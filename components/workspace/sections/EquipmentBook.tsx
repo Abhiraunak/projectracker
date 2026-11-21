@@ -2,6 +2,7 @@
 
 import { memo, useMemo, useState } from "react";
 import { FiAlertTriangle, FiArrowLeft, FiChevronRight, FiCornerDownLeft, FiEdit2, FiMinusCircle, FiPlus, FiPrinter, FiSearch, FiTrash2, FiTruck } from "react-icons/fi";
+import { ConfirmDeleteDialog } from "@/components/utilites/Confirmdeletedialog";
 import { useCan } from "@/hooks/useProjectAccess";
 import { useDeleteEquipment, useEquipmentItem, useEquipmentRegister, useRemoveHireChange, useSiteEquipment, useUndoMove } from "@/hooks/useEquipment";
 import { useProjectHub } from "@/hooks/useProjectHub";
@@ -15,7 +16,6 @@ import { BringDialog, MoveDialog, type Movable } from "./equipment/MoveDialog";
 import { PrintRegister, PrintSite } from "./equipment/EquipmentPrint";
 import { HireChangeDialog } from "./equipment/HireChangeDialog";
 import { CATEGORY_LABEL, field, longDate, outlineBtn, primaryBtn } from "./equipment/shared";
-import { ConfirmDeleteDialog } from "@/components/utilites/Confirmdeletedialog";
 
 const REGISTER = "register"; // ?i=register: every item, at every site and in the yard
 

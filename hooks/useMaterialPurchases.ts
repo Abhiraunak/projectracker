@@ -103,8 +103,12 @@ export const useEstimateLines = (projectId: string, enabled: boolean) =>
 /** Bring chosen estimate lines in as materials */
 export function useImportFromEstimate(projectId: string) {
   const refresh = useRefresh(projectId);
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ boqId, partIds }: { boqId: string; partIds: string[] }) => purchasesApi.importFromEstimate(projectId, boqId, partIds),
-    onSuccess: refresh,
+    onSuccess: () => {
+      refresh();
+      void qc.invalidateQueries({ queryKey: ["estimates", projectId] }); // the lines brought in now show "in Materials" there
+    },
   });
 }

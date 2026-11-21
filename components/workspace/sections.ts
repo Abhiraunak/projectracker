@@ -38,9 +38,8 @@ export const SECTIONS: SectionDef[] = [
     label: "Material estimate",
     Icon: FiFileText,
     needs: "boq.use",
-    load: () => import("./sections/BoqSection"),
-    summary: ({ boqs }) =>
-      !boqs || boqs.length === 0 ? { text: "No estimate yet" } : { text: `${plural(boqs.length, "estimate")} · ${rupeesShort(boqs.reduce((s, b) => s + b.grandTotal, 0))}` },
+    load: () => import("./sections/EstimateSection"),
+    summary: () => ({ text: "Materials, quantities and rates" }),
   }),
   def({
     key: "drawings",

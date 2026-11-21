@@ -3,7 +3,7 @@
 import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { FiArchive, FiChevronDown, FiPlus, FiCornerUpLeft, FiEdit2, FiFileText, FiImage, FiPaperclip, FiTrash2, FiX } from "react-icons/fi";
 import { ModalDialog } from "@/components/utilites/ModalDialog";
-import { ConfirmDeleteDialog } from "@/components/utilites/Confirmdeletedialog"
+import { ConfirmDeleteDialog } from "@/components/utilites/Confirmdeletedialog";
 import { useAddDelivery, useArchiveDelivery, useRemoveDeliveries, useRemoveDelivery, useUpdateDelivery } from "@/hooks/useMaterialPurchases";
 import { describeError } from "@/lib/api";
 import { amountOf, type Delivery, type Purchase } from "@/lib/inventory/purchases";
