@@ -199,7 +199,7 @@ function Sheet({ projectId, estimate, onBack }: { projectId: string; estimate: E
             first.current = false;
             return;
         }
-        setSaveState("waiting");
+        // "Saving…" is shown by the change itself (setNameNow / changeRows below); here only the save is scheduled
         if (timer.current) clearTimeout(timer.current);
         timer.current = setTimeout(() => void saveNow(), 700);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -214,15 +214,24 @@ function Sheet({ projectId, estimate, onBack }: { projectId: string; estimate: E
         [],
     );
 
-    const edit = (i: number, patch: Partial<Row>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+    // every change goes through these, so "Saving…" shows at once
+    const changeRows = (fn: (rs: Row[]) => Row[]) => {
+        setRows(fn);
+        setSaveState("waiting");
+    };
+    const setNameNow = (v: string) => {
+        setName(v);
+        setSaveState("waiting");
+    };
+    const edit = (i: number, patch: Partial<Row>) => changeRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
     const addRow = () => {
-        setRows((rs) => [...rs, blank()]);
+        changeRows((rs) => [...rs, blank()]);
         requestAnimationFrame(() => {
             const inputs = document.querySelectorAll<HTMLInputElement>("[data-estimate-name]");
             inputs[inputs.length - 1]?.focus();
         });
     };
-    const removeRow = (i: number) => setRows((rs) => (rs.length === 1 ? [blank()] : rs.filter((_, j) => j !== i)));
+    const removeRow = (i: number) => changeRows((rs) => (rs.length === 1 ? [blank()] : rs.filter((_, j) => j !== i)));
 
     const statusOf = (r: Row) => statusNow({ name: r.name.trim(), quantity: n(r.qty), rate: n(r.rate), sent: r.sent });
     const total = rows.reduce((s, r) => s + amountOf(r), 0);
@@ -257,7 +266,7 @@ function Sheet({ projectId, estimate, onBack }: { projectId: string; estimate: E
                 <BackButton onBack={onBack} />
                 <input
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) => setNameNow(e.target.value)}
                     maxLength={120}
                     aria-label="Estimate name"
                     placeholder="Estimate name, e.g. Ground floor"

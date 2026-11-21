@@ -63,7 +63,7 @@ export const SECTIONS: SectionDef[] = [
     label: "Labour",
     Icon: FiClipboard,
     needs: "attendance.view",
-    load: () => import("./sections/AttendanceSection"),
+    load: () => import("./sections/labour-simple/LabourSection"),
     summary: ({ attendance: a }) =>
       !a || !a.lastDate
         ? { text: "Nothing recorded yet" }
