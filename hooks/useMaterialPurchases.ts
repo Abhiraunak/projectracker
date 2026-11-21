@@ -28,6 +28,18 @@ export function useSavePurchase(projectId: string) {
   });
 }
 
+/** Archive a material (off the list, counted nowhere) or restore it */
+export function useArchivePurchase(projectId: string) {
+  const refresh = useRefresh(projectId);
+  return useMutation({ mutationFn: ({ purchaseId, archived }: { purchaseId: string; archived: boolean }) => purchasesApi.archive(projectId, purchaseId, archived), onSuccess: refresh });
+}
+
+/** Delete archived materials for good, one or many, in one all-or-nothing request */
+export function useRemovePurchases(projectId: string) {
+  const refresh = useRefresh(projectId);
+  return useMutation({ mutationFn: (ids: string[]) => purchasesApi.removeMany(projectId, ids), onSettled: refresh });
+}
+
 export function useRemovePurchase(projectId: string) {
   const refresh = useRefresh(projectId);
   return useMutation({ mutationFn: (purchaseId: string) => purchasesApi.remove(projectId, purchaseId), onSuccess: refresh });

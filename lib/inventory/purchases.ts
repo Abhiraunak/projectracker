@@ -17,6 +17,8 @@ export interface Purchase {
   billKind: "pdf" | "image" | null;
   addedBy: string;
   createdAt: string;
+  /** When the material was archived; null while it is on the list */
+  archivedAt?: string | null;
   /** Deliveries, newest first: on what date how many arrived and at what rate. `quantity` above is what was ordered. */
   deliveries: Delivery[];
   /** Archived deliveries: counted nowhere; can be restored, or deleted for good (left out by older servers) */
@@ -68,6 +70,8 @@ export interface MaterialTotal {
 
 export interface PurchaseBook {
   items: Purchase[];
+  /** Archived materials: off the list, counted nowhere; restore or delete them (left out by older servers) */
+  archived?: Purchase[];
   total: number; // preset cost of everything ordered
   /** What the deliveries actually cost, all materials */
   spentTotal: number;
@@ -212,5 +216,10 @@ export const purchasesApi = {
   list: (projectId: string) => request<PurchaseBook>(`/projects/${id(projectId)}/material-purchases`),
   add: (projectId: string, p: PurchaseInput) => withRenew(() => send("POST", `/projects/${id(projectId)}/material-purchases`, p)),
   update: (projectId: string, purchaseId: string, p: PurchaseInput) => withRenew(() => send("PUT", `/projects/${id(projectId)}/material-purchases/${id(purchaseId)}`, p)),
+  archive: (projectId: string, purchaseId: string, archived: boolean) =>
+    request<{ purchase: Purchase }>(`/projects/${id(projectId)}/material-purchases/${id(purchaseId)}/archive`, { method: "POST", body: JSON.stringify({ archived }) }),
+  /** Delete several archived materials at once: all or nothing */
+  removeMany: (projectId: string, ids: string[]) =>
+    request<{ deleted: number }>(`/projects/${id(projectId)}/material-purchases/bulk-delete`, { method: "POST", body: JSON.stringify({ ids }) }),
   remove: (projectId: string, purchaseId: string) => request<{ ok: true }>(`/projects/${id(projectId)}/material-purchases/${id(purchaseId)}`, { method: "DELETE" }),
 };
