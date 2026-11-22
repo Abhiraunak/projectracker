@@ -1,6 +1,6 @@
 /** The names the server uses. Company-wide: a permission applies to every project. */
 export type Permission =
-  | "project.view" | "project.manage" | "project.delete" | "tasks.progress" | "audit.view"
+  | "project.view" | "project.manage" | "project.create" | "project.delete" | "tasks.progress" | "audit.view"
   | "materials.view" | "catalog.manage" | "requirements.create" | "requirements.order" | "requirements.delete"
   | "stock.receive" | "stock.issue" | "stock.reserve" | "stock.adjust" | "deliveries.approve"
   | "requests.create" | "requests.approve"
@@ -23,6 +23,7 @@ export const PERMISSION_GROUPS: { title: string; items: PermissionInfo[] }[] = [
     items: [
       { key: "project.view", label: "View projects", help: "See projects, dashboards and payment figures." },
       { key: "project.manage", label: "Create and edit projects", help: "Including work items, budgets and amounts paid." },
+      { key: "project.create", label: "Create projects", help: "Start a new project. Editing projects needs Overview." },
       { key: "project.delete", label: "Delete projects", help: "Removes a project and everything in it." },
       { key: "tasks.progress", label: "Update progress", help: "Change how much of each work item is done." },
       { key: "audit.view", label: "See the activity log", help: "Who changed what, and when." },
@@ -97,7 +98,7 @@ export const PERMISSION_GROUPS: { title: string; items: PermissionInfo[] }[] = [
  * Deleting a project is in no section: only admins can.
  */
 export interface SectionAccess {
-  key: "overview" | "boq" | "drawings" | "materials" | "labour" | "equipment" | "general" | "diary" | "diaryReview";
+  key: "newProject" | "overview" | "boq" | "drawings" | "materials" | "labour" | "equipment" | "general" | "diary" | "diaryReview";
   label: string;
   help: string;
   permissions: Permission[];
@@ -105,6 +106,7 @@ export interface SectionAccess {
   noProjects?: boolean;
 }
 export const SECTION_ACCESS: SectionAccess[] = [
+  { key: "newProject", label: "Create projects", help: "Start a new project with its name, cost and work items. Editing projects after that needs Overview.", permissions: ["project.create"] },
   { key: "overview", label: "Overview", help: "Edit the project's name, firm, project cost and work items; see the activity log.", permissions: ["project.manage", "tasks.progress", "audit.view"] },
   { key: "boq", label: "BOQ", help: "Make, edit, print and mark final the project's BOQs.", permissions: ["boq.use"] },
   { key: "drawings", label: "Drawings", help: "Upload drawings and their revisions.", permissions: ["drawings.use"] },
@@ -140,7 +142,7 @@ export const sectionsPermissions = (keys: SectionAccess["key"][]): Permission[] 
 
 /** One-click starting points on the admin page, made of whole sections; the ticks can still be changed after */
 export const PRESETS: { label: string; permissions: Permission[] }[] = [
-  { label: "Every section", permissions: sectionsPermissions(["overview", "boq", "drawings", "materials", "labour", "equipment", "general", "diaryReview"]) },
+  { label: "Every section", permissions: sectionsPermissions(["newProject", "overview", "boq", "drawings", "materials", "labour", "equipment", "general", "diaryReview"]) },
   { label: "Site engineer", permissions: sectionsPermissions(["drawings", "materials", "labour", "equipment", "diary"]) },
   { label: "View only", permissions: [BASE_PERMISSION] },
   { label: "None", permissions: [] },

@@ -47,6 +47,7 @@ export const displayName = (u: Pick<AdminUser, "name" | "email">) => u.name?.tri
 
 /** The short column headings of the access grid, in the same order as SECTION_ACCESS */
 export const SHORT_LABEL: Record<SectionAccess["key"], string> = {
+    newProject: "New project",
     overview: "Overview",
     boq: "BOQ",
     drawings: "Drawings",
