@@ -5,6 +5,7 @@ import { FiChevronDown, FiChevronRight, FiEdit2 } from "react-icons/fi";
 import { useCan } from "@/hooks/useProjectAccess";
 import { useWorkItems } from "@/hooks/useAttendance";
 import { useMaterialPurchases } from "@/hooks/useMaterialPurchases";
+import { useEstimates } from "@/hooks/useMaterialEstimates";
 import { hrefFor, onPlaceClick } from "@/hooks/useWorkspacePlace";
 import { plural, rupees, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
 import { EditDetailsDialog } from "./EditDetailsDialog";
@@ -36,6 +37,9 @@ export const Overview = memo(function Overview({
   // The two breakdowns under the money table, each only for people who may see that section
   const workItems = useWorkItems(projectId, useCan("attendance.view"));
   const purchases = useMaterialPurchases(projectId, useCan("materials.view"));
+  // The Material estimate card: the estimates of the Material estimate section (the old BOQs are no longer used here)
+  const estimateList = useEstimates(projectId, useCan("boq.use")).data?.estimates;
+  const estimate = estimateList ? { count: estimateList.length, total: estimateList.reduce((s, e) => s + e.total, 0) } : null;
 
   // Labour by work item: attendance marked under each (General last), then contract work on its own line
   const byWork = workItems.data
@@ -71,7 +75,7 @@ export const Overview = memo(function Overview({
 
       {/* 2 · money */}
       {money ? (
-        <MoneyAtAGlance m={money} estimates={hub.boqs?.length ?? null} byWork={byWork} procurement={procurement} onEditCost={canEdit ? () => setSettingCost(true) : undefined} />
+        <MoneyAtAGlance m={money} estimate={estimate} byWork={byWork} procurement={procurement} onEditCost={canEdit ? () => setSettingCost(true) : undefined} />
       ) : <div aria-busy="true" className="h-64 animate-pulse rounded-[22px] bg-[#EFEFED] motion-reduce:animate-none" />}
 
       {settingCost && money && (
@@ -124,14 +128,14 @@ interface Procurement {
 
 function MoneyAtAGlance({
   m,
-  estimates,
+  estimate,
   byWork,
   procurement,
   onEditCost,
 }: {
   m: Spend;
-  /** How many Material estimates the project has (null: not known) */
-  estimates: number | null;
+  /** The Material estimate section's estimates: how many and their total (null: not known or no access) */
+  estimate: { count: number; total: number } | null;
   /** Labour attendance by work item, for the Labour row's breakdown (null: not loaded or no access) */
   byWork: { label: string; value: number }[] | null;
   /** Materials arrived against ordered, for the Materials row (null: none yet or no access) */
@@ -210,9 +214,9 @@ function MoneyAtAGlance({
       <dl className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
         <Box
           label="Material estimate"
-          value={m.boqTotal !== null ? rupeesShort(m.boqTotal) : "No estimate"}
-          note={estimates ? `From ${plural(estimates, "estimate")}` : "Make one in Material estimate"}
-          muted={m.boqTotal === null}
+          value={estimate && estimate.count > 0 ? rupeesShort(estimate.total) : "No estimate"}
+          note={estimate && estimate.count > 0 ? `From ${plural(estimate.count, "estimate")}` : "Make one in Material estimate"}
+          muted={!estimate || estimate.count === 0}
         />
         <CostBox cost={m.projectCost} onEdit={onEditCost} />
         <div className="min-w-0 rounded-2xl border border-[#E8E8E6] bg-white px-4 py-3">

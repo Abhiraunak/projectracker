@@ -7,8 +7,8 @@ import { purchasesKey } from "@/hooks/useMaterialPurchases";
 export const estimatesKey = (projectId: string) => ["estimates", projectId] as const;
 const oneKey = (projectId: string, estimateId: string) => ["estimates", projectId, estimateId] as const;
 
-export const useEstimates = (projectId: string) =>
-  useQuery({ queryKey: [...estimatesKey(projectId), "list"], queryFn: () => estimatesApi.list(projectId), staleTime: 15_000 });
+export const useEstimates = (projectId: string, enabled = true) =>
+  useQuery({ queryKey: [...estimatesKey(projectId), "list"], queryFn: () => estimatesApi.list(projectId), staleTime: 15_000, enabled });
 
 export const useEstimate = (projectId: string, estimateId: string) =>
   useQuery({ queryKey: oneKey(projectId, estimateId), queryFn: () => estimatesApi.get(projectId, estimateId), staleTime: 60_000 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { labourSimpleApi as api, type MeasureInput, type SaveDayInput } from "@/lib/labour/simple";
+import { labourSimpleApi as api, type MeasureInput, type PeriodPaymentInput, type SaveDayInput } from "@/lib/labour/simple";
 import { labourApi, type NewPayment } from "@/lib/projects/labour";
 
 /* Every key starts with "labour-simple", so one refresh after a change reaches every tab */
@@ -33,7 +33,7 @@ export const useRates = (p: string, from: string, to: string) =>
 export const useComparison = (p: string, taskId: string | null, from: string, to: string) =>
   useQuery({ queryKey: k(p, "compare", taskId, from, to), queryFn: () => api.compare(p, taskId!, from, to), enabled: !!taskId && from <= to, staleTime: 10_000 });
 
-/** Saving a day happens as people type; the other tabs refresh once it is in */
+/** Saving a day (the Save button); the other tabs refresh once it is in */
 export function useSaveDay(p: string) {
   const refresh = useLabourRefresh(p);
   return useMutation({ mutationFn: (body: SaveDayInput) => api.saveDay(p, body), onSuccess: refresh });
@@ -79,6 +79,20 @@ export function useUpdatePayment(p: string) {
 export function useRemovePayment(p: string) {
   const refresh = useLabourRefresh(p);
   return useMutation({ mutationFn: (id: string) => labourApi.removePayment(p, id), onSuccess: refresh });
+}
+
+/** "Paid for a period" in the Attendance tab (also counted in the Payments tab) */
+export const usePeriodPayments = (p: string) => useQuery({ queryKey: k(p, "period-payments"), queryFn: () => api.periodPayments(p), staleTime: 10_000 });
+export function useSavePeriodPayment(p: string) {
+  const refresh = useLabourRefresh(p);
+  return useMutation({
+    mutationFn: ({ id, body }: { id?: string; body: PeriodPaymentInput }) => (id ? api.updatePeriodPayment(p, id, body) : api.addPeriodPayment(p, body)),
+    onSuccess: refresh,
+  });
+}
+export function useRemovePeriodPayment(p: string) {
+  const refresh = useLabourRefresh(p);
+  return useMutation({ mutationFn: (id: string) => api.removePeriodPayment(p, id), onSuccess: refresh });
 }
 
 export function useSaveMeasure(p: string) {

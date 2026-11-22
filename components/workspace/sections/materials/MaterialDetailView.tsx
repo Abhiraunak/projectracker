@@ -1,19 +1,14 @@
 "use client";
 
-import { lazy, Suspense, useState, type ReactNode } from "react";
-import { FiArrowDown, FiArrowUp, FiEdit2, FiFileText, FiTrash2 } from "react-icons/fi";
+import { useState, type ReactNode } from "react";
+import { FiArrowDown, FiArrowUp, FiFileText } from "react-icons/fi";
 import { useCan } from "@/hooks/useProjectAccess";
-import { useDeleteEstimate, useMaterialEstimates } from "@/hooks/useMaterialEstimates";
 import { useMaterialDetail } from "@/hooks/useMaterialsTab";
-import { describeError } from "@/lib/api";
 import { rupees } from "@/lib/projects/hub";
 import { qty, type LogEntry, type MaterialDetail } from "@/lib/inventory/materialsTab";
-import type { MaterialEstimate } from "@/lib/inventory/estimates";
 import { SectionError, SectionSkeleton } from "../../ui";
 import { BarChart, Legend } from "./BarChart";
 import { MoveDialog, type MoveMode } from "./MoveDialog";
-
-const AddMaterialDialog = lazy(() => import("./AddMaterialDialog").then((m) => ({ default: m.AddMaterialDialog })));
 
 const day = new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 const fmtDay = (ymd: string) => day.format(new Date(`${ymd}T00:00:00Z`));
@@ -29,7 +24,7 @@ const KIND: Record<LogEntry["type"], { label: string; sign: 1 | -1 | 0; tone: st
 
 /**
  * One material: Required · In stock · Issued at the top, the bar graph of what came in and went out each month,
- * what needs it (BOQ sections and what was added by hand), and the log of every receipt and issue, newest first.
+ * what needs it (BOQ sections), and the log of every receipt and issue, newest first.
  */
 export default function MaterialDetailView({ projectId, materialId }: { projectId: string; materialId: string }) {
   const detail = useMaterialDetail(projectId, materialId);
@@ -88,7 +83,7 @@ export default function MaterialDetailView({ projectId, materialId }: { projectI
         )}
       </section>
 
-      <Needs projectId={projectId} d={d} />
+      <Needs d={d} />
       <Log entries={d.log} unit={unit} />
 
       {moving && <MoveDialog projectId={projectId} material={{ id: d.material.id, name: d.material.name, unit, inStock: d.inStock }} mode={moving} onClose={() => setMoving(null)} />}
@@ -108,66 +103,33 @@ function Big({ label, value, unit, note }: { label: string; value: string; unit:
   );
 }
 
-/** What needs this material: BOQ items by section, and what was added by hand (editable here) */
-function Needs({ projectId, d }: { projectId: string; d: MaterialDetail }) {
-  const canEdit = useCan("requirements.create");
-  const estimates = useMaterialEstimates(projectId);
-  const remove = useDeleteEstimate(projectId);
-  const [editing, setEditing] = useState<MaterialEstimate | null>(null);
+/**
+ * What needs this material: BOQ items by section. (The old hand-added estimates are gone: MaterialEstimate is now the
+ * simple Material estimate section, so there is nothing to edit here any more.)
+ */
+function Needs({ d }: { d: MaterialDetail }) {
   if (d.needs.length === 0) return null;
-  const byId = new Map((estimates.data?.items ?? []).map((e) => [e.id, e]));
   const unit = d.material.unit;
 
   return (
     <section aria-label="Needed for" className="overflow-hidden rounded-xl border border-stone-200">
       <h3 className="border-b border-stone-200 bg-stone-50 px-4 py-2.5 text-sm font-semibold text-stone-900">Needed for</h3>
       <ul className="divide-y divide-stone-100 text-sm">
-        {d.needs.map((n) => {
-          const est = n.estimateId ? byId.get(n.estimateId) : undefined;
-          return (
-            <li key={n.id} className="flex items-center gap-3 px-4 py-2.5">
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium text-stone-900">{n.label || n.section}</span>
-                <span className="block truncate text-xs text-stone-500">
-                  {n.estimateId ? "Added by hand" : n.section}
-                  {n.issued > 0 && ` · issued ${qty(n.issued)} ${unit}`}
-                </span>
+        {d.needs.map((n) => (
+          <li key={n.id} className="flex items-center gap-3 px-4 py-2.5">
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-medium text-stone-900">{n.label || n.section}</span>
+              <span className="block truncate text-xs text-stone-500">
+                {n.section}
+                {n.issued > 0 && ` · issued ${qty(n.issued)} ${unit}`}
               </span>
-              <span className="shrink-0 font-semibold tabular-nums">
-                {qty(n.required)} {unit}
-              </span>
-              {canEdit && est && (
-                <span className="flex shrink-0">
-                  <button type="button" onClick={() => setEditing(est)} aria-label={`Edit ${n.label || "this need"}`} className="rounded p-2 text-stone-400 hover:bg-stone-100 hover:text-stone-900">
-                    <FiEdit2 aria-hidden />
-                  </button>
-                  <button
-                    type="button"
-                    disabled={remove.isPending}
-                    onClick={() => {
-                      if (window.confirm(`Remove ${qty(n.required)} ${unit}${n.label ? ` for ${n.label}` : ""} from what's needed?`)) remove.mutate(est.id);
-                    }}
-                    aria-label={`Remove ${n.label || "this need"}`}
-                    className="rounded p-2 text-stone-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                  >
-                    <FiTrash2 aria-hidden />
-                  </button>
-                </span>
-              )}
-            </li>
-          );
-        })}
+            </span>
+            <span className="shrink-0 font-semibold tabular-nums">
+              {qty(n.required)} {unit}
+            </span>
+          </li>
+        ))}
       </ul>
-      {remove.isError && (
-        <p role="alert" className="px-4 pb-2 text-sm text-red-700">
-          {describeError(remove.error)}
-        </p>
-      )}
-      {editing && (
-        <Suspense fallback={null}>
-          <AddMaterialDialog projectId={projectId} editing={editing} onClose={() => setEditing(null)} />
-        </Suspense>
-      )}
     </section>
   );
 }

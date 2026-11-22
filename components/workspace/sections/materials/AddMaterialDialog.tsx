@@ -2,13 +2,20 @@
 
 import { useState } from "react";
 import type { FormEvent, ReactNode } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FiCheck, FiPlus, FiTrash2 } from "react-icons/fi";
 import { ModalDialog } from "@/components/utilites/ModalDialog";
 import { useMaterialCatalog } from "@/hooks/useMaterialCatalog";
-import { useSaveEstimate } from "@/hooks/useMaterialEstimates";
+import { estimatesKey, useEstimates } from "@/hooks/useMaterialEstimates";
 import { describeError } from "@/lib/api";
+import { estimatesApi } from "@/lib/estimates/api";
 import { barsFor, estimate, kgPerMetre, STEEL_DIAS, steelLine, unitFactor, volumeLine, type EstimateMethod, type SteelRow, type VolumeRow } from "@/lib/inventory/estimateCalc";
-import type { MaterialEstimate } from "@/lib/inventory/estimates";
+
+/** Opening with a material already chosen (for example from the Materials list): only its name and unit are used */
+type Prefill = { material: { name: string; unit?: string } } | null;
+const NEW_ESTIMATE = "Material estimate";
+const newId = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `l${Date.now()}${Math.random().toString(36).slice(2, 10)}`);
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
 
 const field = "mt-1 min-h-11 w-full rounded-lg border border-stone-300 bg-white px-3 text-sm focus:border-stone-900 focus:outline-none";
 const cellBase = "h-9 w-full min-w-0 rounded-md border border-stone-300 bg-white px-2 text-sm focus:border-stone-900 focus:outline-none";
@@ -17,7 +24,6 @@ const nameBox = cellBase; // the row's name, left-aligned
 
 const fmt = (n: number, places = 2) => n.toLocaleString("en-IN", { maximumFractionDigits: places });
 const toNum = (s: string) => (s.trim() === "" ? null : Number(s));
-const str = (n: number | null | undefined) => (n === null || n === undefined ? "" : String(n));
 
 type SteelForm = { key: string; name: string; nos: string; dia: string; bars: string; span: string; spacing: string; cutLength: string };
 type VolumeForm = { key: string; name: string; nos: string; l: string; b: string; d: string };
@@ -46,34 +52,43 @@ const METHODS: { key: EstimateMethod; label: string; hint: string }[] = [
 ];
 
 /**
- * Add a material the project needs, like starting a project: only the material and how much are needed. For bricks
- * or sand that's just the quantity. For steel or concrete the quantity can be worked out from rows like an estimate
- * sheet (F1…F10, C1…C9), with wastage on top. What it's for and notes are optional.
- * The total shown is worked out the same way the server saves it.
+ * Add a material to the project's Material estimate: the material and how much is needed. For bricks or sand that's
+ * just the quantity. For steel or concrete the quantity can be worked out from rows like an estimate sheet (F1…F10,
+ * C1…C9), with wastage on top. It is added as one line (name, unit, quantity, rate) at the end of the estimate picked;
+ * with no estimate yet, one called "Material estimate" is made. Change or remove the line later in Material estimate.
  */
-export function AddMaterialDialog({ projectId, editing, onClose }: { projectId: string; editing?: MaterialEstimate | null; onClose: () => void }) {
+export function AddMaterialDialog({ projectId, editing, onClose }: { projectId: string; editing?: Prefill; onClose: () => void }) {
   const catalog = useMaterialCatalog();
-  const save = useSaveEstimate(projectId);
-  // React Compiler memoizes these automatically, so no manual useMemo is needed.
+  const estimates = useEstimates(projectId);
+  const qc = useQueryClient();
   const materials = catalog.data?.materials ?? [];
 
-  const [materialId, setMaterialId] = useState(editing?.material.id ?? "");
+  const [materialId, setMaterialId] = useState(() => materials.find((m) => m.name.toLowerCase() === editing?.material.name.toLowerCase())?.id ?? "");
   const [query, setQuery] = useState(editing?.material.name ?? "");
-  const [newUnit, setNewUnit] = useState("");
-  const [method, setMethod] = useState<EstimateMethod>(editing?.method ?? "quantity");
-  const [qty, setQty] = useState(editing && editing.method === "quantity" ? str(editing.quantity / (1 + editing.wastagePercent / 100)) : "");
-  const [steel, setSteel] = useState<SteelForm[]>(() =>
-    editing?.steel.length
-      ? editing.steel.map((r) => ({ key: key(), name: r.name ?? "", nos: str(r.nos), dia: String(r.dia), bars: str(r.bars), span: str(r.span), spacing: str(r.spacing), cutLength: str(r.cutLength) }))
-      : [blankSteel()]
-  );
-  const [volume, setVolume] = useState<VolumeForm[]>(() =>
-    editing?.volume.length ? editing.volume.map((r) => ({ key: key(), name: r.name ?? "", nos: str(r.nos), l: str(r.l), b: str(r.b), d: str(r.d) })) : [blankVolume()]
-  );
-  const [wastage, setWastage] = useState(editing && editing.wastagePercent ? String(editing.wastagePercent) : "");
-  const [title, setTitle] = useState(editing?.title ?? "");
-  const [notes, setNotes] = useState(editing?.notes ?? "");
+  const [newUnit, setNewUnit] = useState(editing?.material.unit ?? "");
+  const [method, setMethod] = useState<EstimateMethod>("quantity");
+  const [qty, setQty] = useState("");
+  const [steel, setSteel] = useState<SteelForm[]>(() => [blankSteel()]);
+  const [volume, setVolume] = useState<VolumeForm[]>(() => [blankVolume()]);
+  const [wastage, setWastage] = useState("");
+  const [title, setTitle] = useState("");
+  const [rate, setRate] = useState("");
+  const [pickedEstimate, setEstimateId] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
+
+  // Worked out, not stored: the estimate picked, or the first one; "" means a new one is made on save
+  const list = estimates.data?.estimates ?? [];
+  const estimateId = list.some((e) => e.id === pickedEstimate) ? pickedEstimate : (list[0]?.id ?? "");
+
+  /** Add one line at the end of the estimate (made first if there is none), keeping every line already there */
+  const save = useMutation({
+    mutationFn: async (line: { name: string; unit: string; quantity: number; rate: number }) => {
+      const target = estimateId ? await estimatesApi.get(projectId, estimateId) : await estimatesApi.create(projectId, NEW_ESTIMATE);
+      const lines = target.lines.map((l) => ({ id: l.id, name: l.name, unit: l.unit, quantity: l.quantity, rate: l.rate }));
+      return estimatesApi.save(projectId, target.id, { name: target.name, lines: [...lines, { id: newId(), ...line }] });
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: estimatesKey(projectId) }),
+  });
 
   const picked = materials.find((m) => m.id === materialId);
   const typed = query.trim();
@@ -112,26 +127,26 @@ export function AddMaterialDialog({ projectId, editing, onClose }: { projectId: 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setProblem(null);
-    if (!picked && !exact && !typed) return setProblem("Choose a material, or type the name of a new one.");
+    if (!picked && !exact && !typed) {
+      setProblem("Choose a material, or type the name of a new one.");
+      return;
+    }
     if (isNew && !newUnit.trim()) {
       setProblem(`Enter the unit ${typed} is counted in (kg, bag, nos, cft, cum…).`);
       document.getElementById("am-unit")?.focus();
       return;
     }
-    if (!result || !result.ok) return setProblem(result && !result.ok ? result.message : "Enter how much is needed.");
+    if (!result || !result.ok) {
+      setProblem(result && !result.ok ? result.message : "Enter how much is needed.");
+      return;
+    }
+    const material = (picked ?? exact)?.name ?? typed;
     try {
       await save.mutateAsync({
-        id: editing?.id,
-        input: {
-          ...(picked || exact ? { materialId: (picked ?? exact)!.id } : { newMaterial: { name: typed, unit: newUnit.trim() } }),
-          title: title.trim(),
-          method,
-          quantity: method === "quantity" ? input.quantity : null,
-          steel: method === "steel" ? input.steel : undefined,
-          volume: method === "volume" ? input.volume : undefined,
-          wastagePercent: input.wastagePercent,
-          notes: notes.trim(),
-        },
+        name: (title.trim() ? `${material} (${title.trim()})` : material).slice(0, 200),
+        unit,
+        quantity: round3(result.quantity),
+        rate: Math.max(0, Number(rate) || 0),
       });
       onClose();
     } catch {
@@ -140,9 +155,9 @@ export function AddMaterialDialog({ projectId, editing, onClose }: { projectId: 
   };
 
   return (
-    <ModalDialog open onClose={onClose} label={editing ? `Edit ${editing.material.name}` : "Add material"} size="xl" locked={save.isPending}>
+    <ModalDialog open onClose={onClose} label="Add material" size="xl" locked={save.isPending}>
       <form onSubmit={submit} className="space-y-5 p-5">
-        <h2 className="text-lg font-semibold">{editing ? `Edit ${editing.material.name}` : "Add material"}</h2>
+        <h2 className="text-lg font-semibold">Add material</h2>
 
         {/* Material: pick one, or name a new one; what it is for */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-start">
@@ -179,7 +194,13 @@ export function AddMaterialDialog({ projectId, editing, onClose }: { projectId: 
               <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-stone-600">
                 <FiCheck aria-hidden className="text-green-700" /> {picked.name} · counted in <b className="font-semibold">{picked.unit}</b>
                 {picked.category ? ` · ${picked.category}` : ""}
-                <button type="button" onClick={() => { setMaterialId(""); setQuery(""); }} className="font-medium text-stone-700 underline underline-offset-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMaterialId("");
+                    setQuery("");
+                  }}
+                  className="font-medium text-stone-700 underline underline-offset-2">
                   Change
                 </button>
               </p>
@@ -267,9 +288,33 @@ export function AddMaterialDialog({ projectId, editing, onClose }: { projectId: 
           )}
         </fieldset>
 
-        <Field label="Notes" optional>
-          <input value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={500} placeholder="e.g. As per structural drawing S-02" className={field} />
-        </Field>
+        {/* Rate and which estimate it goes into */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
+          <Field label={`Rate${unit ? ` (₹ per ${unit})` : ""}`} optional>
+            <input type="number" inputMode="decimal" min={0} step="any" value={rate} onChange={(e) => setRate(e.target.value)} placeholder="0" className={`${field} tabular-nums`} />
+          </Field>
+          {list.length > 1 ? (
+            <Field label="Add to estimate">
+              <select value={estimateId} onChange={(e) => setEstimateId(e.target.value)} className={field}>
+                {list.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : (
+            <p className="self-end pb-3 text-sm text-stone-600">
+              {list.length === 1 ? (
+                <>Goes into <b className="font-semibold text-stone-900">{list[0]!.name}</b>.</>
+              ) : estimates.isPending ? (
+                "Loading estimates…"
+              ) : (
+                <>A new estimate, <b className="font-semibold text-stone-900">{NEW_ESTIMATE}</b>, will be made for it.</>
+              )}
+            </p>
+          )}
+        </div>
 
         {(problem || save.isError) && (
           <p role="alert" className="text-sm text-red-700">
@@ -281,7 +326,7 @@ export function AddMaterialDialog({ projectId, editing, onClose }: { projectId: 
             Cancel
           </button>
           <button type="submit" disabled={save.isPending} className="min-h-11 rounded-lg bg-stone-900 px-4 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-50">
-            {save.isPending ? "Saving…" : editing ? "Save changes" : "Add material"}
+            {save.isPending ? "Adding…" : "Add material"}
           </button>
         </div>
       </form>

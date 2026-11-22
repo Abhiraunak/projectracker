@@ -97,6 +97,16 @@ export interface RateRow {
   days: number; // saved attendance entries counted
 }
 
+/** "Paid for a period" (Attendance tab): a name, the days it covers and the amount */
+export interface PeriodPayment {
+  id: string;
+  name: string;
+  from: string;
+  to: string;
+  amount: number;
+}
+export type PeriodPaymentInput = Omit<PeriodPayment, "id">;
+
 export interface SaveDayInput {
   date: string;
   contractorName: string;
@@ -131,6 +141,10 @@ export const labourSimpleApi = {
   statement: (p: string, person: string, from: string, to: string) => request<Statement>(`${base(p)}/statement?${qs({ person, from, to })}`),
   updatePayment: (p: string, id: string, body: { contractorName: string; date: string; amount: number; remark: string }) =>
     request<{ ok: true }>(`${base(p)}/payments/${enc(id)}`, json("PUT", body)),
+  periodPayments: (p: string) => request<{ items: PeriodPayment[]; total: number }>(`${base(p)}/period-payments`),
+  addPeriodPayment: (p: string, body: PeriodPaymentInput) => request<{ item: PeriodPayment }>(`${base(p)}/period-payments`, json("POST", body)),
+  updatePeriodPayment: (p: string, id: string, body: PeriodPaymentInput) => request<{ item: PeriodPayment }>(`${base(p)}/period-payments/${enc(id)}`, json("PUT", body)),
+  removePeriodPayment: (p: string, id: string) => request<{ ok: true }>(`${base(p)}/period-payments/${enc(id)}`, { method: "DELETE" }),
   subcontract: (p: string) => request<Subcontract>(`${base(p)}/subcontract`),
   addMeasure: (p: string, body: MeasureInput) => request<{ item: Measure }>(`${base(p)}/subcontract`, json("POST", body)),
   updateMeasure: (p: string, id: string, body: MeasureInput) => request<{ item: Measure }>(`${base(p)}/subcontract/${enc(id)}`, json("PUT", body)),
