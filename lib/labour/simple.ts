@@ -145,14 +145,11 @@ export interface Bill {
   to: string;
   amount: number;
   note: string;
-  paid: number;
-  left: number;
-  payments: BillPay[];
 }
 export interface PersonDetail {
   days: { date: string; taskId: string | null; work: string; workers: number; hours: number; otHours: number; amount: number }[];
   bills: Bill[];
-  /** payments not made against a bill (older ones) */
+  /** every payment (the day paid), counted against all bills together */
   payments: BillPay[];
 }
 export interface BillInput {
@@ -162,8 +159,9 @@ export interface BillInput {
   amount: number;
   note: string;
 }
-export interface BillPaymentInput {
-  billId: string;
+/** A payment to a team head or person: the day paid and the amount */
+export interface TeamPaymentInput {
+  name: string;
   date: string;
   amount: number;
   remark: string;
@@ -257,9 +255,8 @@ export const labourSimpleApi = {
   addBill: (p: string, body: BillInput) => request<{ id: string }>(`${base(p)}/bills`, json("POST", body)),
   updateBill: (p: string, id: string, body: BillInput) => request<{ ok: true }>(`${base(p)}/bills/${enc(id)}`, json("PUT", body)),
   archiveBill: (p: string, id: string, archive: boolean) => request<{ ok: true }>(`${base(p)}/bills/${enc(id)}/${archive ? "archive" : "restore"}`, { method: "POST" }),
-  addBillPayment: (p: string, body: BillPaymentInput) => request<{ id: string }>(`${base(p)}/bill-payments`, json("POST", body)),
-  paymentToBill: (p: string, id: string) => request<{ id: string }>(`${base(p)}/payments/${enc(id)}/to-bill`, { method: "POST" }),
-  updateBillPayment: (p: string, id: string, body: BillPaymentInput) => request<{ ok: true }>(`${base(p)}/bill-payments/${enc(id)}`, json("PUT", body)),
+  addTeamPayment: (p: string, body: TeamPaymentInput) => request<{ id: string }>(`${base(p)}/team-payments`, json("POST", body)),
+  updateTeamPayment: (p: string, id: string, body: TeamPaymentInput) => request<{ ok: true }>(`${base(p)}/team-payments/${enc(id)}`, json("PUT", body)),
   person: (p: string, name: string) => request<PersonDetail>(`${base(p)}/team/person?${qs({ name })}`),
   archivePerson: (p: string, name: string, archive: boolean) => request<unknown>(`${base(p)}/team/${archive ? "archive" : "restore"}`, json("POST", { name })),
   archivePayment: (p: string, id: string, archive: boolean) => request<{ ok: true }>(`${base(p)}/payments/${enc(id)}/${archive ? "archive" : "restore"}`, { method: "POST" }),

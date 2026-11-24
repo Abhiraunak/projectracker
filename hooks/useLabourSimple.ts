@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { labourSimpleApi as api, type ArchivedPick, type BillInput, type BillPaymentInput, type MeasureInput, type PeriodPaymentInput, type SaveDayInput, type SubPaymentInput } from "@/lib/labour/simple";
+import { labourSimpleApi as api, type ArchivedPick, type BillInput, type TeamPaymentInput, type MeasureInput, type PeriodPaymentInput, type SaveDayInput, type SubPaymentInput } from "@/lib/labour/simple";
 import { labourApi, type NewPayment } from "@/lib/projects/labour";
 
 /* Every key starts with "labour-simple", so one refresh after a change reaches every tab */
@@ -196,18 +196,14 @@ export function useArchiveBill(p: string) {
   return useMutation({ mutationFn: ({ id, archive }: { id: string; archive: boolean }) => api.archiveBill(p, id, archive), onSuccess: refresh });
 }
 /** Pay against a bill on a day (or change such a payment) */
-export function useSaveBillPayment(p: string) {
+/** A payment on a day, counted against the person's total (no single bill) */
+export function useSaveTeamPayment(p: string) {
   const refresh = useLabourRefresh(p);
   return useMutation({
-    mutationFn: async ({ id, body }: { id?: string; body: BillPaymentInput }): Promise<void> => {
-      if (id) await api.updateBillPayment(p, id, body);
-      else await api.addBillPayment(p, body);
+    mutationFn: async ({ id, body }: { id?: string; body: TeamPaymentInput }): Promise<void> => {
+      if (id) await api.updateTeamPayment(p, id, body);
+      else await api.addTeamPayment(p, body);
     },
     onSuccess: refresh,
   });
-}
-/** An older entry (a period's amount saved as a payment) becomes a bill with nothing paid yet */
-export function usePaymentToBill(p: string) {
-  const refresh = useLabourRefresh(p);
-  return useMutation({ mutationFn: (id: string) => api.paymentToBill(p, id), onSuccess: refresh });
 }

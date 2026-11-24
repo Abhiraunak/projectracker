@@ -26,7 +26,7 @@ export interface Spend {
   againstName: "the project cost";
   pct: number | null;
   left: number | null; // below 0: over
-  /** Labour work not yet paid to contractors (0 when paid ahead) */
+  /** Labour still to pay (bills, or attendance when there are no bills, minus payments); not counted as spent */
   labourToPay: number;
 }
 
