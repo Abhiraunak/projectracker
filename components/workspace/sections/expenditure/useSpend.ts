@@ -6,7 +6,7 @@ import { hubApi, spendKey, type ProjectHub, type ProjectSpend } from "@/lib/proj
 
 export interface Spend {
   hub: ProjectHub;
-  /** Labour = per person, what they earned (attendance + contract work) or were paid, whichever is more */
+  /** Labour = per person, what they are owed (their bills, or else attendance + contract work) or were paid, whichever is more */
   labour: number;
   /** Materials = what the deliveries cost (Materials › Spent so far) */
   material: number;

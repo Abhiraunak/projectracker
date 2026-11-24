@@ -153,8 +153,15 @@ function MoneyAtAGlance({
       hint: join([
         L.attendance > 0 && `Attendance ${rupeesShort(L.attendance)}`,
         L.contract > 0 && `Contract work ${rupeesShort(L.contract)}`,
+        L.spent - L.total > 0.5 && `Bills and payments beyond marked work ${rupeesShort(L.spent - L.total)}`,
       ]),
-      note: m.labourToPay > 0 ? `${rupeesShort(m.labourToPay)} of it still to pay` : L.paid > 0 ? "All paid" : null,
+      // What was paid, what is still owed, and any advance, as in the Labour tab's rows
+      note:
+        L.paid > 0 || m.labourToPay > 0
+          ? [`Paid ${rupeesShort(L.paid)}`, m.labourToPay > 0 ? `${rupeesShort(m.labourToPay)} still to pay` : "nothing owed", L.ahead > 0 && `${rupeesShort(L.ahead)} paid ahead`]
+            .filter(Boolean)
+            .join(" · ")
+          : null,
       value: m.labour,
       ...HEAD_COLORS.labour,
     },
@@ -169,7 +176,12 @@ function MoneyAtAGlance({
     { label: "General", hint: m.general > 0 ? "General expenses" : "Nothing yet", note: null, value: m.general, ...HEAD_COLORS.general },
   ];
   // Under Labour: each work item's attendance, then contract work
-  const labourRows = [...(byWork ?? []), ...(L.contract > 0 ? [{ label: "Contract work", value: L.contract }] : [])];
+  const labourRows = [
+    ...(byWork ?? []),
+    ...(L.contract > 0 ? [{ label: "Contract work", value: L.contract }] : []),
+    // bills and payments for people with less (or no) attendance marked than they billed or were paid for
+    ...(L.spent - L.total > 0.5 ? [{ label: "Bills and payments beyond marked work", value: L.spent - L.total }] : []),
+  ];
   // Rows under a head: no lines between them, only one under the last (the table's lines separate the heads)
   const sub = (label: string, value: number, last = false) => (
     <tr key={label} className={last ? "" : "border-0"}>

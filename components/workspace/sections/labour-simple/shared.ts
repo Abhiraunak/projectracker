@@ -49,5 +49,6 @@ export const TONE = {
   amber: { box: "border-[#FAC775] bg-[#FAEEDA]", label: "text-[#854F0B]", value: "text-[#633806]" },
   purple: { box: "border-[#CECBF6] bg-[#EEEDFE]", label: "text-[#534AB7]", value: "text-[#3C3489]" },
   lime: { box: "border-[#C0DD97] bg-[#EAF3DE]", label: "text-[#3B6D11]", value: "text-[#27500A]" },
+  gray: { box: "border-[#E8E8E6] bg-[#F1F1EF]", label: "text-[#666666]", value: "text-[#111111]" },
 } as const;
 export type Tone = keyof typeof TONE;

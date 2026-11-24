@@ -30,8 +30,11 @@ export interface ProjectHub {
  * labour = attendance + contract work, materials = deliveries, equipment = hire so far, general = General expenses.
  */
 export interface ProjectSpend {
-  /** total = earned (attendance + contract); spent = per person the larger of earned and paid; toPay = still owed; ahead = paid beyond earned */
-  labour: { attendance: number; contract: number; total: number; paid: number; toPay: number; ahead: number; spent: number };
+  /**
+   * total = earned (attendance + contract); billed = bills (a period's amount); spent = per person the larger of what
+   * they are owed (bills if any, else earned) and what they were paid; toPay = still owed; ahead = paid beyond owed
+   */
+  labour: { attendance: number; contract: number; total: number; billed: number; paid: number; toPay: number; ahead: number; spent: number };
   material: { deliveries: number; total: number; planned: number };
   equipment: number;
   general: number;

@@ -32,6 +32,8 @@ export function AttendanceTab({ projectId }: { projectId: string }) {
   // unsaved changes on the open sheet: written by the sheet, read only when moving to another sheet
   const dirtyRef = useRef(false);
   const [waiting, setWaiting] = useState<Sheet | null>(null); // a sheet to open once the unsaved one is dealt with
+  const [marking, setMarking] = useState(false); // the sheet shows only after "Mark attendance" (or a day) is pressed
+  const [closing, setClosing] = useState(false); // Close pressed with changes not saved
   const top = useRef<HTMLDivElement>(null);
 
   // Worked out, not stored: a work that was removed means General; nobody picked yet means the first on the list
@@ -65,9 +67,23 @@ export function AttendanceTab({ projectId }: { projectId: string }) {
     if (dirtyRef.current) setWaiting(next);
     else open(next);
   };
+  /** Open the sheet (on a person or a day), then bring it into view */
   const openFromList = (s: Sheet) => {
+    setMarking(true);
+    setClosing(false);
     go(s);
-    top.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    requestAnimationFrame(() => top.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+  /** Close the sheet; with unsaved changes, ask first */
+  const close = (force = false) => {
+    if (dirtyRef.current && !force) {
+      setClosing(true);
+      return;
+    }
+    dirtyRef.current = false;
+    setWaiting(null);
+    setClosing(false);
+    setMarking(false);
   };
   /** A team / One person: the other list's first name, or nobody yet */
   const switchMode = (toSolo: boolean) => go({ solo: toSolo, contractor: (toSolo ? soloNames[0] : teamNames[0]) ?? "" });
@@ -77,54 +93,71 @@ export function AttendanceTab({ projectId }: { projectId: string }) {
       <TeamList
         projectId={projectId}
         onMark={(name, toSolo) => openFromList({ date, contractor: name, taskId, solo: toSolo })}
+        onMarkNew={() => openFromList({ date: todayYmd(), contractor, taskId, solo })}
         onOpenDay={(d) => openFromList(d)}
       />
-      <div ref={top} className={`${mono.card} scroll-mt-4 overflow-hidden`}>
-        <div className="border-b border-[#EFEFED] px-5 pb-4 pt-4">
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            <h3 className="mr-auto text-[15px] font-semibold text-[#111111]">Mark attendance</h3>
-            <span role="group" aria-label="Mark attendance for" className="inline-flex rounded-xl bg-[#F1F1EF] p-1">
-              {([false, true] as const).map((v) => (
-                <button
-                  key={String(v)}
-                  type="button"
-                  onClick={() => switchMode(v)}
-                  aria-pressed={solo === v}
-                  className={`min-h-9 rounded-lg px-4 text-sm ${mono.motion} ${solo === v ? "bg-white font-semibold text-[#111111] shadow-[0_1px_2px_rgba(17,17,17,0.08)]" : "text-[#666666] hover:text-[#111111]"}`}
-                >
-                  {v ? "One person" : "A team"}
-                </button>
-              ))}
-            </span>
+      {marking && (
+        <div ref={top} className={`${mono.card} scroll-mt-4 overflow-hidden`}>
+          {closing && (
+            <div role="alert" className="flex flex-wrap items-center gap-2 border-b border-[#FAC775] bg-[#FAEEDA] px-5 py-3 text-sm text-[#633806]">
+              <span className="mr-auto font-medium">This sheet has changes that are not saved.</span>
+              <button type="button" onClick={() => close(true)} className={`${mono.secondary} min-h-9 px-3 text-sm`}>
+                Close without saving
+              </button>
+              <button type="button" onClick={() => setClosing(false)} className={`${mono.quiet} min-h-9 px-3 text-sm`}>
+                Stay here
+              </button>
+            </div>
+          )}
+          <div className="border-b border-[#EFEFED] px-5 pb-4 pt-4">
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+              <h3 className="mr-auto text-[15px] font-semibold text-[#111111]">Mark attendance</h3>
+              <span role="group" aria-label="Mark attendance for" className="inline-flex rounded-xl bg-[#F1F1EF] p-1">
+                {([false, true] as const).map((v) => (
+                  <button
+                    key={String(v)}
+                    type="button"
+                    onClick={() => switchMode(v)}
+                    aria-pressed={solo === v}
+                    className={`min-h-9 rounded-lg px-4 text-sm ${mono.motion} ${solo === v ? "bg-white font-semibold text-[#111111] shadow-[0_1px_2px_rgba(17,17,17,0.08)]" : "text-[#666666] hover:text-[#111111]"}`}
+                  >
+                    {v ? "One person" : "A team"}
+                  </button>
+                ))}
+              </span>
+              <button type="button" onClick={() => close()} className={`${mono.secondary} min-h-9 px-3 text-sm`} aria-label="Close the sheet">
+                <FiX aria-hidden /> Close
+              </button>
+            </div>
+            <Header
+              projectId={projectId}
+              date={date}
+              contractor={contractor}
+              contractors={solo ? soloNames : teamNames.length ? teamNames : people.data.contractors}
+              solo={solo}
+              works={works.data.items}
+              taskId={taskId}
+              go={go}
+            />
           </div>
-          <Header
-            projectId={projectId}
-            date={date}
-            contractor={contractor}
-            contractors={solo ? soloNames : teamNames.length ? teamNames : people.data.contractors}
-            solo={solo}
-            works={works.data.items}
-            taskId={taskId}
-            go={go}
-          />
+          {contractor ? (
+            <SheetLoader
+              key={`${date}|${contractor.toLowerCase()}|${taskId ?? ""}|${solo ? "one" : "team"}`}
+              projectId={projectId}
+              sheet={{ date, contractor, taskId, solo }}
+              workTitle={workTitle}
+              dirtyRef={dirtyRef}
+              waiting={waiting}
+              onContinue={() => waiting && open(waiting)}
+              onStay={() => setWaiting(null)}
+            />
+          ) : (
+            <p className="px-5 py-8 text-center text-sm text-[#666666]">
+              {solo ? "Add the person first (New, next to Person), then mark attendance." : "Add a team head first (New, next to Team head), then mark attendance."}
+            </p>
+          )}
         </div>
-        {contractor ? (
-          <SheetLoader
-            key={`${date}|${contractor.toLowerCase()}|${taskId ?? ""}|${solo ? "one" : "team"}`}
-            projectId={projectId}
-            sheet={{ date, contractor, taskId, solo }}
-            workTitle={workTitle}
-            dirtyRef={dirtyRef}
-            waiting={waiting}
-            onContinue={() => waiting && open(waiting)}
-            onStay={() => setWaiting(null)}
-          />
-        ) : (
-          <p className="px-5 py-8 text-center text-sm text-[#666666]">
-            {solo ? "Add the person first (New, next to Person), then mark attendance." : "Add a team head first (New, next to Team head), then mark attendance."}
-          </p>
-        )}
-      </div>
+      )}
       <Recent projectId={projectId} current={{ date, contractor, taskId, solo }} isSolo={isSolo} onOpen={openFromList} />
       <ArchivedList projectId={projectId} tab="team" />
     </div>

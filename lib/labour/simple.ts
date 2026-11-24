@@ -121,22 +121,62 @@ export interface TeamRow {
   name: string;
   kind: "team" | "one" | null;
   days: number;
+  /** attendance amount */
   earned: number;
+  /** bills (a period's amount) added up, and how many */
+  billed: number;
+  bills: number;
   paid: number;
+  /** what they are owed: their bills when they have any, otherwise their attendance amount */
+  owed: number;
+  /** owed − paid (below 0: paid ahead) */
   toPay: number;
   last: string;
 }
+export interface BillPay {
+  id: string;
+  date: string;
+  amount: number;
+  remark: string;
+}
+export interface Bill {
+  id: string;
+  from: string;
+  to: string;
+  amount: number;
+  note: string;
+  paid: number;
+  left: number;
+  payments: BillPay[];
+}
 export interface PersonDetail {
   days: { date: string; taskId: string | null; work: string; workers: number; hours: number; otHours: number; amount: number }[];
-  payments: { id: string; date: string; from: string; to: string; amount: number; remark: string }[];
+  bills: Bill[];
+  /** payments not made against a bill (older ones) */
+  payments: BillPay[];
+}
+export interface BillInput {
+  name: string;
+  from: string;
+  to: string;
+  amount: number;
+  note: string;
+}
+export interface BillPaymentInput {
+  billId: string;
+  date: string;
+  amount: number;
+  remark: string;
 }
 export interface Archived {
-  people: { name: string; days: number; payments: number; earned: number; paid: number }[];
+  people: { name: string; days: number; bills: number; payments: number; earned: number; billed: number; paid: number }[];
+  bills: { id: string; name: string; from: string; to: string; amount: number }[];
   subcontractors: { name: string; works: number; payments: number; done: number; paid: number }[];
   payments: { id: string; name: string; kind: "team" | "sub"; date: string; from: string; to: string; amount: number; work: string | null }[];
   works: { id: string; name: string; work: string; amount: number }[];
 }
 export interface ArchivedPick {
+  bills: string[];
   people: string[];
   subcontractors: string[];
   payments: string[];
@@ -213,7 +253,12 @@ export const labourSimpleApi = {
   addPeriodPayment: (p: string, body: PeriodPaymentInput) => request<{ item: PeriodPayment }>(`${base(p)}/period-payments`, json("POST", body)),
   updatePeriodPayment: (p: string, id: string, body: PeriodPaymentInput) => request<{ item: PeriodPayment }>(`${base(p)}/period-payments/${enc(id)}`, json("PUT", body)),
   removePeriodPayment: (p: string, id: string) => request<{ ok: true }>(`${base(p)}/period-payments/${enc(id)}`, { method: "DELETE" }),
-  team: (p: string) => request<{ items: TeamRow[]; totals: { earned: number; paid: number; toPay: number; ahead: number } }>(`${base(p)}/team`),
+  team: (p: string) => request<{ items: TeamRow[]; totals: { earned: number; billed: number; paid: number; toPay: number; ahead: number } }>(`${base(p)}/team`),
+  addBill: (p: string, body: BillInput) => request<{ id: string }>(`${base(p)}/bills`, json("POST", body)),
+  updateBill: (p: string, id: string, body: BillInput) => request<{ ok: true }>(`${base(p)}/bills/${enc(id)}`, json("PUT", body)),
+  archiveBill: (p: string, id: string, archive: boolean) => request<{ ok: true }>(`${base(p)}/bills/${enc(id)}/${archive ? "archive" : "restore"}`, { method: "POST" }),
+  addBillPayment: (p: string, body: BillPaymentInput) => request<{ id: string }>(`${base(p)}/bill-payments`, json("POST", body)),
+  updateBillPayment: (p: string, id: string, body: BillPaymentInput) => request<{ ok: true }>(`${base(p)}/bill-payments/${enc(id)}`, json("PUT", body)),
   person: (p: string, name: string) => request<PersonDetail>(`${base(p)}/team/person?${qs({ name })}`),
   archivePerson: (p: string, name: string, archive: boolean) => request<unknown>(`${base(p)}/team/${archive ? "archive" : "restore"}`, json("POST", { name })),
   archivePayment: (p: string, id: string, archive: boolean) => request<{ ok: true }>(`${base(p)}/payments/${enc(id)}/${archive ? "archive" : "restore"}`, { method: "POST" }),

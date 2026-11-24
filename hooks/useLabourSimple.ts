@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { labourSimpleApi as api, type ArchivedPick, type MeasureInput, type PeriodPaymentInput, type SaveDayInput, type SubPaymentInput } from "@/lib/labour/simple";
+import { labourSimpleApi as api, type ArchivedPick, type BillInput, type BillPaymentInput, type MeasureInput, type PeriodPaymentInput, type SaveDayInput, type SubPaymentInput } from "@/lib/labour/simple";
 import { labourApi, type NewPayment } from "@/lib/projects/labour";
 
 /* Every key starts with "labour-simple", so one refresh after a change reaches every tab */
@@ -175,4 +175,34 @@ export function useArchiveMeasure(p: string) {
 export function useArchiveSubcontractor(p: string) {
   const refresh = useLabourRefresh(p);
   return useMutation({ mutationFn: ({ name, archive }: { name: string; archive: boolean }) => api.archiveSubcontractor(p, name, archive), onSuccess: refresh });
+}
+
+/* ------------------------------------------------ bills ------------------------------------------------ */
+
+/** Add (or change) a bill: a period's amount for a team head or person */
+export function useSaveBill(p: string) {
+  const refresh = useLabourRefresh(p);
+  return useMutation({
+    mutationFn: async ({ id, body }: { id?: string; body: BillInput }): Promise<void> => {
+      if (id) await api.updateBill(p, id, body);
+      else await api.addBill(p, body);
+    },
+    onSuccess: refresh,
+  });
+}
+/** Archive (or restore) a bill with the payments made against it */
+export function useArchiveBill(p: string) {
+  const refresh = useLabourRefresh(p);
+  return useMutation({ mutationFn: ({ id, archive }: { id: string; archive: boolean }) => api.archiveBill(p, id, archive), onSuccess: refresh });
+}
+/** Pay against a bill on a day (or change such a payment) */
+export function useSaveBillPayment(p: string) {
+  const refresh = useLabourRefresh(p);
+  return useMutation({
+    mutationFn: async ({ id, body }: { id?: string; body: BillPaymentInput }): Promise<void> => {
+      if (id) await api.updateBillPayment(p, id, body);
+      else await api.addBillPayment(p, body);
+    },
+    onSuccess: refresh,
+  });
 }
