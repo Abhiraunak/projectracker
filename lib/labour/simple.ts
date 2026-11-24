@@ -258,6 +258,7 @@ export const labourSimpleApi = {
   updateBill: (p: string, id: string, body: BillInput) => request<{ ok: true }>(`${base(p)}/bills/${enc(id)}`, json("PUT", body)),
   archiveBill: (p: string, id: string, archive: boolean) => request<{ ok: true }>(`${base(p)}/bills/${enc(id)}/${archive ? "archive" : "restore"}`, { method: "POST" }),
   addBillPayment: (p: string, body: BillPaymentInput) => request<{ id: string }>(`${base(p)}/bill-payments`, json("POST", body)),
+  paymentToBill: (p: string, id: string) => request<{ id: string }>(`${base(p)}/payments/${enc(id)}/to-bill`, { method: "POST" }),
   updateBillPayment: (p: string, id: string, body: BillPaymentInput) => request<{ ok: true }>(`${base(p)}/bill-payments/${enc(id)}`, json("PUT", body)),
   person: (p: string, name: string) => request<PersonDetail>(`${base(p)}/team/person?${qs({ name })}`),
   archivePerson: (p: string, name: string, archive: boolean) => request<unknown>(`${base(p)}/team/${archive ? "archive" : "restore"}`, json("POST", { name })),

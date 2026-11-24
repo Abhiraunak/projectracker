@@ -2,7 +2,7 @@
 
 import { useState, type KeyboardEvent } from "react";
 import { FiArchive, FiChevronDown, FiChevronUp, FiClipboard, FiCreditCard, FiEdit2, FiPlus, FiX } from "react-icons/fi";
-import { useArchiveBill, useArchivePayment, useArchivePerson, usePerson, useSaveBill, useSaveBillPayment, useTeam } from "@/hooks/useLabourSimple";
+import { useArchiveBill, useArchivePayment, useArchivePerson, usePaymentToBill, usePerson, useSaveBill, useSaveBillPayment, useTeam } from "@/hooks/useLabourSimple";
 import { describeError } from "@/lib/api";
 import type { Bill, BillPay, PersonDetail, TeamRow } from "@/lib/labour/simple";
 import { DatePick } from "./DatePick";
@@ -63,7 +63,7 @@ export function TeamList({
                 </p>
             ) : (
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-216 text-sm">
+                    <table className="w-full min-w-[54rem] text-sm">
                         <thead>
                             <tr className="border-y border-[#EFEFED] bg-[#F7F7F5] text-xs text-[#666666]">
                                 <th scope="col" className="px-5 py-2 text-left font-medium">Name</th>
@@ -320,7 +320,7 @@ function BillsPanel({ projectId, p }: { projectId: string; p: TeamRow }) {
                             </tfoot>
                         </table>
                     </div>
-                    {d.data.payments.length > 0 && <OtherPayments payments={d.data.payments} onArchive={(id) => archivePay.mutate({ id, archive: true })} />}
+                    {d.data.payments.length > 0 && <OtherPayments projectId={projectId} payments={d.data.payments} onArchive={(id) => archivePay.mutate({ id, archive: true })} />}
                 </>
             )}
             {(archiveBill.isError || archivePay.isError) && <p role="alert" className="text-sm text-[#B3261E]">{describeError(archiveBill.error ?? archivePay.error)}</p>}
@@ -425,11 +425,16 @@ function BillRows({
     );
 }
 
-/** Older payments that were not made against a bill */
-function OtherPayments({ payments, onArchive }: { payments: PersonDetail["payments"]; onArchive: (id: string) => void }) {
+/**
+ * Older entries not on a bill. If one was really a period's amount (not money paid), "Make it a bill" turns it into a
+ * bill with nothing paid yet, so it shows as still to pay with Pay.
+ */
+function OtherPayments({ projectId, payments, onArchive }: { projectId: string; payments: PersonDetail["payments"]; onArchive: (id: string) => void }) {
+    const toBill = usePaymentToBill(projectId);
     return (
         <div className="overflow-hidden rounded-xl border border-[#E8E8E6] bg-white">
             <p className="bg-[#F7F7F5] px-4 py-2 text-xs font-medium text-[#666666]">Payments not against a bill</p>
+            {toBill.isError && <p role="alert" className="px-4 pt-2 text-sm text-[#B3261E]">{describeError(toBill.error)}</p>}
             <table className="w-full text-sm">
                 <tbody className="divide-y divide-[#EFEFED]">
                     {payments.map((x) => (
@@ -439,7 +444,16 @@ function OtherPayments({ payments, onArchive }: { payments: PersonDetail["paymen
                                 {x.remark && <span className="block text-xs text-[#8C8C8C]">{x.remark}</span>}
                             </td>
                             <td className="px-2 py-2 text-right font-semibold tabular-nums">{money(x.amount)}</td>
-                            <td className="w-16 pr-3 text-right">
+                            <td className="w-56 whitespace-nowrap pr-3 text-right">
+                                <button
+                                    type="button"
+                                    onClick={() => toBill.mutate(x.id)}
+                                    disabled={toBill.isPending}
+                                    className={`${mono.secondary} min-h-9 px-3 text-sm`}
+                                    title="This was a period's amount, not money paid: make it a bill to pay"
+                                >
+                                    Make it a bill
+                                </button>
                                 <button type="button" onClick={() => onArchive(x.id)} className={mono.icon} aria-label="Archive this payment" title="Archive">
                                     <FiArchive aria-hidden />
                                 </button>

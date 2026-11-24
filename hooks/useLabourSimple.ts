@@ -206,3 +206,8 @@ export function useSaveBillPayment(p: string) {
     onSuccess: refresh,
   });
 }
+/** An older entry (a period's amount saved as a payment) becomes a bill with nothing paid yet */
+export function usePaymentToBill(p: string) {
+  const refresh = useLabourRefresh(p);
+  return useMutation({ mutationFn: (id: string) => api.paymentToBill(p, id), onSuccess: refresh });
+}
