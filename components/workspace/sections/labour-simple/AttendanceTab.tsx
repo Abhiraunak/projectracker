@@ -15,7 +15,7 @@ import { TeamList } from "./TeamList";
 
 /**
  * The Attendance tab, top to bottom:
- *   Team heads and individuals: one row each (Earned, Paid, To pay); each opens its days and its payments
+ *   Team heads and individuals: one row each (Attendance amount, Paid, To pay); each opens its days and its payments
  *   Mark attendance, as on paper, for A team (Labour | Hours | OT | Rate / hour | OT rate / hour | Total) or One person
  *   Recent attendance (tap one to open its full sheet), and Archived
  * Nothing is saved until Save is pressed. Anyone left without hours is simply not counted for that day.

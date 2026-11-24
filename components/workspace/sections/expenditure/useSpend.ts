@@ -6,7 +6,7 @@ import { hubApi, spendKey, type ProjectHub, type ProjectSpend } from "@/lib/proj
 
 export interface Spend {
   hub: ProjectHub;
-  /** Labour = attendance (Attendance › Earned) + contract work done till date (Subcontract › Work done) */
+  /** Labour = per person, what they earned (attendance + contract work) or were paid, whichever is more */
   labour: number;
   /** Materials = what the deliveries cost (Materials › Spent so far) */
   material: number;
@@ -52,7 +52,7 @@ export function useSpend(projectId: string): Spend | null {
 
   return {
     hub: h,
-    labour: s.labour.total,
+    labour: s.labour.spent,
     material: s.material.total,
     equipment: s.equipment,
     general: s.general,
@@ -64,6 +64,6 @@ export function useSpend(projectId: string): Spend | null {
     againstName: "the project cost",
     pct: against ? Math.round((s.total / against) * 100) : null,
     left: against !== null ? Math.round((against - s.total) * 100) / 100 : null,
-    labourToPay: Math.max(0, s.labour.toPay),
+    labourToPay: s.labour.toPay,
   };
 }

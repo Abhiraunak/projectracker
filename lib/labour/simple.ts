@@ -105,7 +105,8 @@ export interface Subcontractor {
 }
 export interface Subcontract {
   people: Subcontractor[];
-  totals: { done: number; paid: number; toPay: number };
+  /** toPay = what is still owed; ahead = paid beyond work done (kept apart so one never hides the other) */
+  totals: { done: number; paid: number; toPay: number; ahead: number };
 }
 export interface SubPaymentInput {
   name: string;
@@ -212,7 +213,7 @@ export const labourSimpleApi = {
   addPeriodPayment: (p: string, body: PeriodPaymentInput) => request<{ item: PeriodPayment }>(`${base(p)}/period-payments`, json("POST", body)),
   updatePeriodPayment: (p: string, id: string, body: PeriodPaymentInput) => request<{ item: PeriodPayment }>(`${base(p)}/period-payments/${enc(id)}`, json("PUT", body)),
   removePeriodPayment: (p: string, id: string) => request<{ ok: true }>(`${base(p)}/period-payments/${enc(id)}`, { method: "DELETE" }),
-  team: (p: string) => request<{ items: TeamRow[]; totals: { earned: number; paid: number; toPay: number } }>(`${base(p)}/team`),
+  team: (p: string) => request<{ items: TeamRow[]; totals: { earned: number; paid: number; toPay: number; ahead: number } }>(`${base(p)}/team`),
   person: (p: string, name: string) => request<PersonDetail>(`${base(p)}/team/person?${qs({ name })}`),
   archivePerson: (p: string, name: string, archive: boolean) => request<unknown>(`${base(p)}/team/${archive ? "archive" : "restore"}`, json("POST", { name })),
   archivePayment: (p: string, id: string, archive: boolean) => request<{ ok: true }>(`${base(p)}/payments/${enc(id)}/${archive ? "archive" : "restore"}`, { method: "POST" }),

@@ -41,7 +41,7 @@ export function SubcontractTab({ projectId }: { projectId: string }) {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Tile tone="blue" label="Work done" value={money(totals.done)} note={`${subs.length} ${subs.length === 1 ? "subcontractor" : "subcontractors"}`} />
                 <Tile tone="green" label="Paid" value={money(totals.paid)} />
-                <Tile tone="amber" label="Still to pay" value={money(Math.max(0, totals.toPay))} />
+                <Tile tone="amber" label="Still to pay" value={money(totals.toPay)} note={totals.ahead > 0 ? `Paid ahead ${money(totals.ahead)}` : undefined} />
             </div>
 
             <section className={`${mono.card} overflow-hidden`}>

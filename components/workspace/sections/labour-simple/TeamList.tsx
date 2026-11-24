@@ -9,7 +9,7 @@ import { DatePick } from "./DatePick";
 import { field, label, longDay, mondayOf, money, mono, num, shortDay, todayYmd, weekday } from "./shared";
 
 /**
- * Team heads and individuals, one row each, like materials and their deliveries: Earned (attendance), Paid, To pay.
+ * Team heads and individuals, one row each, like materials and their deliveries: Attendance amount, Paid, To pay.
  * Attendance ▾ opens their marked days (tap one to open its sheet); Payments ▾ opens their payments, each for a
  * period (From – To). The box archives the person with all their days and payments.
  */
@@ -54,7 +54,7 @@ export function TeamList({
                         <thead>
                             <tr className="border-y border-[#EFEFED] bg-[#F7F7F5] text-xs text-[#666666]">
                                 <th scope="col" className="px-5 py-2 text-left font-medium">Name</th>
-                                <th scope="col" className="w-28 px-2 py-2 text-right font-medium">Earned</th>
+                                <th scope="col" className="w-32 px-2 py-2 text-right font-medium">Attendance amount</th>
                                 <th scope="col" className="w-28 px-2 py-2 text-right font-medium">Paid</th>
                                 <th scope="col" className="w-32 px-2 py-2 text-right font-medium">To pay</th>
                                 <th scope="col" className="w-72 px-2 py-2"><span className="sr-only">Open</span></th>
@@ -84,7 +84,10 @@ export function TeamList({
                                 <td className="px-5 py-2.5 font-semibold">Total</td>
                                 <td className="px-2 py-2.5 text-right font-semibold tabular-nums text-[#185FA5]">{money(list.data.totals.earned)}</td>
                                 <td className="px-2 py-2.5 text-right font-semibold tabular-nums text-[#0F6E56]">{money(list.data.totals.paid)}</td>
-                                <td className="px-2 py-2.5 text-right font-semibold tabular-nums text-[#854F0B]">{money(list.data.totals.toPay)}</td>
+                                <td className="px-2 py-2.5 text-right font-semibold tabular-nums text-[#854F0B]">
+                                    {money(list.data.totals.toPay)}
+                                    {list.data.totals.ahead > 0 && <span className="block text-xs font-medium text-[#0F6E56]">Paid ahead {money(list.data.totals.ahead)}</span>}
+                                </td>
                                 <td colSpan={2} />
                             </tr>
                         </tfoot>
