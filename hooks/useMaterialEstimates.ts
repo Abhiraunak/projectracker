@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { estimatesApi, type Estimate, type EstimateSave } from "@/lib/estimates/api";
 import { purchasesKey } from "@/hooks/useMaterialPurchases";
+import { spendKey } from "@/lib/projects/hub";
 
 export const estimatesKey = (projectId: string) => ["estimates", projectId] as const;
 const oneKey = (projectId: string, estimateId: string) => ["estimates", projectId, estimateId] as const;
@@ -54,6 +55,7 @@ export function useSendEstimate(projectId: string, estimateId: string) {
       void qc.invalidateQueries({ queryKey: [...estimatesKey(projectId), "list"] });
       void qc.invalidateQueries({ queryKey: purchasesKey(projectId) });
       void qc.invalidateQueries({ queryKey: ["projects"] });
+      void qc.invalidateQueries({ queryKey: spendKey(projectId) }); // the Overview's planned materials
     },
   });
 }

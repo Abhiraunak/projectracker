@@ -112,12 +112,20 @@ function SiteView({ projectId }: { projectId: string }) {
   if (site.isError) return <SectionError error={site.error} onRetry={() => void site.refetch()} />;
   const data = site.data;
   const shown = data.items;
+  // The same figure as Equipment on the Overview: owned pieces here × cost each, plus hire charged for hired items
+  const worth = data.items.reduce((s, i) => s + (i.ownership === "hired" ? i.hireSoFar : i.here * (i.unitCost ?? 0)), 0);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-stone-600">
           <span className="font-semibold text-stone-900">{data.totals.items}</span> {data.totals.items === 1 ? "item" : "items"} here
+          {worth > 0 && (
+            <>
+              {" · "}
+              <span className="font-semibold tabular-nums text-stone-900">{rupees(worth)}</span>
+            </>
+          )}
         </p>
         <div className="flex flex-wrap gap-2">
           {canManage && (

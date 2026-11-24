@@ -6,11 +6,11 @@ import { hubApi, spendKey, type ProjectHub, type ProjectSpend } from "@/lib/proj
 
 export interface Spend {
   hub: ProjectHub;
-  /** Labour = attendance + contract work (Labour section) */
+  /** Labour = attendance (Attendance › Earned) + contract work done till date (Subcontract › Work done) */
   labour: number;
-  /** Materials = what the deliveries cost (Materials › Delivery log) */
+  /** Materials = what the deliveries cost (Materials › Spent so far) */
   material: number;
-  /** Equipment = hire charged to this site so far (Equipment section) */
+  /** Equipment = owned items at this site × cost each, plus hire for hired items (Equipment tab total) */
   equipment: number;
   /** General expenses (General section) */
   general: number;

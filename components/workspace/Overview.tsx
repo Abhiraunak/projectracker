@@ -116,7 +116,7 @@ const HEALTH = {
 /**
  * The money, plainly: what the client pays (BOQ), our budget (project cost, editable), what has actually been spent
  * and what remains of the budget. Then where the spending went: one bar and a small table, actual spending only.
- * Built from useSpend (GET /spend: attendance, contract work, deliveries, equipment hire, General expenses), the same figures as the
+ * Built from useSpend (GET /spend: attendance, contract work, deliveries, equipment at this site, General expenses), the same figures as the
  * Expenditure tab and the project cards; saving attendance, a payment, a delivery or an expense refreshes it.
  */
 interface Procurement {
@@ -165,7 +165,7 @@ function MoneyAtAGlance({
       value: m.material,
       ...HEAD_COLORS.material,
     },
-    { label: "Equipment", hint: m.equipment > 0 ? "Hire so far" : "Nothing yet", note: null, value: m.equipment, ...HEAD_COLORS.equipment },
+    { label: "Equipment", hint: m.equipment > 0 ? "Items at this site (cost) and hire" : "Nothing yet", note: null, value: m.equipment, ...HEAD_COLORS.equipment },
     { label: "General", hint: m.general > 0 ? "General expenses" : "Nothing yet", note: null, value: m.general, ...HEAD_COLORS.general },
   ];
   // Under Labour: each work item's attendance, then contract work

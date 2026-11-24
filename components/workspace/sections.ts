@@ -1,10 +1,9 @@
 import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 import type { IconType } from "react-icons";
-import { FiBox, FiPaperclip, FiClipboard, FiFileText, FiPenTool, FiTruck } from "react-icons/fi";
+import { FiBox, FiCreditCard, FiFolder, FiList, FiTruck, FiUsers } from "react-icons/fi";
 import type { Permission } from "@/lib/access/types";
 import type { SectionKey } from "@/lib/projects/place";
 import { plural, rupeesShort, shortDate, type ProjectHub } from "@/lib/projects/hub";
-// FiBookOpen,
 
 type SectionProps = { projectId: string };
 
@@ -31,12 +30,12 @@ const def = (d: Omit<SectionDef, "Section">): SectionDef => ({ ...d, Section: la
 
 // Progress now sits on the Overview, and Labour payment is covered by the Labour tab, so neither has a tile or a tab.
 // Old links to them (?s=progress, ?s=payments) open the Overview.
-// Rate comparison now sits inside the Labour tab (its fourth button); old ?s=rates links open Labour on it.
+// Rate comparison now sits inside the Labour tab (its third button); old ?s=rates links open Labour on it.
 export const SECTIONS: SectionDef[] = [
   def({
     key: "boq", // the key stays "boq" so old links (?s=boq) still open it
     label: "Material estimate",
-    Icon: FiFileText,
+    Icon: FiList, // a list of materials, quantities and rates
     needs: "boq.use",
     load: () => import("./sections/EstimateSection"),
     summary: () => ({ text: "Materials, quantities and rates" }),
@@ -44,7 +43,7 @@ export const SECTIONS: SectionDef[] = [
   def({
     key: "drawings",
     label: "Project files",
-    Icon: FiPenTool,
+    Icon: FiFolder, // drawings and their revisions
     needs: "drawings.use",
     load: () => import("./sections/DrawingsBook"),
     summary: ({ drawings }) => ({ text: drawings ? plural(drawings.count, "drawing") : "" }),
@@ -61,7 +60,7 @@ export const SECTIONS: SectionDef[] = [
   def({
     key: "attendance",
     label: "Labour",
-    Icon: FiClipboard,
+    Icon: FiUsers, // team heads, workers and subcontractors
     needs: "attendance.view",
     load: () => import("./sections/labour-simple/LabourSection"),
     summary: ({ attendance: a }) =>
@@ -83,7 +82,7 @@ export const SECTIONS: SectionDef[] = [
   def({
     key: "expenses",
     label: "General",
-    Icon: FiPaperclip,
+    Icon: FiCreditCard, // general expenses
     needs: "expenses.manage", // the General tick on the admin page
     load: () => import("./sections/ExpenditureSection"), // money at a glance, then the daily expenses
     summary: () => ({ text: "Cost vs spent, and general expenses" }),
@@ -91,7 +90,7 @@ export const SECTIONS: SectionDef[] = [
   // def({
   //   key: "diary",
   //   label: "Site engineer",
-  //   Icon: FiBookOpen,
+  //   Icon: FiBookOpen, (add FiBookOpen to the import above when this comes back)
   //   needs: "diary.review", // managers only; engineers fill the reports from Site diary in the menu, on their phone
   //   load: () => import("./sections/SiteDiarySection"),
   //   summary: () => ({ text: "Daily reports: teams, material used and arrived" }),
