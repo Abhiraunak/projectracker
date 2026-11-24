@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { labourSimpleApi as api, type MeasureInput, type PeriodPaymentInput, type SaveDayInput } from "@/lib/labour/simple";
+import { labourSimpleApi as api, type ArchivedPick, type MeasureInput, type PeriodPaymentInput, type SaveDayInput, type SubPaymentInput } from "@/lib/labour/simple";
 import { labourApi, type NewPayment } from "@/lib/projects/labour";
 
 /* Every key starts with "labour-simple", so one refresh after a change reaches every tab */
@@ -97,7 +97,13 @@ export function useRemovePeriodPayment(p: string) {
 
 export function useSaveMeasure(p: string) {
   const refresh = useLabourRefresh(p);
-  return useMutation({ mutationFn: ({ id, body }: { id?: string; body: MeasureInput }) => (id ? api.updateMeasure(p, id, body) : api.addMeasure(p, body)), onSuccess: refresh });
+  return useMutation({
+    mutationFn: async ({ id, body }: { id?: string; body: MeasureInput }): Promise<void> => {
+      if (id) await api.updateMeasure(p, id, body);
+      else await api.addMeasure(p, body);
+    },
+    onSuccess: refresh,
+  });
 }
 export function useRemoveMeasure(p: string) {
   const refresh = useLabourRefresh(p);
@@ -117,4 +123,56 @@ export function useSaveQuote(p: string) {
 export function useRemoveQuote(p: string) {
   const refresh = useLabourRefresh(p);
   return useMutation({ mutationFn: (id: string) => api.removeQuote(p, id), onSuccess: refresh });
+}
+
+/* ------------------------------------------------ team heads and individuals ------------------------------------------------ */
+
+export const useTeam = (p: string) => useQuery({ queryKey: k(p, "team"), queryFn: () => api.team(p), staleTime: 10_000 });
+export const usePerson = (p: string, name: string) =>
+  useQuery({ queryKey: k(p, "person", name.toLowerCase()), queryFn: () => api.person(p, name), enabled: !!name, staleTime: 10_000 });
+export const useArchived = (p: string) => useQuery({ queryKey: k(p, "archived"), queryFn: () => api.archived(p), staleTime: 10_000 });
+
+/** Archive (or restore) a whole person with their days and payments */
+export function useArchivePerson(p: string) {
+  const refresh = useLabourRefresh(p);
+  return useMutation({ mutationFn: ({ name, archive }: { name: string; archive: boolean }) => api.archivePerson(p, name, archive), onSuccess: refresh });
+}
+/** Archive (or restore) one payment, a team head's or a subcontractor's */
+export function useArchivePayment(p: string) {
+  const refresh = useLabourRefresh(p);
+  return useMutation({ mutationFn: ({ id, archive }: { id: string; archive: boolean }) => api.archivePayment(p, id, archive), onSuccess: refresh });
+}
+/** Delete for good what was archived (ticked in Archived) */
+export function useDeleteArchived(p: string) {
+  const refresh = useLabourRefresh(p);
+  return useMutation({ mutationFn: (body: ArchivedPick) => api.deleteArchived(p, body), onSuccess: refresh });
+}
+
+/* ------------------------------------------------ subcontract ------------------------------------------------ */
+
+export function useProgress(p: string) {
+  const refresh = useLabourRefresh(p);
+  return useMutation({
+    mutationFn: ({ id, progressId, body }: { id: string; progressId?: string; body: { date: string; done: number } }) =>
+      progressId ? api.updateProgress(p, progressId, body) : api.addProgress(p, id, body),
+    onSuccess: refresh,
+  });
+}
+export function useSaveSubPayment(p: string) {
+  const refresh = useLabourRefresh(p);
+  return useMutation({
+    mutationFn: async ({ id, body }: { id?: string; body: SubPaymentInput }): Promise<void> => {
+      if (id) await api.updateSubPayment(p, id, body);
+      else await api.addSubPayment(p, body);
+    },
+    onSuccess: refresh,
+  });
+}
+export function useArchiveMeasure(p: string) {
+  const refresh = useLabourRefresh(p);
+  return useMutation({ mutationFn: ({ id, archive }: { id: string; archive: boolean }) => api.archiveMeasure(p, id, archive), onSuccess: refresh });
+}
+export function useArchiveSubcontractor(p: string) {
+  const refresh = useLabourRefresh(p);
+  return useMutation({ mutationFn: ({ name, archive }: { name: string; archive: boolean }) => api.archiveSubcontractor(p, name, archive), onSuccess: refresh });
 }

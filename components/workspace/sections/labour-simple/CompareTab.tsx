@@ -5,6 +5,7 @@ import { useRates, useSetWorkRate } from "@/hooks/useLabourSimple";
 import { describeError } from "@/lib/api";
 import type { RateRow } from "@/lib/labour/simple";
 import { SectionError, SectionSkeleton } from "../../ui";
+import { DatePick } from "./DatePick";
 import { field, label, longDay, money, mono, num, r2, todayYmd } from "./shared";
 
 const ALL_FROM = "2000-01-01";
@@ -15,7 +16,7 @@ const UNITS = ["sqft", "sqm", "rft", "cum", "nos", "kg"];
  * rate comes from that work's attendance (hours and OT included) ÷ the quantity. The last column says whether we save
  * or pay more by doing it ourselves. Quantity and contractor rate are kept on the work item; the unit in this browser.
  */
-export function CompareTab({ projectId }: { projectId: string; onPay?: (name: string) => void }) {
+export function CompareTab({ projectId }: { projectId: string }) {
     const today = todayYmd();
     const [from, setFrom] = useState(ALL_FROM);
     const [to, setTo] = useState(today);
@@ -38,14 +39,14 @@ export function CompareTab({ projectId }: { projectId: string; onPay?: (name: st
                 </div>
                 {datesOpen ? (
                     <div className="flex flex-wrap items-end gap-2">
-                        <label className={label}>
-                            From
-                            <input type="date" value={from === ALL_FROM ? "" : from} max={to} onChange={(e) => setFrom(e.target.value || ALL_FROM)} className={`${field} w-40`} />
-                        </label>
-                        <label className={label}>
-                            To
-                            <input type="date" value={to} min={from === ALL_FROM ? undefined : from} onChange={(e) => e.target.value && setTo(e.target.value)} className={`${field} w-40`} />
-                        </label>
+                        <div className={label}>
+                            <span>From</span>
+                            <DatePick value={from === ALL_FROM ? "" : from} onChange={setFrom} label="From" size="sm" className="w-44" />
+                        </div>
+                        <div className={label}>
+                            <span>To</span>
+                            <DatePick value={to} onChange={setTo} label="To" size="sm" className="w-44" align="right" />
+                        </div>
                         <button type="button" onClick={() => {
                             setFrom(ALL_FROM);
                             setTo(today);

@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { FiCheckCircle, FiChevronLeft, FiChevronRight, FiCopy, FiX } from "react-icons/fi";
 import { useCopyDay, useDayTotals } from "@/hooks/useLabourSimple";
 import { describeError } from "@/lib/api";
-import { addDays, field, label, longDay, mondayOf, money, mono, shortDay, todayYmd, weekday } from "./shared";
+import { DatePick } from "./DatePick";
+import { addDays, label, longDay, mondayOf, money, mono, shortDay, todayYmd, weekday } from "./shared";
 
 type Mode = "tick" | "range";
 
@@ -171,14 +172,14 @@ export function CopyDays({
                 </>
             ) : (
                 <div className="mt-3 flex flex-wrap items-end gap-3">
-                    <label className={label}>
-                        From
-                        <input type="date" value={from} max={to} onChange={(e) => e.target.value && setFrom(e.target.value)} className={`${field} w-40`} />
-                    </label>
-                    <label className={label}>
-                        To
-                        <input type="date" value={to} min={from} onChange={(e) => e.target.value && setTo(e.target.value)} className={`${field} w-40`} />
-                    </label>
+                    <div className={label}>
+                        <span>From</span>
+                        <DatePick value={from} onChange={setFrom} label="From" size="sm" className="w-44" />
+                    </div>
+                    <div className={label}>
+                        <span>To</span>
+                        <DatePick value={to} onChange={setTo} label="To" size="sm" className="w-44" />
+                    </div>
                     <span className="pb-2 text-xs text-[#666666]">
                         {chosen.length} {chosen.length === 1 ? "day" : "days"}, Sundays included
                     </span>

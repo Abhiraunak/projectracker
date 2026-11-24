@@ -2,39 +2,48 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent, type MutableRefObject } from "react";
 import { FiCalendar, FiCheck, FiChevronLeft, FiChevronRight, FiCopy, FiEdit2, FiPlus, FiUserPlus, FiX } from "react-icons/fi";
-import { useAddWork, useDay, usePeople, useRecords, useRenameWork, useSaveDay, useWorks } from "@/hooks/useLabourSimple";
+import { useAddWork, useDay, usePeople, useRecords, useRenameWork, useSaveDay, useTeam, useWorks } from "@/hooks/useLabourSimple";
 import { describeError } from "@/lib/api";
 import type { Day, Worker } from "@/lib/labour/simple";
 import { SectionError, SectionSkeleton } from "../../ui";
+import { ArchivedList } from "./ArchivedList";
 import { CopyDays } from "./CopyDays";
-import { PeriodPayments } from "./PeriodPayments";
+import { DatePick } from "./DatePick";
 import { PickList } from "./PickList";
 import { addDays, field, label, longDay, money, mono, num, r2, shortDay, todayYmd, txt, weekday } from "./shared";
+import { TeamList } from "./TeamList";
 
 /**
- * Mark attendance, as on paper:
- *   Attendance for (work) · Team head · Date
- *   Labour | Hours | OT hours | Rate / hour | OT rate / hour | Total
+ * The Attendance tab, top to bottom:
+ *   Team heads and individuals: one row each (Earned, Paid, To pay); each opens its days and its payments
+ *   Mark attendance, as on paper, for A team (Labour | Hours | OT | Rate / hour | OT rate / hour | Total) or One person
+ *   Recent attendance (tap one to open its full sheet), and Archived
  * Nothing is saved until Save is pressed. Anyone left without hours is simply not counted for that day.
- * Below: recent attendance of every work and team head (tap one to open its full sheet above), then Paid for a period.
  */
 export function AttendanceTab({ projectId }: { projectId: string }) {
   const works = useWorks(projectId);
   const people = usePeople(projectId);
+  const team = useTeam(projectId);
   const memory = `labour:${projectId}`; // the last work and team head used, so the tab opens where you left it
   const [pickedTask, setTaskId] = useState<string | null>(() => readMemory(memory).taskId ?? null);
   const [pickedContractor, setContractor] = useState<string>(() => readMemory(memory).contractor ?? "");
   const [date, setDate] = useState(todayYmd());
+  const [solo, setSolo] = useState<boolean>(() => readMemory(memory).solo ?? false); // One person instead of a team
   // unsaved changes on the open sheet: written by the sheet, read only when moving to another sheet
   const dirtyRef = useRef(false);
   const [waiting, setWaiting] = useState<Sheet | null>(null); // a sheet to open once the unsaved one is dealt with
   const top = useRef<HTMLDivElement>(null);
 
-  // Worked out, not stored: a work that was removed means General; no team head yet means the first on the list
+  // Worked out, not stored: a work that was removed means General; nobody picked yet means the first on the list
   const taskId = pickedTask && works.data?.items.some((w) => w.id === pickedTask) ? pickedTask : null;
-  const contractor = pickedContractor || people.data?.contractors[0] || "";
+  const rowsOf = team.data?.items ?? [];
+  const teamNames = rowsOf.filter((r) => r.kind === "team").map((r) => r.name);
+  const soloNames = rowsOf.filter((r) => r.kind !== "team").map((r) => r.name);
+  const fallback = solo ? soloNames[0] : (teamNames[0] ?? people.data?.contractors[0]);
+  const contractor = pickedContractor || fallback || "";
+  const isSolo = (name: string) => rowsOf.find((r) => r.name.toLowerCase() === name.toLowerCase())?.kind === "one";
 
-  useEffect(() => writeMemory(memory, { taskId, contractor }), [memory, taskId, contractor]);
+  useEffect(() => writeMemory(memory, { taskId, contractor, solo }), [memory, taskId, contractor, solo]);
 
   if (works.isPending || people.isPending) return <SectionSkeleton />;
   if (works.isError) return <SectionError error={works.error} onRetry={() => void works.refetch()} />;
@@ -45,13 +54,14 @@ export function AttendanceTab({ projectId }: { projectId: string }) {
     setDate(s.date);
     setContractor(s.contractor);
     setTaskId(s.taskId);
+    setSolo(s.solo);
     setWaiting(null);
     dirtyRef.current = false;
   };
   /** Move to another sheet; with unsaved changes, ask first (inside the sheet) */
   const go = (patch: Partial<Sheet>) => {
-    const next = { date, contractor, taskId, ...patch };
-    if (sameSheet(next, { date, contractor, taskId })) return;
+    const next = { date, contractor, taskId, solo, ...patch };
+    if (sameSheet(next, { date, contractor, taskId, solo })) return;
     if (dirtyRef.current) setWaiting(next);
     else open(next);
   };
@@ -59,17 +69,40 @@ export function AttendanceTab({ projectId }: { projectId: string }) {
     go(s);
     top.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+  /** A team / One person: the other list's first name, or nobody yet */
+  const switchMode = (toSolo: boolean) => go({ solo: toSolo, contractor: (toSolo ? soloNames[0] : teamNames[0]) ?? "" });
 
   return (
     <div className="space-y-5">
+      <TeamList
+        projectId={projectId}
+        onMark={(name, toSolo) => openFromList({ date, contractor: name, taskId, solo: toSolo })}
+        onOpenDay={(d) => openFromList(d)}
+      />
       <div ref={top} className={`${mono.card} scroll-mt-4 overflow-hidden`}>
         <div className="border-b border-[#EFEFED] px-5 pb-4 pt-4">
-          <h3 className="mb-3 text-[15px] font-semibold text-[#111111]">Mark attendance</h3>
+          <div className="mb-3 flex flex-wrap items-center gap-3">
+            <h3 className="mr-auto text-[15px] font-semibold text-[#111111]">Mark attendance</h3>
+            <span role="group" aria-label="Mark attendance for" className="inline-flex rounded-xl bg-[#F1F1EF] p-1">
+              {([false, true] as const).map((v) => (
+                <button
+                  key={String(v)}
+                  type="button"
+                  onClick={() => switchMode(v)}
+                  aria-pressed={solo === v}
+                  className={`min-h-9 rounded-lg px-4 text-sm ${mono.motion} ${solo === v ? "bg-white font-semibold text-[#111111] shadow-[0_1px_2px_rgba(17,17,17,0.08)]" : "text-[#666666] hover:text-[#111111]"}`}
+                >
+                  {v ? "One person" : "A team"}
+                </button>
+              ))}
+            </span>
+          </div>
           <Header
             projectId={projectId}
             date={date}
             contractor={contractor}
-            contractors={people.data.contractors}
+            contractors={solo ? soloNames : teamNames.length ? teamNames : people.data.contractors}
+            solo={solo}
             works={works.data.items}
             taskId={taskId}
             go={go}
@@ -77,9 +110,9 @@ export function AttendanceTab({ projectId }: { projectId: string }) {
         </div>
         {contractor ? (
           <SheetLoader
-            key={`${date}|${contractor.toLowerCase()}|${taskId ?? ""}`}
+            key={`${date}|${contractor.toLowerCase()}|${taskId ?? ""}|${solo ? "one" : "team"}`}
             projectId={projectId}
-            sheet={{ date, contractor, taskId }}
+            sheet={{ date, contractor, taskId, solo }}
             workTitle={workTitle}
             dirtyRef={dirtyRef}
             waiting={waiting}
@@ -87,26 +120,29 @@ export function AttendanceTab({ projectId }: { projectId: string }) {
             onStay={() => setWaiting(null)}
           />
         ) : (
-          <p className="px-5 py-8 text-center text-sm text-[#666666]">Add a team head first (New, next to Team head), then mark attendance.</p>
+          <p className="px-5 py-8 text-center text-sm text-[#666666]">
+            {solo ? "Add the person first (New, next to Person), then mark attendance." : "Add a team head first (New, next to Team head), then mark attendance."}
+          </p>
         )}
       </div>
-      <Recent projectId={projectId} current={{ date, contractor, taskId }} onOpen={openFromList} />
-      <PeriodPayments projectId={projectId} />
+      <Recent projectId={projectId} current={{ date, contractor, taskId, solo }} isSolo={isSolo} onOpen={openFromList} />
+      <ArchivedList projectId={projectId} tab="team" />
     </div>
   );
 }
 
-type Sheet = { date: string; contractor: string; taskId: string | null };
-const sameSheet = (a: Sheet, b: Sheet) => a.date === b.date && a.contractor.toLowerCase() === b.contractor.toLowerCase() && a.taskId === b.taskId;
+type Sheet = { date: string; contractor: string; taskId: string | null; solo: boolean };
+const sameSheet = (a: Sheet, b: Sheet) =>
+  a.date === b.date && a.contractor.toLowerCase() === b.contractor.toLowerCase() && a.taskId === b.taskId && a.solo === b.solo;
 
-function readMemory(key: string): { taskId?: string | null; contractor?: string } {
+function readMemory(key: string): { taskId?: string | null; contractor?: string; solo?: boolean } {
   try {
     return JSON.parse(localStorage.getItem(key) ?? "{}");
   } catch {
     return {};
   }
 }
-function writeMemory(key: string, v: { taskId: string | null; contractor: string }) {
+function writeMemory(key: string, v: { taskId: string | null; contractor: string; solo: boolean }) {
   try {
     localStorage.setItem(key, JSON.stringify(v));
   } catch {
@@ -123,6 +159,7 @@ function Header({
   date,
   contractor,
   contractors,
+  solo,
   works,
   taskId,
   go,
@@ -131,6 +168,7 @@ function Header({
   date: string;
   contractor: string;
   contractors: string[];
+  solo: boolean;
   works: { id: string; title: string }[];
   taskId: string | null;
   go: (patch: Partial<Sheet>) => void;
@@ -210,11 +248,18 @@ function Header({
       </div>
 
       <div className={label}>
-        <span>Team head</span>
-        {typingBox("head", "Team head's name") ?? (
+        <span>{solo ? "Person" : "Team head"}</span>
+        {typingBox("head", solo ? "Person's name" : "Team head's name") ?? (
           <span className="flex items-center gap-1.5">
-            <PickList value={contractor} options={heads} onChange={(c) => go({ contractor: c })} label="Team head" placeholder="No team head yet" className="min-w-0 flex-1" />
-            <button type="button" onClick={() => setTyping({ what: "head", text: "" })} className={`${mono.secondary} px-3 text-sm`} title="Add a new team head">
+            <PickList
+              value={contractor}
+              options={heads}
+              onChange={(c) => go({ contractor: c })}
+              label={solo ? "Person" : "Team head"}
+              placeholder={solo ? "Nobody yet" : "No team head yet"}
+              className="min-w-0 flex-1"
+            />
+            <button type="button" onClick={() => setTyping({ what: "head", text: "" })} className={`${mono.secondary} px-3 text-sm`} title={solo ? "Add a new person" : "Add a new team head"}>
               <FiUserPlus aria-hidden /> New
             </button>
           </span>
@@ -227,7 +272,7 @@ function Header({
           <button type="button" onClick={() => go({ date: addDays(date, -1) })} className={mono.icon} aria-label="Day before">
             <FiChevronLeft aria-hidden />
           </button>
-          <input type="date" value={date} onChange={(e) => e.target.value && go({ date: e.target.value })} aria-label="Date" className={`${field} h-11 w-40 text-base`} />
+          <DatePick value={date} onChange={(v) => go({ date: v })} label="Date" className="w-44" align="right" />
           <button type="button" onClick={() => go({ date: addDays(date, 1) })} className={mono.icon} aria-label="Next day">
             <FiChevronRight aria-hidden />
           </button>
@@ -296,10 +341,18 @@ function SheetBody({
   onStay: () => void;
 }) {
   const { date, contractor, taskId } = sheet;
+  // One person only when the day holds just them: a team's day opened here stays a team sheet, so no one is dropped
+  const solo = sheet.solo && day.workers.every((w) => w.name.trim().toLowerCase() === contractor.trim().toLowerCase());
   const save = useSaveDay(projectId);
   const isNew = day.workers.length === 0 && !day.extras;
   const filledFrom = isNew && day.last ? day.last.date : null; // a new day starts with the last day's people and rates
   const [rows, setRows] = useState<Row[]>(() => {
+    if (solo) {
+      // One person: one line, in their own name; their rates carried from their last day
+      const mine = day.workers[0] ?? day.last?.workers[0];
+      const row = !mine ? blankRow() : day.workers[0] ? toRow(mine) : toBlankRow(mine);
+      return [{ ...row, name: contractor }];
+    }
     if (!isNew) return day.workers.map(toRow);
     if (day.last?.workers.length) return day.last.workers.map(toBlankRow);
     return [blankRow(), blankRow(), blankRow()];
@@ -326,6 +379,7 @@ function SheetBody({
   const edit = (i: number, patch: Partial<Row>) =>
     setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch, ...("hours" in patch || "rate" in patch ? { fixed: null } : {}) } : r)));
   const addLine = () => {
+    if (solo) return; // one person: one line
     setRows((rs) => [...rs, blankRow(rs[rs.length - 1])]);
     requestAnimationFrame(() => {
       const names = document.querySelectorAll<HTMLInputElement>("[data-col='name']");
@@ -336,11 +390,16 @@ function SheetBody({
   const onEnter = (i: number) => (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
-    if (i === rows.length - 1) addLine();
+    if (i === rows.length - 1) {
+      if (solo) onSave();
+      else addLine();
+    }
     else document.querySelectorAll<HTMLInputElement>(`[data-col="${e.currentTarget.dataset.col}"]`)[i + 1]?.focus();
   };
   const sameAsLast = () => {
-    if (day.last) setRows(day.last.workers.map(toRow));
+    if (!day.last) return;
+    if (solo) setRows(day.last.workers.slice(0, 1).map((w) => ({ ...toRow(w), name: contractor })));
+    else setRows(day.last.workers.map(toRow));
   };
 
   const marked = rows.filter(isMarked);
@@ -386,7 +445,7 @@ function SheetBody({
           <thead>
             <tr className="border-y border-[#EFEFED] bg-[#F7F7F5] text-xs text-[#666666]">
               <th scope="col" className="w-10 py-2.5 pl-5 text-left font-medium">#</th>
-              <th scope="col" className="px-1.5 py-2.5 text-left font-medium">Labour</th>
+              <th scope="col" className="px-1.5 py-2.5 text-left font-medium">{solo ? "Person" : "Labour"}</th>
               <th scope="col" className="w-20 px-1.5 py-2.5 text-center font-medium">Hours</th>
               <th scope="col" className="w-20 px-1.5 py-2.5 text-center font-medium">OT hours</th>
               <th scope="col" className="w-24 px-1.5 py-2.5 text-center font-medium">Rate / hour</th>
@@ -402,7 +461,11 @@ function SheetBody({
                 <tr key={r.key} className={off ? "bg-[#FAFAF9]" : ""}>
                   <td className="py-1.5 pl-5 text-xs tabular-nums text-[#8C8C8C]">{i + 1}</td>
                   <td className="px-1.5 py-1.5">
-                    <input data-col="name" value={r.name} onChange={(e) => edit(i, { name: e.target.value })} onKeyDown={onEnter(i)} maxLength={80} placeholder="Name" aria-label={`Labour ${i + 1}`} className={`${field} h-11 text-base ${off ? "text-[#8C8C8C]" : ""}`} />
+                    {solo ? (
+                      <span className="block px-1 text-base font-semibold text-[#111111]">{r.name}</span>
+                    ) : (
+                      <input data-col="name" value={r.name} onChange={(e) => edit(i, { name: e.target.value })} onKeyDown={onEnter(i)} maxLength={80} placeholder="Name" aria-label={`Labour ${i + 1}`} className={`${field} h-11 text-base ${off ? "text-[#8C8C8C]" : ""}`} />
+                    )}
                     {r.fixed !== null && <span className="mt-0.5 block text-[11px] text-[#8C8C8C]">Saved earlier as {money(r.fixed)}. Type hours to change it.</span>}
                   </td>
                   {(["hours", "otHours", "rate", "otRate"] as const).map((f) => (
@@ -425,9 +488,9 @@ function SheetBody({
                   ))}
                   <td className={`px-2 py-1.5 text-right tabular-nums ${off ? "text-[#8C8C8C]" : "font-semibold text-[#111111]"}`}>{off ? "Absent" : r.name.trim() ? money(payOf(r)) : ""}</td>
                   <td className="pr-3 text-center">
-                    <button type="button" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} className={mono.icon} aria-label={`Remove ${r.name || `line ${i + 1}`}`} title="Remove this line">
+                    {!solo && <button type="button" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} className={mono.icon} aria-label={`Remove ${r.name || `line ${i + 1}`}`} title="Remove this line">
                       <FiX aria-hidden />
-                    </button>
+                    </button>}
                   </td>
                 </tr>
               );
@@ -437,9 +500,11 @@ function SheetBody({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 px-5 pt-3">
-        <button type="button" onClick={addLine} className={`${mono.secondary} min-h-10 text-sm`}>
-          <FiPlus aria-hidden /> Add labour
-        </button>
+        {!solo && (
+          <button type="button" onClick={addLine} className={`${mono.secondary} min-h-10 text-sm`}>
+            <FiPlus aria-hidden /> Add labour
+          </button>
+        )}
         {day.last && (
           <button type="button" onClick={sameAsLast} className={`${mono.secondary} min-h-10 text-sm`} title={`Fill the same people, hours and rates as ${longDay(day.last.date)}`}>
             <FiCopy aria-hidden /> Same as {shortDay(day.last.date)}
@@ -454,7 +519,7 @@ function SheetBody({
         >
           <FiCalendar aria-hidden /> Copy to other days
         </button>
-        <span className="ml-auto text-xs text-[#8C8C8C]">Leave hours empty for anyone absent. Enter goes to the next line.</span>
+        <span className="ml-auto text-xs text-[#8C8C8C]">{solo ? "Leave hours empty if absent. Enter saves." : "Leave hours empty for anyone absent. Enter goes to the next line."}</span>
       </div>
 
       {copying && !unsaved && <CopyDays projectId={projectId} date={date} contractor={contractor} taskId={taskId} workTitle={workTitle} summary={summary} onClose={() => setCopying(false)} />}
@@ -494,13 +559,14 @@ const RANGES = [
   { days: 7, text: "Last 7 days" },
   { days: 30, text: "Last 30 days" },
   { days: 90, text: "Last 3 months" },
+  { days: 0, text: "All" }, // every day ever marked, old ones included
 ] as const;
 
-function Recent({ projectId, current, onOpen }: { projectId: string; current: Sheet; onOpen: (s: Sheet) => void }) {
+function Recent({ projectId, current, isSolo, onOpen }: { projectId: string; current: Sheet; isSolo: (name: string) => boolean; onOpen: (s: Sheet) => void }) {
   const today = todayYmd();
   const [days, setDays] = useState<number>(7);
   // days copied ahead (future dates) show too, at the top
-  const list = useRecords(projectId, addDays(today, -(days - 1)), addDays(today, 60));
+  const list = useRecords(projectId, days ? addDays(today, -(days - 1)) : "2000-01-01", addDays(today, 60));
 
   return (
     <section className={`${mono.card} overflow-hidden`}>
@@ -532,7 +598,7 @@ function Recent({ projectId, current, onOpen }: { projectId: string; current: Sh
               <tr className="border-y border-[#EFEFED] bg-[#F7F7F5] text-xs text-[#666666]">
                 <th scope="col" className="px-5 py-2 text-left font-medium">Date</th>
                 <th scope="col" className="px-2 py-2 text-left font-medium">Work</th>
-                <th scope="col" className="px-2 py-2 text-left font-medium">Team head</th>
+                <th scope="col" className="px-2 py-2 text-left font-medium">Team head or person</th>
                 <th scope="col" className="px-2 py-2 text-right font-medium">Labour</th>
                 <th scope="col" className="px-2 py-2 text-right font-medium">Hours</th>
                 <th scope="col" className="px-2 py-2 text-right font-medium">OT</th>
@@ -542,7 +608,7 @@ function Recent({ projectId, current, onOpen }: { projectId: string; current: Sh
             </thead>
             <tbody className="divide-y divide-[#EFEFED]">
               {list.data.items.map((r, i) => {
-                const s = { date: r.date, contractor: r.contractorName, taskId: r.taskId };
+                const s = { date: r.date, contractor: r.contractorName, taskId: r.taskId, solo: isSolo(r.contractorName) };
                 const isOpen = sameSheet(s, current);
                 return (
                   <tr

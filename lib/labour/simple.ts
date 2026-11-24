@@ -68,11 +68,78 @@ export interface Measure {
   amount: number;
   note: string;
 }
-export type MeasureInput = Omit<Measure, "id" | "amount">;
+/** A work given to a subcontractor: quantity = the whole quantity given; done = how much is finished so far (optional) */
+export type MeasureInput = Omit<Measure, "id" | "amount"> & { done?: number };
+/** One work in the Subcontract tab: done till date (latest update), amount = done × rate, paid for it, to pay */
+export interface SubWork {
+  id: string;
+  date: string;
+  work: string;
+  unit: string;
+  rate: number;
+  total: number;
+  done: number;
+  doneOn: string | null;
+  amount: number;
+  paid: number;
+  toPay: number;
+  note: string;
+  progress: { id: string; date: string; done: number }[];
+}
+export interface SubPayment {
+  id: string;
+  date: string;
+  amount: number;
+  remark: string;
+  measureId: string | null;
+  /** the work it was for; null = an advance */
+  work: string | null;
+}
+export interface Subcontractor {
+  name: string;
+  done: number;
+  paid: number;
+  toPay: number;
+  works: SubWork[];
+  payments: SubPayment[];
+}
 export interface Subcontract {
-  items: Measure[];
-  people: { name: string; done: number; paid: number; toPay: number }[];
+  people: Subcontractor[];
   totals: { done: number; paid: number; toPay: number };
+}
+export interface SubPaymentInput {
+  name: string;
+  date: string;
+  amount: number;
+  measureId: string | null;
+  remark: string;
+}
+
+/** The Attendance tab's list: a team head, or one person paid directly (kind null = only paid, never marked) */
+export interface TeamRow {
+  name: string;
+  kind: "team" | "one" | null;
+  days: number;
+  earned: number;
+  paid: number;
+  toPay: number;
+  last: string;
+}
+export interface PersonDetail {
+  days: { date: string; taskId: string | null; work: string; workers: number; hours: number; otHours: number; amount: number }[];
+  payments: { id: string; date: string; from: string; to: string; amount: number; remark: string }[];
+}
+export interface Archived {
+  people: { name: string; days: number; payments: number; earned: number; paid: number }[];
+  subcontractors: { name: string; works: number; payments: number; done: number; paid: number }[];
+  payments: { id: string; name: string; kind: "team" | "sub"; date: string; from: string; to: string; amount: number; work: string | null }[];
+  works: { id: string; name: string; work: string; amount: number }[];
+}
+export interface ArchivedPick {
+  people: string[];
+  subcontractors: string[];
+  payments: string[];
+  works: string[];
 }
 export interface Quote {
   id: string;
@@ -145,10 +212,22 @@ export const labourSimpleApi = {
   addPeriodPayment: (p: string, body: PeriodPaymentInput) => request<{ item: PeriodPayment }>(`${base(p)}/period-payments`, json("POST", body)),
   updatePeriodPayment: (p: string, id: string, body: PeriodPaymentInput) => request<{ item: PeriodPayment }>(`${base(p)}/period-payments/${enc(id)}`, json("PUT", body)),
   removePeriodPayment: (p: string, id: string) => request<{ ok: true }>(`${base(p)}/period-payments/${enc(id)}`, { method: "DELETE" }),
+  team: (p: string) => request<{ items: TeamRow[]; totals: { earned: number; paid: number; toPay: number } }>(`${base(p)}/team`),
+  person: (p: string, name: string) => request<PersonDetail>(`${base(p)}/team/person?${qs({ name })}`),
+  archivePerson: (p: string, name: string, archive: boolean) => request<unknown>(`${base(p)}/team/${archive ? "archive" : "restore"}`, json("POST", { name })),
+  archivePayment: (p: string, id: string, archive: boolean) => request<{ ok: true }>(`${base(p)}/payments/${enc(id)}/${archive ? "archive" : "restore"}`, { method: "POST" }),
+  archived: (p: string) => request<Archived>(`${base(p)}/archived`),
+  deleteArchived: (p: string, body: ArchivedPick) => request<{ days: number; payments: number; works: number }>(`${base(p)}/archived/delete`, json("POST", body)),
   subcontract: (p: string) => request<Subcontract>(`${base(p)}/subcontract`),
-  addMeasure: (p: string, body: MeasureInput) => request<{ item: Measure }>(`${base(p)}/subcontract`, json("POST", body)),
-  updateMeasure: (p: string, id: string, body: MeasureInput) => request<{ item: Measure }>(`${base(p)}/subcontract/${enc(id)}`, json("PUT", body)),
+  addMeasure: (p: string, body: MeasureInput) => request<{ id: string }>(`${base(p)}/subcontract`, json("POST", body)),
+  updateMeasure: (p: string, id: string, body: MeasureInput) => request<{ ok: true }>(`${base(p)}/subcontract/${enc(id)}`, json("PUT", body)),
   removeMeasure: (p: string, id: string) => request<{ ok: true }>(`${base(p)}/subcontract/${enc(id)}`, { method: "DELETE" }),
+  addProgress: (p: string, id: string, body: { date: string; done: number }) => request<{ ok: true }>(`${base(p)}/subcontract/${enc(id)}/progress`, json("POST", body)),
+  updateProgress: (p: string, id: string, body: { date: string; done: number }) => request<{ ok: true }>(`${base(p)}/progress/${enc(id)}`, json("PUT", body)),
+  addSubPayment: (p: string, body: SubPaymentInput) => request<{ id: string }>(`${base(p)}/subcontract/payments`, json("POST", body)),
+  updateSubPayment: (p: string, id: string, body: SubPaymentInput) => request<{ ok: true }>(`${base(p)}/subcontract/payments/${enc(id)}`, json("PUT", body)),
+  archiveMeasure: (p: string, id: string, archive: boolean) => request<{ ok: true }>(`${base(p)}/subcontract/${enc(id)}/${archive ? "archive" : "restore"}`, { method: "POST" }),
+  archiveSubcontractor: (p: string, name: string, archive: boolean) => request<unknown>(`${base(p)}/subcontractors/${archive ? "archive" : "restore"}`, json("POST", { name })),
   rates: (p: string, from: string, to: string) => request<{ items: RateRow[] }>(`${base(p)}/rates?${qs({ from, to })}`),
   setWorkRate: (p: string, id: string, body: { quantity: number; contractorRate: number }) => request<{ ok: true }>(`${base(p)}/works/${enc(id)}/rate`, json("PUT", body)),
   compare: (p: string, taskId: string, from: string, to: string) => request<Comparison>(`${base(p)}/compare?${qs({ taskId, from, to })}`),
