@@ -63,7 +63,7 @@ export function TeamList({
                 </p>
             ) : (
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[54rem] text-sm">
+                    <table className="w-full min-w-216 text-sm">
                         <thead>
                             <tr className="border-y border-[#EFEFED] bg-[#F7F7F5] text-xs text-[#666666]">
                                 <th scope="col" className="px-5 py-2 text-left font-medium">Name</th>
