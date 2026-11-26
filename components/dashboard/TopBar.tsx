@@ -3,13 +3,15 @@
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FiChevronDown, FiKey, FiLogOut } from "react-icons/fi";
+import { FiChevronDown, FiDownload, FiKey, FiLogOut } from "react-icons/fi";
 import { useAuth } from "@/hooks/useAuth";
 import { useAccess } from "@/hooks/useProjectAccess";
 import { useSignOut } from "@/hooks/useSignOut";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { MENU_ROUTES, currentRoute, routeAllowed } from "./Sidebar/Routes";
 import { ChangePasswordDialog } from "./ChangePasswordDialog";
+import { LogoMark } from "@/components/brand/LogoMark";
+import { useInstallApp } from "@/lib/pwa/install";
 
 const focusRing = "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]";
 
@@ -33,12 +35,7 @@ export function TopBar() {
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-[#E8E8E6] bg-white/95 px-4 backdrop-blur-sm sm:px-6 lg:px-8">
       <Link href="/dashboard" className={`-ml-1 flex items-center gap-2 rounded-lg px-1 py-1 ${focusRing}`}>
-        <span aria-hidden className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#111111]">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 20V10l8-6 8 6v10" />
-            <path d="M9 20v-6h6v6" />
-          </svg>
-        </span>
+        <LogoMark size={28} className="shrink-0" />
         <span className="text-[17px] font-semibold tracking-[-0.01em] text-[#111111]">projecTracker</span>
       </Link>
       <span className="flex-1" />
@@ -56,6 +53,8 @@ function UserMenu() {
   const { signOut, isSigningOut, error } = useSignOut();
   const [open, setOpen] = useState(false);
   const [changing, setChanging] = useState(false);
+  const app = useInstallApp();
+  const [installHelp, setInstallHelp] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const menuId = useId();
@@ -131,6 +130,28 @@ function UserMenu() {
             </nav>
           )}
           <div className="pt-1.5">
+            {/* Install app: opens the browser's install box; hidden once running as the installed app */}
+            {app.state !== "installed" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (app.state === "ready") {
+                      setOpen(false);
+                      void app.install();
+                    } else setInstallHelp((h) => !h);
+                  }}
+                  className={`${row} text-[#111111] hover:bg-[#F7F7F5]`}
+                >
+                  <FiDownload aria-hidden className="shrink-0 text-[#666666]" /> Install app
+                </button>
+                {installHelp && app.state !== "ready" && (
+                  <p className="px-3 pb-2 text-xs leading-snug text-[#666666]">
+                    Open your browser&apos;s menu (⋮) and choose <b className="font-medium text-[#111111]">Install app</b> or <b className="font-medium text-[#111111]">Add to Home screen</b>.
+                  </p>
+                )}
+              </>
+            )}
             <button
               type="button"
               onClick={() => {

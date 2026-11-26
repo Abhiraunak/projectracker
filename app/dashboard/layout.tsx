@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { TopBar } from "@/components/dashboard/TopBar";
 import { ProjectAccessProvider, useMyAccess } from "@/hooks/useProjectAccess";
 import { AccessGate } from "@/components/access/AccessGate";
 import { useAuth } from "@/hooks/useAuth";
 import { roleOf } from "@/lib/auth/home";
-// import { useLiveUpdates } from "@/hooks/useLiveUpdates";
-// import { useReopenKey } from "@/hooks/useReopenKey";
+
 
 /**
  * Hides the scrollbar itself. Scrolling still works the normal ways: mouse wheel, trackpad, touch, and the
@@ -23,22 +22,27 @@ const HIDE_SCROLLBAR = "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
  */
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { user } = useAuth();
+  const pathname = usePathname();
+  const { user, isUserLoading } = useAuth();
   // Client accounts have their own portal; the staff app (and its menus) is never shown to them.
   // Known from the role when "who am I" carries it; otherwise from the server refusing the staff access check (403).
   const roleSaysClient = roleOf(user) === "CLIENT";
   // What this person may do (company-wide): decides the menu, the pages and the buttons. Not asked for a client.
   const access = useMyAccess({ enabled: !roleSaysClient });
   const isClient = roleSaysClient || access.isClientAccount;
-  // useLiveUpdates(!!user && !isClient); // the bell and the client payments page update by themselves
-  // const reopenKey = useReopenKey(); // a notification about something on this same page opens it afresh
 
   // replace, not push: the back button shouldn't return to a page the account can't use
+  // Not signed in (for example the installed app opening on /dashboard): to the sign-in page, back here after
+  useEffect(() => {
+    if (!isUserLoading && !user) router.replace(`/signin?next=${encodeURIComponent(pathname || "/dashboard")}`);
+  }, [isUserLoading, user, pathname, router]);
+
   useEffect(() => {
     if (isClient) router.replace("/client");
   }, [isClient, router]);
 
-  if (isClient) return <div aria-busy="true" className="min-h-dvh bg-[#F7F7F5]" />;
+  // Still checking who this is, signed out (on the way to sign in), or a client (on the way to their portal)
+  if (isUserLoading || !user || isClient) return <div aria-busy="true" className="min-h-dvh bg-[#F7F7F5]" />;
 
   return (
     <ProjectAccessProvider value={access}>
