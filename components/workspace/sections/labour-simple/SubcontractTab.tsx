@@ -45,7 +45,7 @@ export function SubcontractTab({ projectId }: { projectId: string }) {
             </div>
 
             <section className={`${mono.card} overflow-hidden`}>
-                <div className="flex flex-wrap items-center gap-2 px-5 py-4">
+                <div className="flex flex-wrap items-center gap-2 px-4 py-4 sm:px-5">
                     <h3 className="mr-auto text-[15px] font-semibold text-[#111111]">Subcontractors</h3>
                     <button type="button" onClick={() => setAdding((a) => (a === "" ? null : ""))} className={`${mono.primary} min-h-10 text-sm`}>
                         <FiPlus aria-hidden /> Add subcontractor
@@ -56,9 +56,10 @@ export function SubcontractTab({ projectId }: { projectId: string }) {
                 {subs.length === 0 ? (
                     <p className="border-t border-[#EFEFED] px-5 py-8 text-center text-sm text-[#666666]">Nothing given on contract yet. Use Add subcontractor, for example Tiles, 1,000 sqft at ₹600.</p>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full min-w-184 text-sm">
-                            <thead>
+                    <div className="md:overflow-x-auto">
+                        {/* phones: each subcontractor is a small card; wider screens: the table */}
+                        <table className="block w-full text-sm md:table md:min-w-184">
+                            <thead className="hidden md:table-header-group">
                                 <tr className="border-y border-[#EFEFED] bg-[#F7F7F5] text-xs text-[#666666]">
                                     <th scope="col" className="px-5 py-2 text-left font-medium">Name</th>
                                     <th scope="col" className="w-28 px-2 py-2 text-right font-medium">Work done</th>
@@ -68,7 +69,7 @@ export function SubcontractTab({ projectId }: { projectId: string }) {
                                     <th scope="col" className="w-14 pr-4"><span className="sr-only">Archive</span></th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="block md:table-row-group">
                                 {subs.map((s) => {
                                     const here = open && open.name.toLowerCase() === s.name.toLowerCase() ? open.what : null;
                                     return (
@@ -120,37 +121,47 @@ function SubRows({
     archiving: boolean;
 }) {
     const btn = (w: "works" | "pays", text: string, Icon: typeof FiTool) => (
-        <button type="button" onClick={() => onToggle(w)} aria-expanded={here === w} className={`${mono.secondary} min-h-9 px-3 text-sm ${here === w ? "border-[#111111] bg-[#F7F7F5]" : ""}`}>
+        <button type="button" onClick={() => onToggle(w)} aria-expanded={here === w} className={`${mono.secondary} min-h-10 flex-1 justify-center px-3 text-sm md:min-h-9 md:flex-none ${here === w ? "border-[#111111] bg-[#F7F7F5]" : ""}`}>
             <Icon aria-hidden /> {text} {here === w ? <FiChevronUp aria-hidden /> : <FiChevronDown aria-hidden />}
         </button>
     );
     return (
         <>
-            <tr className={`border-t border-[#EFEFED] ${here ? "bg-[#FAFAF9]" : ""}`}>
-                <td className="px-5 py-3">
+            <tr className={`grid grid-cols-6 items-start gap-x-3 gap-y-2 border-t border-[#EFEFED] px-4 py-3 md:table-row md:p-0 ${here ? "bg-[#FAFAF9]" : ""}`}>
+                <td className="order-1 col-span-5 p-0 md:order-0 md:px-5 md:py-3">
                     <span className="font-semibold text-[#111111]">{s.name}</span>
                     <span className="block text-xs text-[#8C8C8C]">
                         {s.works.length} {s.works.length === 1 ? "work" : "works"}
                     </span>
                 </td>
-                <td className="px-2 py-3 text-right tabular-nums text-[#185FA5]">{money(s.done)}</td>
-                <td className="px-2 py-3 text-right tabular-nums text-[#0F6E56]">{money(s.paid)}</td>
-                <td className={`px-2 py-3 text-right font-semibold tabular-nums ${s.toPay < 0 ? "text-[#0F6E56]" : "text-[#854F0B]"}`}>{s.toPay < 0 ? `Paid ahead ${money(-s.toPay)}` : money(s.toPay)}</td>
-                <td className="px-2 py-3 text-right">
-                    <span className="inline-flex gap-1.5">
+                <td className="order-3 col-span-2 p-0 tabular-nums text-[#185FA5] md:order-0 md:px-2 md:py-3 md:text-right">
+                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">Work done</span>
+                    {money(s.done)}
+                </td>
+                <td className="order-3 col-span-2 p-0 tabular-nums text-[#0F6E56] md:order-0 md:px-2 md:py-3 md:text-right">
+                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">Paid</span>
+                    {money(s.paid)}
+                </td>
+                <td className={`order-3 col-span-2 p-0 font-semibold tabular-nums md:order-0 md:px-2 md:py-3 md:text-right ${s.toPay < 0 ? "text-[#0F6E56]" : "text-[#854F0B]"}`}>
+                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">{s.toPay < 0 ? "Paid ahead" : "To pay"}</span>
+                    <span className="md:hidden">{money(Math.abs(s.toPay))}</span>
+                    <span className="hidden md:inline">{s.toPay < 0 ? `Paid ahead ${money(-s.toPay)}` : money(s.toPay)}</span>
+                </td>
+                <td className="order-4 col-span-6 p-0 md:order-0 md:px-2 md:py-3 md:text-right">
+                    <span className="flex gap-1.5 md:inline-flex">
                         {btn("works", "Work", FiTool)}
                         {btn("pays", "Payments", FiCreditCard)}
                     </span>
                 </td>
-                <td className="pr-4 text-right">
+                <td className="order-2 p-0 text-right md:order-0 md:pr-4">
                     <button type="button" onClick={onArchive} disabled={archiving} className={mono.icon} aria-label={`Archive ${s.name}`} title="Archive (with all their works and payments)">
                         <FiArchive aria-hidden />
                     </button>
                 </td>
             </tr>
             {here && (
-                <tr>
-                    <td colSpan={6} className="bg-[#FAFAF9] px-5 pb-4 pt-1">
+                <tr className="block md:table-row">
+                    <td colSpan={6} className="block bg-[#FAFAF9] px-3 pb-4 pt-1 md:table-cell md:px-5">
                         {here === "works" ? <WorksPanel projectId={projectId} s={s} adding={adding} onAddWork={onAddWork} onAdded={onAdded} /> : <PaysPanel projectId={projectId} s={s} />}
                     </td>
                 </tr>
@@ -180,9 +191,9 @@ function WorksPanel({ projectId, s, adding, onAddWork, onAdded }: { projectId: s
                     <FiPlus aria-hidden /> Add work
                 </button>
             )}
-            <div className="overflow-x-auto rounded-xl border border-[#E8E8E6] bg-white">
-                <table className="w-full min-w-208 text-sm">
-                    <thead>
+            <div className="overflow-hidden rounded-xl border border-[#E8E8E6] bg-white md:overflow-x-auto">
+                <table className="block w-full text-sm md:table md:min-w-208">
+                    <thead className="hidden md:table-header-group">
                         <tr className="bg-[#F7F7F5] text-xs text-[#666666]">
                             <th scope="col" className="px-4 py-2 text-left font-medium">Work</th>
                             <th scope="col" className="px-2 py-2 text-right font-medium">Rate</th>
@@ -193,7 +204,7 @@ function WorksPanel({ projectId, s, adding, onAddWork, onAdded }: { projectId: s
                             <th scope="col" className="w-64 pr-3"><span className="sr-only">Update, pay, change</span></th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#EFEFED]">
+                    <tbody className="block divide-y divide-[#EFEFED] md:table-row-group">
                         {s.works.map((w) => {
                             const pct = w.total > 0 ? Math.min(100, Math.round((w.done / w.total) * 100)) : 0;
                             const f = formOf(w.id);
@@ -232,8 +243,8 @@ function WorkRow({
     const on = (what: WorkFormKind) => (open === what ? "border-[#111111] bg-[#F7F7F5]" : "");
     return (
         <>
-            <tr>
-                <td className="px-4 py-2.5">
+            <tr className="grid grid-cols-2 gap-x-3 gap-y-2 px-3 py-3 md:table-row md:p-0">
+                <td className="col-span-2 p-0 md:px-4 md:py-2.5">
                     <span className="block font-semibold text-[#111111]">{w.work}</span>
                     <span className="block text-xs text-[#8C8C8C]">
                         of {qty(w.total, w.unit)}
@@ -244,17 +255,28 @@ function WorkRow({
                         <span className="block h-full rounded-full bg-[#378ADD]" style={{ width: `${pct}%` }} />
                     </span>
                 </td>
-                <td className="whitespace-nowrap px-2 py-2.5 text-right tabular-nums">
+                <td className="whitespace-nowrap p-0 tabular-nums md:px-2 md:py-2.5 md:text-right">
+                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">Rate</span>
                     {money(w.rate)}/{w.unit}
                 </td>
-                <td className="whitespace-nowrap px-2 py-2.5 text-right font-semibold tabular-nums">{qty(w.done, w.unit)}</td>
-                <td className="whitespace-nowrap px-2 py-2.5 text-right tabular-nums text-[#185FA5]">{money(w.amount)}</td>
-                <td className="whitespace-nowrap px-2 py-2.5 text-right tabular-nums text-[#0F6E56]">{money(w.paid)}</td>
-                <td className={`whitespace-nowrap px-2 py-2.5 text-right font-semibold tabular-nums ${w.toPay < 0 ? "text-[#0F6E56]" : "text-[#854F0B]"}`}>
+                <td className="whitespace-nowrap p-0 font-semibold tabular-nums md:px-2 md:py-2.5 md:text-right">
+                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">Done till date</span>
+                    {qty(w.done, w.unit)}
+                </td>
+                <td className="whitespace-nowrap p-0 tabular-nums text-[#185FA5] md:px-2 md:py-2.5 md:text-right">
+                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">Amount</span>
+                    {money(w.amount)}
+                </td>
+                <td className="whitespace-nowrap p-0 tabular-nums text-[#0F6E56] md:px-2 md:py-2.5 md:text-right">
+                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">Paid</span>
+                    {money(w.paid)}
+                </td>
+                <td className={`col-span-2 whitespace-nowrap p-0 font-semibold tabular-nums md:px-2 md:py-2.5 md:text-right ${w.toPay < 0 ? "text-[#0F6E56]" : "text-[#854F0B]"}`}>
+                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">To pay</span>
                     {w.toPay < 0 ? `Ahead ${money(-w.toPay)}` : money(w.toPay)}
                 </td>
-                <td className="whitespace-nowrap pr-3 text-right">
-                    <span className="inline-flex items-center gap-1">
+                <td className="col-span-2 whitespace-nowrap p-0 md:pr-3 md:text-right">
+                    <span className="flex flex-wrap items-center gap-1 md:inline-flex md:flex-nowrap">
                         <button type="button" onClick={() => onFlip("done")} className={`${mono.secondary} min-h-9 px-2.5 text-sm ${on("done")}`}>
                             <FiTrendingUp aria-hidden /> Update done
                         </button>
@@ -271,8 +293,8 @@ function WorkRow({
                 </td>
             </tr>
             {open && (
-                <tr>
-                    <td colSpan={7} className="bg-[#F7F7F5] p-0">
+                <tr className="block md:table-row">
+                    <td colSpan={7} className="block bg-[#F7F7F5] p-0 md:table-cell">
                         {children}
                     </td>
                 </tr>
@@ -389,7 +411,7 @@ function WorkForm({ projectId, fixedName, editing, names, onDone }: { projectId:
     };
 
     return (
-        <div className="border-t border-[#EFEFED] bg-[#FAFAF9] px-5 py-4">
+        <div className="border-t border-[#EFEFED] bg-[#FAFAF9] px-4 py-4 sm:px-5">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {!fixedName && (
                     <label className={`${label} col-span-2`}>
@@ -469,8 +491,8 @@ function PaysPanel({ projectId, s }: { projectId: string; s: Subcontractor }) {
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="bg-[#F7F7F5] text-xs text-[#666666]">
-                                <th scope="col" className="px-4 py-2 text-left font-medium">Date</th>
-                                <th scope="col" className="px-2 py-2 text-left font-medium">For work</th>
+                                <th scope="col" className="px-3 py-2 text-left font-medium sm:px-4">Date</th>
+                                <th scope="col" className="hidden px-2 py-2 text-left font-medium sm:table-cell">For work</th>
                                 <th scope="col" className="px-2 py-2 text-right font-medium">Amount paid</th>
                                 <th scope="col" className="w-24 pr-3"><span className="sr-only">Change</span></th>
                             </tr>
@@ -478,8 +500,11 @@ function PaysPanel({ projectId, s }: { projectId: string; s: Subcontractor }) {
                         <tbody className="divide-y divide-[#EFEFED]">
                             {s.payments.map((p) => (
                                 <tr key={p.id} className={editing?.id === p.id ? "bg-[#E6F1FB]" : ""}>
-                                    <td className="whitespace-nowrap px-4 py-2">{longDay(p.date)}</td>
-                                    <td className="px-2 py-2">
+                                    <td className="px-3 py-2 sm:whitespace-nowrap sm:px-4">
+                                        {longDay(p.date)}
+                                        <span className="block text-xs text-[#666666] sm:hidden">{p.work ?? "Advance"}</span>
+                                    </td>
+                                    <td className="hidden px-2 py-2 sm:table-cell">
                                         {p.work ?? <span className="text-[#8C8C8C]">Advance</span>}
                                         {p.remark && <span className="block text-xs text-[#8C8C8C]">{p.remark}</span>}
                                     </td>
@@ -530,7 +555,7 @@ function SubPayForm({ projectId, s, measureId, editing, onDone }: { projectId: s
     };
     return (
         <div className="space-y-2 bg-[#F7F7F5] px-4 py-3">
-            <div className="grid gap-2.5 sm:grid-cols-[11rem_minmax(0,1.3fr)_9rem_minmax(0,1fr)_auto] sm:items-end">
+            <div className="grid gap-2.5 sm:grid-cols-2 sm:items-end lg:grid-cols-[11rem_minmax(0,1.3fr)_9rem_minmax(0,1fr)_auto]">
                 <div className={label}>
                     <span>Date</span>
                     <DatePick value={date} onChange={setDate} label="Date" size="sm" />

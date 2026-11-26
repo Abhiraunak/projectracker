@@ -172,15 +172,15 @@ export function CopyDays({
                 </>
             ) : (
                 <div className="mt-3 flex flex-wrap items-end gap-3">
-                    <div className={label}>
+                    <div className={`${label} flex-1 sm:flex-none`}>
                         <span>From</span>
-                        <DatePick value={from} onChange={setFrom} label="From" size="sm" className="w-44" />
+                        <DatePick value={from} onChange={setFrom} label="From" size="sm" className="w-full sm:w-44" />
                     </div>
-                    <div className={label}>
+                    <div className={`${label} flex-1 sm:flex-none`}>
                         <span>To</span>
-                        <DatePick value={to} onChange={setTo} label="To" size="sm" className="w-44" />
+                        <DatePick value={to} onChange={setTo} label="To" size="sm" className="w-full sm:w-44" />
                     </div>
-                    <span className="pb-2 text-xs text-[#666666]">
+                    <span className="w-full pb-2 text-xs text-[#666666] sm:w-auto">
                         {chosen.length} {chosen.length === 1 ? "day" : "days"}, Sundays included
                     </span>
                 </div>

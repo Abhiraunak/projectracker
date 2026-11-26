@@ -106,7 +106,7 @@ export function ArchivedList({ projectId, tab }: { projectId: string; tab: "team
 
     return (
         <section className={`${mono.card} overflow-hidden`}>
-            <div className="flex flex-wrap items-center gap-2 px-5 py-4">
+            <div className="flex flex-wrap items-center gap-2 px-4 py-4 sm:px-5">
                 <h3 className="mr-auto text-[15px] font-semibold text-[#111111]">Archived</h3>
                 {lines.length > 0 && (
                     <>
@@ -127,7 +127,7 @@ export function ArchivedList({ projectId, tab }: { projectId: string; tab: "team
             ) : (
                 <ul className="divide-y divide-[#EFEFED] border-t border-[#EFEFED]">
                     {lines.map((l) => (
-                        <li key={l.key} className="flex items-center gap-3 px-5 py-2.5">
+                        <li key={l.key} className="flex items-center gap-3 px-4 py-2.5 sm:px-5">
                             <input type="checkbox" checked={ticked.has(l.key)} onChange={() => flip(l.key)} aria-label={`Select ${l.title}`} className="h-4 w-4 accent-[#111111]" />
                             <span className="min-w-0 flex-1">
                                 <span className="block truncate text-sm font-medium text-[#111111]">{l.title}</span>

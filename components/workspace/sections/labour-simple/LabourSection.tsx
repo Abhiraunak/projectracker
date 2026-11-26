@@ -8,10 +8,10 @@ import { SubcontractTab } from "./SubcontractTab";
 import { mono } from "./shared";
 
 type TabKey = "attendance" | "subcontract" | "compare";
-const TABS: { key: TabKey; label: string; Icon: typeof FiClipboard }[] = [
-  { key: "attendance", label: "Attendance", Icon: FiClipboard },
-  { key: "subcontract", label: "Subcontract", Icon: FiTool },
-  { key: "compare", label: "Rate comparison", Icon: FiBarChart2 },
+const TABS: { key: TabKey; label: string; short: string; Icon: typeof FiClipboard }[] = [
+  { key: "attendance", label: "Attendance", short: "Attendance", Icon: FiClipboard },
+  { key: "subcontract", label: "Subcontract", short: "Subcontract", Icon: FiTool },
+  { key: "compare", label: "Rate comparison", short: "Rates", Icon: FiBarChart2 },
 ];
 
 /**
@@ -28,7 +28,7 @@ export default function LabourSection({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-5">
       <div role="tablist" aria-label="Labour" className="grid grid-cols-3 gap-1 rounded-2xl bg-[#EFEFED] p-1">
-        {TABS.map(({ key, label, Icon }) => {
+        {TABS.map(({ key, label, short, Icon }) => {
           const on = tab === key;
           return (
             <button
@@ -37,11 +37,12 @@ export default function LabourSection({ projectId }: { projectId: string }) {
               role="tab"
               aria-selected={on}
               onClick={() => setTab(key)}
-              className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm ${mono.motion} ${mono.ring} ${
-                on ? "bg-white font-semibold text-[#111111] shadow-[0_1px_2px_rgba(17,17,17,0.08)]" : "text-[#555555] hover:bg-white/60"
-              }`}
+              className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl px-1.5 text-[13px] sm:gap-2 sm:px-3 sm:text-sm ${mono.motion} ${mono.ring} ${on ? "bg-white font-semibold text-[#111111] shadow-[0_1px_2px_rgba(17,17,17,0.08)]" : "text-[#555555] hover:bg-white/60"
+                }`}
             >
-              <Icon aria-hidden /> {label}
+              <Icon aria-hidden className="hidden shrink-0 sm:block" />
+              <span className="truncate sm:hidden">{short}</span>
+              <span className="hidden sm:inline">{label}</span>
             </button>
           );
         })}

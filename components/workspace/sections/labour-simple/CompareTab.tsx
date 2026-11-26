@@ -38,14 +38,14 @@ export function CompareTab({ projectId }: { projectId: string }) {
                     </p>
                 </div>
                 {datesOpen ? (
-                    <div className="flex flex-wrap items-end gap-2">
-                        <div className={label}>
+                    <div className="flex w-full flex-wrap items-end gap-2 sm:w-auto">
+                        <div className={`${label} flex-1 sm:flex-none`}>
                             <span>From</span>
-                            <DatePick value={from === ALL_FROM ? "" : from} onChange={setFrom} label="From" size="sm" className="w-44" />
+                            <DatePick value={from === ALL_FROM ? "" : from} onChange={setFrom} label="From" size="sm" className="w-full sm:w-44" />
                         </div>
-                        <div className={label}>
+                        <div className={`${label} flex-1 sm:flex-none`}>
                             <span>To</span>
-                            <DatePick value={to} onChange={setTo} label="To" size="sm" className="w-44" align="right" />
+                            <DatePick value={to} onChange={setTo} label="To" size="sm" className="w-full sm:w-44" align="right" />
                         </div>
                         <button type="button" onClick={() => {
                             setFrom(ALL_FROM);

@@ -109,7 +109,7 @@ export function AttendanceTab({ projectId }: { projectId: string }) {
               </button>
             </div>
           )}
-          <div className="border-b border-[#EFEFED] px-5 pb-4 pt-4">
+          <div className="border-b border-[#EFEFED] px-4 pb-4 pt-4 sm:px-5">
             <div className="mb-3 flex flex-wrap items-center gap-3">
               <h3 className="mr-auto text-[15px] font-semibold text-[#111111]">Mark attendance</h3>
               <span role="group" aria-label="Mark attendance for" className="inline-flex rounded-xl bg-[#F1F1EF] p-1">
@@ -305,7 +305,7 @@ function Header({
           <button type="button" onClick={() => go({ date: addDays(date, -1) })} className={mono.icon} aria-label="Day before">
             <FiChevronLeft aria-hidden />
           </button>
-          <DatePick value={date} onChange={(v) => go({ date: v })} label="Date" className="w-44" align="right" />
+          <DatePick value={date} onChange={(v) => go({ date: v })} label="Date" className="min-w-0 flex-1 sm:w-44 sm:flex-none" align="right" />
           <button type="button" onClick={() => go({ date: addDays(date, 1) })} className={mono.icon} aria-label="Next day">
             <FiChevronRight aria-hidden />
           </button>
@@ -467,15 +467,16 @@ function SheetBody({
         </div>
       )}
 
-      <p className="px-5 pt-3 text-sm text-[#666666]">
+      <p className="px-4 pt-3 text-sm text-[#666666] sm:px-5">
         <span className="font-semibold text-[#111111]">{contractor}</span> · {workTitle} · {weekday(date)} {longDay(date)}
         {filledFrom && <> · <span className="text-[#185FA5]">People and rates from {shortDay(filledFrom)}. Fill hours only for those who came.</span></>}
         {!isNew && <> · <span className="text-[#3B6D11]">Already marked. Change anything and Save.</span></>}
       </p>
 
-      <div className="mt-2 overflow-x-auto">
-        <table className="w-full min-w-200 text-sm">
-          <thead>
+      {/* phones: each line is a small card (name, then the four boxes with labels, then the total); wider: the table */}
+      <div className="mt-2 md:overflow-x-auto">
+        <table className="block w-full text-sm md:table md:min-w-200">
+          <thead className="hidden md:table-header-group">
             <tr className="border-y border-[#EFEFED] bg-[#F7F7F5] text-xs text-[#666666]">
               <th scope="col" className="w-10 py-2.5 pl-5 text-left font-medium">#</th>
               <th scope="col" className="px-1.5 py-2.5 text-left font-medium">{solo ? "Person" : "Labour"}</th>
@@ -487,13 +488,13 @@ function SheetBody({
               <th scope="col" className="w-12 pr-3"><span className="sr-only">Remove</span></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#EFEFED]">
+          <tbody className="block divide-y divide-[#EFEFED] border-t border-[#EFEFED] md:table-row-group md:border-t-0">
             {rows.map((r, i) => {
               const off = !!r.name.trim() && !isMarked(r); // named but no hours: not counted
               return (
-                <tr key={r.key} className={off ? "bg-[#FAFAF9]" : ""}>
-                  <td className="py-1.5 pl-5 text-xs tabular-nums text-[#8C8C8C]">{i + 1}</td>
-                  <td className="px-1.5 py-1.5">
+                <tr key={r.key} className={`grid grid-cols-4 items-end gap-x-2 gap-y-2 px-4 py-3 md:table-row md:p-0 ${off ? "bg-[#FAFAF9]" : ""}`}>
+                  <td className="hidden py-1.5 pl-5 text-xs tabular-nums text-[#8C8C8C] md:table-cell">{i + 1}</td>
+                  <td className={`order-1 p-0 md:order-0 md:px-1.5 md:py-1.5 ${solo ? "col-span-4" : "col-span-3"}`}>
                     {solo ? (
                       <span className="block px-1 text-base font-semibold text-[#111111]">{r.name}</span>
                     ) : (
@@ -502,7 +503,8 @@ function SheetBody({
                     {r.fixed !== null && <span className="mt-0.5 block text-[11px] text-[#8C8C8C]">Saved earlier as {money(r.fixed)}. Type hours to change it.</span>}
                   </td>
                   {(["hours", "otHours", "rate", "otRate"] as const).map((f) => (
-                    <td key={f} className="px-1.5 py-1.5">
+                    <td key={f} className="order-3 p-0 md:order-0 md:px-1.5 md:py-1.5">
+                      <span className="mb-0.5 block text-[11px] text-[#8C8C8C] md:hidden">{{ hours: "Hours", otHours: "OT hours", rate: "Rate / h", otRate: "OT rate / h" }[f]}</span>
                       <input
                         value={r[f]}
                         onChange={(e) => edit(i, { [f]: e.target.value } as Partial<Row>)}
@@ -519,8 +521,8 @@ function SheetBody({
                       />
                     </td>
                   ))}
-                  <td className={`px-2 py-1.5 text-right tabular-nums ${off ? "text-[#8C8C8C]" : "font-semibold text-[#111111]"}`}>{off ? "Absent" : r.name.trim() ? money(payOf(r)) : ""}</td>
-                  <td className="pr-3 text-center">
+                  <td className={`order-4 col-span-4 p-0 text-right tabular-nums md:order-0 md:px-2 md:py-1.5 ${off ? "text-[#8C8C8C]" : "font-semibold text-[#111111]"}`}>{off ? "Absent" : r.name.trim() ? money(payOf(r)) : ""}</td>
+                  <td className={`order-2 p-0 text-right md:order-0 md:pr-3 md:text-center ${solo ? "hidden md:table-cell" : ""}`}>
                     {!solo && <button type="button" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} className={mono.icon} aria-label={`Remove ${r.name || `line ${i + 1}`}`} title="Remove this line">
                       <FiX aria-hidden />
                     </button>}
@@ -532,7 +534,7 @@ function SheetBody({
         </table>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 px-5 pt-3">
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-3 sm:px-5">
         {!solo && (
           <button type="button" onClick={addLine} className={`${mono.secondary} min-h-10 text-sm`}>
             <FiPlus aria-hidden /> Add labour
@@ -552,7 +554,7 @@ function SheetBody({
         >
           <FiCalendar aria-hidden /> Copy to other days
         </button>
-        <span className="ml-auto text-xs text-[#8C8C8C]">{solo ? "Leave hours empty if absent. Enter saves." : "Leave hours empty for anyone absent. Enter goes to the next line."}</span>
+        <span className="w-full text-xs text-[#8C8C8C] sm:ml-auto sm:w-auto">{solo ? "Leave hours empty if absent. Enter saves." : "Leave hours empty for anyone absent. Enter goes to the next line."}</span>
       </div>
 
       {copying && !unsaved && <CopyDays projectId={projectId} date={date} contractor={contractor} taskId={taskId} workTitle={workTitle} summary={summary} onClose={() => setCopying(false)} />}
@@ -560,7 +562,7 @@ function SheetBody({
       {extras > 0 && <p className="mx-5 mt-2 text-xs text-[#666666]">Includes {money(extras)} extra saved earlier on this day (kept).</p>}
       {save.isError && <p role="alert" className="mx-5 mt-2 text-sm text-[#B3261E]">Not saved: {describeError(save.error)}</p>}
 
-      <div className={`mx-5 mb-5 mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-[18px] border px-5 py-3.5 ${unsaved ? "border-[#FAC775] bg-[#FAEEDA]" : "border-[#B5D4F4] bg-[#E6F1FB]"}`}>
+      <div className={`mx-3 mb-4 mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-[18px] border px-4 py-3.5 sm:mx-5 sm:mb-5 sm:px-5 ${unsaved ? "border-[#FAC775] bg-[#FAEEDA]" : "border-[#B5D4F4] bg-[#E6F1FB]"}`}>
         <span className={`text-sm ${unsaved ? "text-[#854F0B]" : "text-[#185FA5]"}`}>
           {marked.length} present · {hours} h{ot ? ` + ${ot} OT` : ""}
         </span>
@@ -603,8 +605,8 @@ function Recent({ projectId, current, isSolo, onOpen }: { projectId: string; cur
 
   return (
     <section className={`${mono.card} overflow-hidden`}>
-      <div className="flex flex-wrap items-center gap-2 px-5 py-4">
-        <h3 className="mr-auto text-[15px] font-semibold text-[#111111]">Recent attendance</h3>
+      <div className="flex flex-wrap items-center gap-2 px-4 py-4 sm:px-5">
+        <h3 className="w-full text-[15px] font-semibold text-[#111111] sm:mr-auto sm:w-auto">Recent attendance</h3>
         {RANGES.map((r) => (
           <button
             key={r.days}
@@ -626,17 +628,17 @@ function Recent({ projectId, current, isSolo, onOpen }: { projectId: string; cur
         <p className="border-t border-[#EFEFED] px-5 py-6 text-center text-sm text-[#666666]">No attendance marked in these days.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-2xl text-sm">
+          <table className="w-full text-sm md:min-w-2xl">
             <thead>
               <tr className="border-y border-[#EFEFED] bg-[#F7F7F5] text-xs text-[#666666]">
-                <th scope="col" className="px-5 py-2 text-left font-medium">Date</th>
+                <th scope="col" className="px-4 py-2 text-left font-medium sm:px-5">Date</th>
                 <th scope="col" className="px-2 py-2 text-left font-medium">Work</th>
-                <th scope="col" className="px-2 py-2 text-left font-medium">Team head or person</th>
-                <th scope="col" className="px-2 py-2 text-right font-medium">Labour</th>
-                <th scope="col" className="px-2 py-2 text-right font-medium">Hours</th>
-                <th scope="col" className="px-2 py-2 text-right font-medium">OT</th>
-                <th scope="col" className="px-2 py-2 text-right font-medium">Total</th>
-                <th scope="col" className="w-20 pr-5"><span className="sr-only">Open</span></th>
+                <th scope="col" className="hidden px-2 py-2 text-left font-medium md:table-cell">Team head or person</th>
+                <th scope="col" className="hidden px-2 py-2 text-right font-medium md:table-cell">Labour</th>
+                <th scope="col" className="hidden px-2 py-2 text-right font-medium md:table-cell">Hours</th>
+                <th scope="col" className="hidden px-2 py-2 text-right font-medium md:table-cell">OT</th>
+                <th scope="col" className="px-4 py-2 text-right font-medium md:px-2">Total</th>
+                <th scope="col" className="hidden w-20 pr-5 md:table-cell"><span className="sr-only">Open</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#EFEFED]">
@@ -649,26 +651,37 @@ function Recent({ projectId, current, isSolo, onOpen }: { projectId: string; cur
                     onClick={() => onOpen(s)}
                     className={`cursor-pointer ${isOpen ? "bg-[#E6F1FB]" : "hover:bg-[#FAFAF9]"}`}
                   >
-                    <td className="whitespace-nowrap px-5 py-2.5">
-                      {weekday(r.date)} {longDay(r.date)}
+                    <td className="whitespace-nowrap px-4 py-2.5 sm:px-5">
+                      <span className="md:hidden">{shortDay(r.date)}</span>
+                      <span className="hidden md:inline">
+                        {weekday(r.date)} {longDay(r.date)}
+                      </span>
                       {r.date > today && <span className="ml-1.5 rounded-full bg-[#EEEDFE] px-2 py-0.5 text-[11px] text-[#534AB7]">Ahead</span>}
                     </td>
-                    <td className="px-2 py-2.5">{r.work}</td>
-                    <td className="px-2 py-2.5">{r.contractorName}</td>
-                    <td className="px-2 py-2.5 text-right tabular-nums">{r.workers}</td>
-                    <td className="px-2 py-2.5 text-right tabular-nums">{r.hours || "–"}</td>
-                    <td className="px-2 py-2.5 text-right tabular-nums">{r.otHours || "–"}</td>
-                    <td className="px-2 py-2.5 text-right font-semibold tabular-nums">{money(r.amount)}</td>
-                    <td className="pr-5 text-right text-sm font-medium text-[#185FA5]">{isOpen ? "Showing" : "Open ›"}</td>
+                    <td className="px-2 py-2.5">
+                      {r.work}
+                      <span className="block text-xs text-[#8C8C8C] md:hidden">
+                        {r.contractorName} · {r.workers} labour{r.hours ? ` · ${r.hours} h` : ""}
+                        {r.otHours ? ` + ${r.otHours} OT` : ""}
+                      </span>
+                    </td>
+                    <td className="hidden px-2 py-2.5 md:table-cell">{r.contractorName}</td>
+                    <td className="hidden px-2 py-2.5 text-right tabular-nums md:table-cell">{r.workers}</td>
+                    <td className="hidden px-2 py-2.5 text-right tabular-nums md:table-cell">{r.hours || "–"}</td>
+                    <td className="hidden px-2 py-2.5 text-right tabular-nums md:table-cell">{r.otHours || "–"}</td>
+                    <td className="px-4 py-2.5 text-right font-semibold tabular-nums md:px-2">{money(r.amount)}</td>
+                    <td className="hidden pr-5 text-right text-sm font-medium text-[#185FA5] md:table-cell">{isOpen ? "Showing" : "Open ›"}</td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
               <tr className="border-t border-[#EFEFED] bg-[#F7F7F5]">
-                <td colSpan={6} className="px-5 py-2.5 font-semibold">Total</td>
-                <td className="px-2 py-2.5 text-right font-semibold tabular-nums">{money(list.data.total)}</td>
-                <td />
+                <td className="px-4 py-2.5 font-semibold sm:px-5">Total</td>
+                <td colSpan={5} className="hidden md:table-cell" />
+                <td colSpan={2} className="px-4 py-2.5 text-right font-semibold tabular-nums md:hidden">{money(list.data.total)}</td>
+                <td className="hidden px-2 py-2.5 text-right font-semibold tabular-nums md:table-cell">{money(list.data.total)}</td>
+                <td className="hidden md:table-cell" />
               </tr>
             </tfoot>
           </table>

@@ -38,7 +38,7 @@ export function TeamList({
 
     return (
         <section className={`${mono.card} overflow-hidden`}>
-            <div className="flex flex-wrap items-center gap-2 px-5 py-4">
+            <div className="flex flex-wrap items-center gap-2 px-4 py-4 sm:px-5">
                 <h3 className="mr-auto text-[15px] font-semibold text-[#111111]">Team heads and individuals</h3>
                 <button type="button" onClick={onMarkNew} className={`${mono.primary} min-h-10 text-sm`}>
                     <FiClipboard aria-hidden /> Mark attendance
@@ -48,7 +48,7 @@ export function TeamList({
                 </button>
             </div>
             {adding && (
-                <div className="mx-5 mb-4">
+                <div className="mx-3 mb-4 sm:mx-5">
                     <BillForm projectId={projectId} withName onDone={() => setAdding(false)} />
                 </div>
             )}
@@ -62,9 +62,10 @@ export function TeamList({
                     Nobody yet. Press Mark attendance, or Add person to add a bill for someone.
                 </p>
             ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full min-w-216 text-sm">
-                        <thead>
+                <div className="md:overflow-x-auto">
+                    {/* phones: each person is a small card (labels above the amounts); wider screens: the table */}
+                    <table className="block w-full text-sm md:table md:min-w-216">
+                        <thead className="hidden md:table-header-group">
                             <tr className="border-y border-[#EFEFED] bg-[#F7F7F5] text-xs text-[#666666]">
                                 <th scope="col" className="px-5 py-2 text-left font-medium">Name</th>
                                 <th scope="col" className="w-32 px-2 py-2 text-right font-medium">Attendance amount</th>
@@ -75,7 +76,7 @@ export function TeamList({
                                 <th scope="col" className="w-14 pr-4"><span className="sr-only">Archive</span></th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="block md:table-row-group">
                             {list.data.items.map((p) => {
                                 const here = open && open.name.toLowerCase() === p.name.toLowerCase() ? open.what : null;
                                 return (
@@ -93,17 +94,27 @@ export function TeamList({
                                 );
                             })}
                         </tbody>
-                        <tfoot>
-                            <tr className="border-t border-[#EFEFED] bg-[#F7F7F5]">
-                                <td className="px-5 py-2.5 font-semibold">Total</td>
-                                <td className="px-2 py-2.5 text-right font-semibold tabular-nums">{money(list.data.totals.earned)}</td>
-                                <td className="px-2 py-2.5 text-right font-semibold tabular-nums text-[#185FA5]">{money(list.data.totals.billed)}</td>
-                                <td className="px-2 py-2.5 text-right font-semibold tabular-nums text-[#0F6E56]">{money(list.data.totals.paid)}</td>
-                                <td className="px-2 py-2.5 text-right font-semibold tabular-nums text-[#854F0B]">
+                        <tfoot className="block md:table-footer-group">
+                            <tr className="grid grid-cols-2 gap-x-3 gap-y-2 border-t border-[#EFEFED] bg-[#F7F7F5] px-4 py-3 md:table-row md:p-0">
+                                <td className="col-span-2 p-0 font-semibold md:px-5 md:py-2.5">Total</td>
+                                <td className="p-0 font-semibold tabular-nums md:px-2 md:py-2.5 md:text-right">
+                                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">Attendance amount</span>
+                                    {money(list.data.totals.earned)}
+                                </td>
+                                <td className="p-0 font-semibold tabular-nums text-[#185FA5] md:px-2 md:py-2.5 md:text-right">
+                                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">Billed</span>
+                                    {money(list.data.totals.billed)}
+                                </td>
+                                <td className="p-0 font-semibold tabular-nums text-[#0F6E56] md:px-2 md:py-2.5 md:text-right">
+                                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">Paid</span>
+                                    {money(list.data.totals.paid)}
+                                </td>
+                                <td className="p-0 font-semibold tabular-nums text-[#854F0B] md:px-2 md:py-2.5 md:text-right">
+                                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">To pay</span>
                                     {money(list.data.totals.toPay)}
                                     {list.data.totals.ahead > 0 && <span className="block text-xs font-medium text-[#0F6E56]">Paid ahead {money(list.data.totals.ahead)}</span>}
                                 </td>
-                                <td colSpan={2} />
+                                <td colSpan={2} className="hidden md:table-cell" />
                             </tr>
                         </tfoot>
                     </table>
@@ -146,15 +157,15 @@ function PersonRows({
             type="button"
             onClick={() => onToggle(w)}
             aria-expanded={here === w}
-            className={`${mono.secondary} min-h-9 px-3 text-sm ${here === w ? "border-[#111111] bg-[#F7F7F5]" : ""}`}
+            className={`${mono.secondary} min-h-10 flex-1 justify-center px-3 text-sm md:min-h-9 md:flex-none ${here === w ? "border-[#111111] bg-[#F7F7F5]" : ""}`}
         >
             <Icon aria-hidden /> {text} {here === w ? <FiChevronUp aria-hidden /> : <FiChevronDown aria-hidden />}
         </button>
     );
     return (
         <>
-            <tr className={`border-t border-[#EFEFED] ${here ? "bg-[#FAFAF9]" : ""}`}>
-                <td className="px-5 py-3">
+            <tr className={`grid grid-cols-4 items-start gap-x-3 gap-y-2 border-t border-[#EFEFED] px-4 py-3 md:table-row md:p-0 ${here ? "bg-[#FAFAF9]" : ""}`}>
+                <td className="order-1 col-span-3 p-0 md:order-0 md:px-5 md:py-3">
                     <span className="font-semibold text-[#111111]">{p.name}</span>
                     {p.kind && (
                         <span className={`ml-2 rounded-full px-2 py-0.5 text-[11px] ${p.kind === "team" ? "bg-[#E6F1FB] text-[#185FA5]" : "bg-[#EEEDFE] text-[#534AB7]"}`}>
@@ -169,25 +180,37 @@ function PersonRows({
                         </span>
                     )}
                 </td>
-                <td className="px-2 py-3 text-right tabular-nums">{p.kind === null ? "–" : money(p.earned)}</td>
-                <td className="px-2 py-3 text-right tabular-nums text-[#185FA5]">{p.bills ? money(p.billed) : "–"}</td>
-                <td className="px-2 py-3 text-right tabular-nums text-[#0F6E56]">{money(p.paid)}</td>
-                <td className={`px-2 py-3 text-right font-semibold tabular-nums ${due.tone}`}>{due.text}</td>
-                <td className="px-2 py-3 text-right">
-                    <span className="inline-flex gap-1.5">
+                <td className="order-3 col-span-2 p-0 tabular-nums md:order-0 md:px-2 md:py-3 md:text-right">
+                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">Attendance amount</span>
+                    {p.kind === null ? "–" : money(p.earned)}
+                </td>
+                <td className="order-3 col-span-2 p-0 tabular-nums text-[#185FA5] md:order-0 md:px-2 md:py-3 md:text-right">
+                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">Billed</span>
+                    {p.bills ? money(p.billed) : "–"}
+                </td>
+                <td className="order-3 col-span-2 p-0 tabular-nums text-[#0F6E56] md:order-0 md:px-2 md:py-3 md:text-right">
+                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">Paid</span>
+                    {money(p.paid)}
+                </td>
+                <td className={`order-3 col-span-2 p-0 font-semibold tabular-nums md:order-0 md:px-2 md:py-3 md:text-right ${due.tone}`}>
+                    <span className="block text-[11px] font-normal text-[#8C8C8C] md:hidden">To pay</span>
+                    {due.text}
+                </td>
+                <td className="order-4 col-span-4 p-0 md:order-0 md:px-2 md:py-3 md:text-right">
+                    <span className="flex gap-1.5 md:inline-flex">
                         {btn("pays", "Bills", FiCreditCard)}
                         {btn("days", "Attendance", FiClipboard)}
                     </span>
                 </td>
-                <td className="pr-4 text-right">
+                <td className="order-2 p-0 text-right md:order-0 md:pr-4">
                     <button type="button" onClick={onArchive} disabled={archiving} className={mono.icon} aria-label={`Archive ${p.name}`} title="Archive (with all their days, bills and payments)">
                         <FiArchive aria-hidden />
                     </button>
                 </td>
             </tr>
             {here && (
-                <tr>
-                    <td colSpan={7} className="bg-[#FAFAF9] px-5 pb-4 pt-1">
+                <tr className="block md:table-row">
+                    <td colSpan={7} className="block bg-[#FAFAF9] px-3 pb-4 pt-1 md:table-cell md:px-5">
                         {here === "days" ? <DaysPanel projectId={projectId} name={p.name} onMark={onMark} onOpenDay={onOpenDay} /> : <BillsPanel projectId={projectId} p={p} />}
                     </td>
                 </tr>
@@ -216,26 +239,32 @@ function DaysPanel({ projectId, name, onMark, onOpenDay }: { projectId: string; 
                             <tr className="bg-[#F7F7F5] text-xs text-[#666666]">
                                 <th scope="col" className="px-4 py-2 text-left font-medium">Date</th>
                                 <th scope="col" className="px-2 py-2 text-left font-medium">Work</th>
-                                <th scope="col" className="px-2 py-2 text-right font-medium">Labour</th>
-                                <th scope="col" className="px-2 py-2 text-right font-medium">Hours</th>
+                                <th scope="col" className="hidden px-2 py-2 text-right font-medium sm:table-cell">Labour</th>
+                                <th scope="col" className="hidden px-2 py-2 text-right font-medium sm:table-cell">Hours</th>
                                 <th scope="col" className="px-2 py-2 text-right font-medium">Amount</th>
-                                <th scope="col" className="w-20 pr-4"><span className="sr-only">Open</span></th>
+                                <th scope="col" className="hidden w-20 pr-4 sm:table-cell"><span className="sr-only">Open</span></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#EFEFED]">
                             {d.data.days.map((x, i) => (
                                 <tr key={`${x.date}|${x.taskId ?? ""}|${i}`} onClick={() => onOpenDay({ date: x.date, taskId: x.taskId })} className="cursor-pointer hover:bg-[#FAFAF9]">
-                                    <td className="whitespace-nowrap px-4 py-2">
+                                    <td className="whitespace-nowrap px-3 py-2 sm:px-4">
                                         {weekday(x.date)} {longDay(x.date)}
                                     </td>
-                                    <td className="px-2 py-2">{x.work}</td>
-                                    <td className="px-2 py-2 text-right tabular-nums">{x.workers}</td>
-                                    <td className="px-2 py-2 text-right tabular-nums">
+                                    <td className="px-2 py-2">
+                                        {x.work}
+                                        <span className="block text-xs text-[#8C8C8C] sm:hidden">
+                                            {x.workers} labour{x.hours ? ` · ${x.hours} h` : ""}
+                                            {x.otHours ? ` + ${x.otHours} OT` : ""}
+                                        </span>
+                                    </td>
+                                    <td className="hidden px-2 py-2 text-right tabular-nums sm:table-cell">{x.workers}</td>
+                                    <td className="hidden px-2 py-2 text-right tabular-nums sm:table-cell">
                                         {x.hours || "–"}
                                         {x.otHours ? ` + ${x.otHours} OT` : ""}
                                     </td>
-                                    <td className="px-2 py-2 text-right font-semibold tabular-nums">{money(x.amount)}</td>
-                                    <td className="pr-4 text-right text-sm font-medium text-[#185FA5]">Open ›</td>
+                                    <td className="px-3 py-2 text-right font-semibold tabular-nums sm:px-2">{money(x.amount)}</td>
+                                    <td className="hidden pr-4 text-right text-sm font-medium text-[#185FA5] sm:table-cell">Open ›</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -289,7 +318,7 @@ function BillsPanel({ projectId, p }: { projectId: string; p: TeamRow }) {
                 {/* Bills: the amount for each period */}
                 <div className="overflow-hidden rounded-xl border border-[#E8E8E6] bg-white">
                     <p className="flex items-center justify-between bg-[#F7F7F5] px-4 py-2 text-sm font-semibold text-[#111111]">
-                        Bills <span className="text-xs font-normal text-[#666666]">amount for each period</span>
+                        Bills <span className="hidden text-xs font-normal text-[#666666] sm:inline">amount for each period</span>
                         <span className="tabular-nums text-[#185FA5]">{money(billed)}</span>
                     </p>
                     <BillForm key={editing?.id ?? "new"} projectId={projectId} name={name} editing={editing} days={days} onDone={() => setEditing(null)} />
@@ -325,7 +354,7 @@ function BillsPanel({ projectId, p }: { projectId: string; p: TeamRow }) {
                 {/* Payments: the day paid and the amount, against the total */}
                 <div className="overflow-hidden rounded-xl border border-[#E8E8E6] bg-white">
                     <p className="flex items-center justify-between bg-[#F7F7F5] px-4 py-2 text-sm font-semibold text-[#111111]">
-                        Payments <span className="text-xs font-normal text-[#666666]">day you paid</span>
+                        Payments <span className="hidden text-xs font-normal text-[#666666] sm:inline">day you paid</span>
                         <span className="tabular-nums text-[#0F6E56]">{money(paid)}</span>
                     </p>
                     <PayForm key={changing?.id ?? "new"} projectId={projectId} name={name} left={p.toPay} editing={changing} onDone={() => setChanging(null)} />
@@ -372,31 +401,34 @@ function Statement({ bills, pays }: { bills: Bill[]; pays: BillPay[] }) {
     ].sort((a, b) => (a.date !== b.date ? (a.date < b.date ? -1 : 1) : a.bill ? -1 : 1)); // same day: the bill first
     // What was left after each line: the line before it, plus this bill, minus this payment
     const rows = events
-        .reduce<((typeof events)[number] & { left: number })[]>((acc, e) => [...acc, { ...e, left: r2((acc.at(-1)?.left ?? 0) + e.bill - e.paid) }], [])
+        .reduce<((typeof events)[number] & { left: number })[]>((acc, e) => [...acc, { ...e, left: r2((acc.length ? acc[acc.length - 1].left : 0) + e.bill - e.paid) }], [])
         .reverse();
     return (
         <div className="overflow-hidden rounded-xl border border-[#E8E8E6] bg-white">
             <p className="bg-[#F7F7F5] px-4 py-2 text-sm font-semibold text-[#111111]">
-                Statement <span className="text-xs font-normal text-[#666666]">· bills and payments by date, with what was left after each</span>
+                Statement <span className="hidden text-xs font-normal text-[#666666] sm:inline">· bills and payments by date, with what was left after each</span>
             </p>
             <table className="w-full text-sm">
                 <thead>
                     <tr className="text-xs text-[#666666]">
-                        <th scope="col" className="px-4 py-2 text-left font-medium">Date</th>
+                        <th scope="col" className="px-3 py-2 text-left font-medium sm:px-4">Date</th>
                         <th scope="col" className="px-2 py-2 text-left font-medium">What</th>
-                        <th scope="col" className="px-2 py-2 text-right font-medium">Bill</th>
-                        <th scope="col" className="px-2 py-2 text-right font-medium">Paid</th>
-                        <th scope="col" className="px-4 py-2 text-right font-medium">Left</th>
+                        <th scope="col" className="hidden px-2 py-2 text-right font-medium sm:table-cell">Bill</th>
+                        <th scope="col" className="hidden px-2 py-2 text-right font-medium sm:table-cell">Paid</th>
+                        <th scope="col" className="px-3 py-2 text-right font-medium sm:px-4">Left</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-[#EFEFED]">
                     {rows.map((r) => (
                         <tr key={r.key}>
-                            <td className="whitespace-nowrap px-4 py-2">{longDay(r.date)}</td>
-                            <td className="px-2 py-2">{r.what}</td>
-                            <td className="px-2 py-2 text-right tabular-nums">{r.bill ? money(r.bill) : ""}</td>
-                            <td className="px-2 py-2 text-right tabular-nums text-[#0F6E56]">{r.paid ? money(r.paid) : ""}</td>
-                            <td className={`whitespace-nowrap px-4 py-2 text-right font-semibold tabular-nums ${r.left < 0 ? "text-[#0F6E56]" : "text-[#854F0B]"}`}>
+                            <td className="whitespace-nowrap px-3 py-2 sm:px-4">{shortDay(r.date)}</td>
+                            <td className="px-2 py-2">
+                                {r.what}
+                                <span className={`block text-xs tabular-nums sm:hidden ${r.bill ? "text-[#185FA5]" : "text-[#0F6E56]"}`}>{r.bill ? `Bill ${money(r.bill)}` : `Paid ${money(r.paid)}`}</span>
+                            </td>
+                            <td className="hidden px-2 py-2 text-right tabular-nums sm:table-cell">{r.bill ? money(r.bill) : ""}</td>
+                            <td className="hidden px-2 py-2 text-right tabular-nums text-[#0F6E56] sm:table-cell">{r.paid ? money(r.paid) : ""}</td>
+                            <td className={`whitespace-nowrap px-3 py-2 sm:px-4 text-right font-semibold tabular-nums ${r.left < 0 ? "text-[#0F6E56]" : "text-[#854F0B]"}`}>
                                 {r.left < 0 ? `Ahead ${money(-r.left)}` : money(r.left)}
                             </td>
                         </tr>
@@ -545,9 +577,9 @@ function BillForm({
     return (
         <div className={withName ? "rounded-xl border border-[#E8E8E6] bg-white p-3" : "px-4 py-3"}>
             {(editing || withName) && <p className="mb-2 text-xs font-semibold text-[#185FA5]">{editing ? "Change bill" : "Add person with a bill"}</p>}
-            <div className={`grid gap-2.5 sm:items-end ${withName ? "sm:grid-cols-[minmax(0,1.4fr)_11rem_11rem_minmax(0,1fr)_auto]" : "grid-cols-2"}`}>
+            <div className={`grid gap-2.5 sm:items-end ${withName ? "sm:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_11rem_11rem_minmax(0,1fr)_auto]" : "grid-cols-2"}`}>
                 {withName && (
-                    <label className={label}>
+                    <label className={`${label} sm:col-span-2 lg:col-span-1`}>
                         Name
                         <input
                             value={who}
@@ -586,7 +618,7 @@ function BillForm({
                     />
                 </div>
                 <label className={label}>
-                    Bill amount (for these dates)
+                    Bill amount
                     <input
                         value={amount}
                         onChange={(e) => {
