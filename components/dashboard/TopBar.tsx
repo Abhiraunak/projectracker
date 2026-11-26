@@ -147,7 +147,8 @@ function UserMenu() {
                 </button>
                 {installHelp && app.state !== "ready" && (
                   <p className="px-3 pb-2 text-xs leading-snug text-[#666666]">
-                    Open your browser&apos;s menu (⋮) and choose <b className="font-medium text-[#111111]">Install app</b> or <b className="font-medium text-[#111111]">Add to Home screen</b>.
+                    Your browser isn&apos;t offering to install yet. Open its menu (⋮) and look for <b className="font-medium text-[#111111]">Install app</b>. If it says it can&apos;t be
+                    installed, open this site in the Chrome app itself (not from WhatsApp) and try again.
                   </p>
                 )}
               </>

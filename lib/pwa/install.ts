@@ -20,6 +20,8 @@ const changed = () => listeners.forEach((l) => l());
 
 if (typeof window !== "undefined") {
     installed = window.matchMedia("(display-mode: standalone)").matches;
+    // An offer that came before this file loaded, kept by the small script in app/layout.tsx
+    offer = ((window as unknown as { __installOffer?: InstallEvent }).__installOffer ?? null) as InstallEvent | null;
     window.addEventListener("beforeinstallprompt", (e) => {
         e.preventDefault(); // keep the offer for our own Install app button
         offer = e as InstallEvent;
@@ -45,6 +47,7 @@ export function useInstallApp() {
         if (!offer) return false;
         const o = offer;
         offer = null; // the browser lets each offer be used once
+        (window as unknown as { __installOffer?: InstallEvent }).__installOffer = undefined;
         await o.prompt();
         const { outcome } = await o.userChoice;
         changed();

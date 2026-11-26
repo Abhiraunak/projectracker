@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Outfit } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { Providers } from "./providers";
 import { NoWheelOnNumberInputs } from "@/components/utilites/NoWheelOnNumberInputs";
@@ -26,6 +27,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${outfit.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {/* Catches the browser's install offer the moment it comes, before the app's code has loaded, so Install app
+            in the account menu never misses it (lib/pwa/install.ts picks it up from here) */}
+        <Script id="install-offer" strategy="beforeInteractive">
+          {`window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__installOffer=e;});`}
+        </Script>
         <Providers>
           <NoWheelOnNumberInputs />
           {children}
