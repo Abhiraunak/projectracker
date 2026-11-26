@@ -51,6 +51,8 @@ export interface Delivery {
   quantity: number;
   rate: number; // what was actually paid per unit
   amount: number; // quantity × rate
+  /** Anything noted about this delivery ("" when none) */
+  note?: string;
   /** No rate or amount yet ("Not set"): from the site diary, or logged before the bill came. Counts ₹0 until edited. */
   ratePending?: boolean;
   /** When it was archived; null while it counts */
@@ -164,6 +166,8 @@ export interface DeliveryInput {
   /** What the delivery cost in all; null to work it out from the rate (or leave it "Not set") */
   amount: number | null;
   bill: File | null;
+  /** Optional note (truck no., short supply, anything to remember) */
+  note?: string;
 }
 
 async function sendDelivery(projectId: string, purchaseId: string, d: DeliveryInput) {
@@ -172,6 +176,7 @@ async function sendDelivery(projectId: string, purchaseId: string, d: DeliveryIn
   form.append("quantity", String(d.quantity));
   if (d.rate !== null) form.append("rate", String(d.rate));
   if (d.amount !== null) form.append("amount", String(d.amount));
+  if (d.note) form.append("note", d.note);
   if (d.bill) form.append("file", d.bill);
   const res = await fetch(apiUrl(`/projects/${id(projectId)}/material-purchases/${id(purchaseId)}/deliveries`), { method: "POST", body: form, credentials: "include", headers: { "X-Requested-With": "fetch" } });
   const body = (await res.json().catch(() => null)) as { purchase?: Purchase; error?: string; details?: unknown } | null;
@@ -204,7 +209,7 @@ export const purchasesApi = {
   updateDelivery: (projectId: string, purchaseId: string, deliveryId: string, d: Omit<DeliveryInput, "bill">) =>
     request<{ purchase: Purchase }>(`/projects/${id(projectId)}/material-purchases/${id(purchaseId)}/deliveries/${id(deliveryId)}`, {
       method: "PUT",
-      body: JSON.stringify({ date: d.date, quantity: d.quantity, ...(d.rate !== null && { rate: d.rate }), ...(d.amount !== null && { amount: d.amount }) }),
+      body: JSON.stringify({ date: d.date, quantity: d.quantity, note: d.note ?? "", ...(d.rate !== null && { rate: d.rate }), ...(d.amount !== null && { amount: d.amount }) }),
     }).then((r) => r.purchase),
   archiveDelivery: (projectId: string, purchaseId: string, deliveryId: string, archived: boolean) =>
     request<{ purchase: Purchase }>(`/projects/${id(projectId)}/material-purchases/${id(purchaseId)}/deliveries/${id(deliveryId)}/archive`, {

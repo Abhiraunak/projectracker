@@ -346,6 +346,7 @@ export function LogForm({
   // Which of the two was typed last: that one is sent, the other follows from it
   const [lead, setLead] = useState<"rate" | "amount">(priced ? "amount" : "rate");
   const [bill, setBill] = useState<File | null>(null);
+  const [note, setNote] = useState(delivery?.note ?? "");
   const [tried, setTried] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const add = useAddDelivery(projectId);
@@ -393,7 +394,7 @@ export function LogForm({
     e.preventDefault();
     setTried(true);
     if (!qtyOk || !rateOk || !amountOk || save.isPending) return;
-    const body = { date, quantity: qn, rate: sentRate, amount: sentAmount };
+    const body = { date, quantity: qn, rate: sentRate, amount: sentAmount, note: note.trim() };
     if (delivery) update.mutate({ purchaseId: p.id, deliveryId: delivery.id, ...body }, { onSuccess: onDone });
     else add.mutate({ purchaseId: p.id, ...body, bill }, { onSuccess: onDone });
   };
@@ -408,15 +409,26 @@ export function LogForm({
 
   return (
     <form onSubmit={submit} noValidate className="min-w-0 space-y-4 rounded-2xl border border-[#E8E8E6] p-4 sm:p-5">
-      <p className="text-[15px] font-semibold text-[#111111]">
-        {delivery ? `Edit delivery of ${shortDate(delivery.date)}` : "Add delivery"}
-        {!delivery && p.toCome > 0 && (
-          <span className="font-normal text-[#666666]">
-            {" "}
-            · {qtyText(p.toCome)} {p.unit} left
-          </span>
-        )}
-      </p>
+      {/* The title, with Cancel and Save on its right (on a phone they stay at the bottom of the screen instead) */}
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="mr-auto text-[15px] font-semibold text-[#111111]">
+          {delivery ? `Edit delivery of ${shortDate(delivery.date)}` : "Add delivery"}
+          {!delivery && p.toCome > 0 && (
+            <span className="font-normal text-[#666666]">
+              {" "}
+              · {qtyText(p.toCome)} {p.unit} left
+            </span>
+          )}
+        </p>
+        <span className="hidden gap-2 sm:flex">
+          <button type="button" onClick={onDone} disabled={save.isPending} className={mono.quiet}>
+            {cancelLabel}
+          </button>
+          <button type="submit" disabled={save.isPending} className={mono.primary}>
+            {save.isPending ? "Saving…" : delivery ? "Save changes" : "Save"}
+          </button>
+        </span>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <label className={`${mono.fieldLabel} col-span-2 sm:col-span-1`}>
@@ -558,14 +570,26 @@ export function LogForm({
         )}
       </div>
 
+      <label className={mono.fieldLabel}>
+        Notes <span className="font-normal text-[#8C8C8C]">(optional)</span>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={2}
+          maxLength={500}
+          placeholder="Truck no., short supply, quality, anything to remember"
+          className={`${mono.field.replace("h-11 ", "")} min-h-16 resize-y py-2.5`}
+        />
+      </label>
+
       {save.isError && (
         <p role="alert" className="text-sm text-[#B3261E]">
           {describeError(save.error)}
         </p>
       )}
 
-      {/* On a phone: stuck to the bottom of the screen, Save full width, so it is always one thumb away */}
-      <div className="sticky bottom-0 z-1 -mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-2xl border-t border-[#EFEFED] bg-white px-4 py-3 sm:static sm:mx-0 sm:mb-0 sm:flex-row sm:justify-end sm:rounded-none sm:border-0 sm:p-0">
+      {/* On a phone: stuck to the bottom of the screen, Save full width, so it is always one thumb away (wider screens: at the top) */}
+      <div className="sticky bottom-0 z-1 -mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-2xl border-t border-[#EFEFED] bg-white px-4 py-3 sm:hidden">
         <button type="button" onClick={onDone} disabled={save.isPending} className={`${mono.quiet} w-full sm:w-auto`}>
           {cancelLabel}
         </button>
@@ -594,7 +618,10 @@ function DeliveryRow({
 }) {
   return (
     <tr>
-      <td className="whitespace-nowrap py-3 pl-4 pr-2 text-[#111111]">{shortDate(d.date)}</td>
+      <td className="py-3 pl-4 pr-2 text-[#111111]">
+        <span className="whitespace-nowrap">{shortDate(d.date)}</span>
+        {d.note && <span className="block max-w-56 text-xs text-[#666666]">{d.note}</span>}
+      </td>
       <td className="whitespace-nowrap px-2 py-3 text-right tabular-nums text-[#111111]" title={`${qtyText(d.quantity)} ${unit}`.trim()}>
         {qtyText(d.quantity)}
       </td>
