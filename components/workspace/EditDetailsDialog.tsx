@@ -5,6 +5,10 @@ import { ModalDialog } from "@/components/utilites/ModalDialog";
 import { MoneyInput } from "@/components/utilites/MoneyInput";
 import { useSetProjectDetails } from "@/hooks/useProjectHub";
 import { describeError } from "@/lib/api";
+import { DatePick } from "./sections/labour-simple/DatePick";
+
+/** Always "YYYY-MM-DD" for the server (a date that came with a time keeps only its day); "" stays empty */
+const ymd = (v: string | null | undefined) => (v ? v.slice(0, 10) : "");
 
 export interface EditableProject {
   id: string;
@@ -22,8 +26,8 @@ export function EditDetailsDialog({ project, onClose }: { project: EditableProje
   const [title, setTitle] = useState(project.title);
   const [firm, setFirm] = useState(project.firmName ?? "");
   const [cost, setCost] = useState<number | "">(project.projectCost ?? "");
-  const [start, setStart] = useState(project.startDate ?? "");
-  const [end, setEnd] = useState(project.endDate ?? "");
+  const [start, setStart] = useState(ymd(project.startDate));
+  const [end, setEnd] = useState(ymd(project.endDate));
   const badDates = !!start && !!end && end < start;
   const save = useSetProjectDetails(project.id);
 
@@ -31,7 +35,7 @@ export function EditDetailsDialog({ project, onClose }: { project: EditableProje
     event.preventDefault();
     if (!title.trim() || badDates) return;
     save.mutate(
-      { title: title.trim(), firmName: firm.trim() || null, projectCost: cost === "" ? null : cost, startDate: start || null, endDate: end || null },
+      { title: title.trim(), firmName: firm.trim() || null, projectCost: cost === "" ? null : Number(cost), startDate: ymd(start) || null, endDate: ymd(end) || null },
       { onSuccess: onClose }
     );
   };
@@ -52,6 +56,7 @@ export function EditDetailsDialog({ project, onClose }: { project: EditableProje
         </label>
         <label className="block text-sm">
           <span className="font-medium text-stone-700">Project cost</span>
+          <span className="block text-xs text-stone-500">Our own cost for the whole job, not the BOQ amount the client sees. Everything spent is measured against it. Leave empty if not decided yet.</span>
           <MoneyInput value={cost} onChange={setCost} max={1_000_000_000_000} wrapperClassName="mt-1" placeholder="e.g. 500000" />
           {cost !== "" && cost > 0 && <span className="mt-1 block text-xs tabular-nums text-stone-500">₹{cost.toLocaleString("en-IN")}</span>}
         </label>
@@ -59,14 +64,15 @@ export function EditDetailsDialog({ project, onClose }: { project: EditableProje
           <legend className="font-medium text-stone-700">Project dates</legend>
           <span className="block text-xs text-stone-500">Leave empty to use the work items&apos; dates (earliest start to latest finish).</span>
           <div className="mt-1 grid grid-cols-2 gap-3">
-            <label className="block">
+            {/* The app's date picker: shows day month year (1 Nov 2026), sends 2026-11-01 */}
+            <div className="block">
               <span className="text-xs text-stone-600">Start</span>
-              <input type="date" value={start} max={end || undefined} onChange={(e) => setStart(e.target.value)} className={field} />
-            </label>
-            <label className="block">
+              <DatePick value={start} onChange={setStart} label="Start" className="mt-1 w-full" />
+            </div>
+            <div className="block">
               <span className="text-xs text-stone-600">Finish</span>
-              <input type="date" value={end} min={start || undefined} onChange={(e) => setEnd(e.target.value)} aria-invalid={badDates} className={field} />
-            </label>
+              <DatePick value={end} onChange={setEnd} label="Finish" className="mt-1 w-full" align="right" />
+            </div>
           </div>
           {badDates && (
             <span role="alert" className="mt-1 block text-xs text-red-700">

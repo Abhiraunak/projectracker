@@ -44,6 +44,9 @@ export function DatePick({
     const box = useRef<HTMLDivElement>(null);
     const pop = useRef<HTMLDivElement>(null);
     const [pos, setPos] = useState({ top: 0, left: 0 });
+    // Where the month is drawn: the page, or the open dialog the field is in (a dialog sits above the page and
+    // blocks clicks outside it, so the month must be inside it)
+    const [host, setHost] = useState<HTMLElement | null>(null);
     const gridId = useId();
     const today = todayYmd();
 
@@ -77,6 +80,7 @@ export function DatePick({
     }, [open]);
 
     const show = () => {
+        setHost(box.current?.closest("dialog") ?? document.body);
         place();
         const d = parse(value || today);
         setView({ y: d.getFullYear(), m: d.getMonth() });
@@ -137,6 +141,7 @@ export function DatePick({
             </button>
 
             {open &&
+                host &&
                 createPortal(
                     <div
                         ref={pop}
@@ -176,8 +181,8 @@ export function DatePick({
                                         aria-label={longDay(d)}
                                         aria-pressed={chosen}
                                         className={`h-9 rounded-lg text-sm tabular-nums ${mono.motion} ${chosen
-                                            ? "bg-[#111111] font-semibold text-white"
-                                            : `${kb ? "bg-[#F1F1EF]" : ""} ${inMonth ? "text-[#111111]" : "text-[#B0B0AD]"} hover:bg-[#F1F1EF] ${d === today ? "font-semibold ring-1 ring-inset ring-[#378ADD]" : ""}`
+                                                ? "bg-[#111111] font-semibold text-white"
+                                                : `${kb ? "bg-[#F1F1EF]" : ""} ${inMonth ? "text-[#111111]" : "text-[#B0B0AD]"} hover:bg-[#F1F1EF] ${d === today ? "font-semibold ring-1 ring-inset ring-[#378ADD]" : ""}`
                                             }`}
                                     >
                                         {Number(d.slice(8))}
@@ -194,7 +199,7 @@ export function DatePick({
                             </button>
                         </div>
                     </div>,
-                    document.body,
+                    host,
                 )}
         </div>
     );
