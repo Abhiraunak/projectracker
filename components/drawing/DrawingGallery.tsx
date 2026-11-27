@@ -32,7 +32,7 @@ export function DrawingGallery({ list, scope, isSearching, onOpen, onShare, onDe
     return (
       <div className={GRID} aria-busy="true">
         {[0, 1, 2, 3].map((index) => (
-          <div key={index} className="aspect-[4/3] animate-pulse rounded bg-stone-200/60 motion-reduce:animate-none" />
+          <div key={index} className="aspect-4/3 animate-pulse rounded bg-stone-200/60 motion-reduce:animate-none" />
         ))}
       </div>
     );

@@ -10,6 +10,7 @@ import { ApiError } from "@/lib/api";
 import { clientApi } from "@/lib/client/api";
 import { clientKeys } from "@/hooks/useClientPortal";
 import { roleOf } from "@/lib/auth/home";
+// import { useLiveUpdates } from "@/hooks/useLiveUpdates";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const COMPANY = process.env.NEXT_PUBLIC_COMPANY_NAME ?? "";
@@ -31,6 +32,8 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
   const probe = useQuery({ queryKey: clientKeys.projects, queryFn: clientApi.projects, staleTime: 5 * 60_000, enabled: !!user && role === undefined });
   const isClient = role === "CLIENT" || (role === undefined && probe.isSuccess);
   const isStaff = (role !== undefined && role !== "CLIENT") || (probe.error instanceof ApiError && probe.error.status === 403);
+  // Changes made by the office (a payment confirmed, progress updated, dates moved) show by themselves: no refresh
+  // useLiveUpdates(isClient);
 
   useEffect(() => {
     if (isUserLoading) return;
@@ -86,7 +89,7 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       </header>
       <main id="main-content" className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
         {ready ? (
-          children
+          <div>{children}</div>
         ) : probe.isError && !isStaff ? (
           <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             <p>Couldn&rsquo;t open your portal. Check your connection.</p>

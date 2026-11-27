@@ -11,6 +11,7 @@ import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { MENU_ROUTES, currentRoute, routeAllowed } from "./Sidebar/Routes";
 import { ChangePasswordDialog } from "./ChangePasswordDialog";
 import { LogoMark } from "@/components/brand/LogoMark";
+import { RecentActivity } from "./RecentActivity";
 import { useInstallApp } from "@/lib/pwa/install";
 
 const focusRing = "focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#111111]";
@@ -39,6 +40,7 @@ export function TopBar() {
         <span className="text-[17px] font-semibold tracking-[-0.01em] text-[#111111]">projecTracker</span>
       </Link>
       <span className="flex-1" />
+      <RecentActivity />
       <NotificationBell align="right" />
       <UserMenu />
     </header>

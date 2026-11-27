@@ -1,7 +1,7 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { notificationsApi, type AppNotification } from "@/lib/notificationsApi";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { notificationsApi, type ActivityType, type AppNotification } from "@/lib/notificationsApi";
 
 const KEY = ["notifications"] as const;
 
@@ -25,3 +25,15 @@ export function useMarkRead() {
     onSettled: () => qc.invalidateQueries({ queryKey: KEY }),
   });
 }
+
+/** The Activity feed (admins), 20 at a time with "Show more"; checked again every minute while open */
+export const useActivity = (enabled: boolean, projectId?: string, type?: ActivityType, days = 7) =>
+  useInfiniteQuery({
+    queryKey: ["notifications", "activity", projectId ?? "all", type ?? "all", days],
+    queryFn: ({ pageParam }) => notificationsApi.activity(pageParam, projectId, days, type),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.hasMore ? last.page + 1 : undefined),
+    enabled,
+    refetchInterval: enabled ? 60_000 : false,
+    staleTime: 20_000,
+  });

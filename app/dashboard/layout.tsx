@@ -7,7 +7,7 @@ import { ProjectAccessProvider, useMyAccess } from "@/hooks/useProjectAccess";
 import { AccessGate } from "@/components/access/AccessGate";
 import { useAuth } from "@/hooks/useAuth";
 import { roleOf } from "@/lib/auth/home";
-
+// import { useLiveUpdates } from "@/hooks/useLiveUpdates";
 
 /**
  * Hides the scrollbar itself. Scrolling still works the normal ways: mouse wheel, trackpad, touch, and the
@@ -30,6 +30,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   // What this person may do (company-wide): decides the menu, the pages and the buttons. Not asked for a client.
   const access = useMyAccess({ enabled: !roleSaysClient });
   const isClient = roleSaysClient || access.isClientAccount;
+  // useLiveUpdates(!!user && !isClient); // the bell and the client payments page update by themselves
 
   // replace, not push: the back button shouldn't return to a page the account can't use
   // Not signed in (for example the installed app opening on /dashboard): to the sign-in page, back here after
@@ -48,14 +49,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     <ProjectAccessProvider value={access}>
       <div className="min-h-dvh bg-[#F7F7F5] text-stone-950 lg:flex lg:h-dvh lg:flex-col lg:overflow-hidden">
         <TopBar />
-
-        {/*
-          The page, straight on the off-white background (no white frame): cards and panels are the white surfaces.
-          On phones the whole page scrolls (the bar stays on top); on large screens only this area scrolls, so the bar
-          stays put. Content is centred at a comfortable reading width. This is the one and only <main>: pages inside must not add their own.
-          `relative` keeps absolutely placed pieces of a page (chart tooltips, Gantt bars) inside this card.
-          `overscroll-contain` stops a scroll that reaches the end of the card from carrying on into the page.
-        */}
+      
         <div className="lg:min-h-0 lg:flex-1">
           <main
             id="main-content"

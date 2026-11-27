@@ -1,27 +1,30 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import { FiBell } from "react-icons/fi";
+import { FiBell, FiX } from "react-icons/fi";
 import { ago } from "@/lib/dashboard/format";
 import { useMarkRead, useNotifications } from "@/hooks/useNotifications";
 import { NotificationToggle } from "./NotificationToggle";
 
+/** A notice about the client portal: it opens /client or /dashboard/clients */
+const isClientNotice = (url: string) => url.startsWith("/client") || url.startsWith("/dashboard/clients");
+
 const focusRing = "focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-500";
 
 /**
- * The bell: what happened that this person should know (payments asked for, confirmed, overdue, schedule extended,
- * payments to check…), newest first, with a red count of unread ones. The foot of the panel turns phone notifications on.
+ * The bell: what this person should know, to read (tapping one opens nothing). It updates by itself. (What everyone did is in Recent activity, the admin's own button next to the bell.) On a phone the panel spans the screen under the top bar; on a computer it hangs
+ * from the bell. The foot turns push notifications on for this device.
  */
 export function NotificationBell({ align = "right" }: { align?: "left" | "right" }) {
   const [open, setOpen] = useState(false);
   const list = useNotifications();
   const markRead = useMarkRead();
-  const router = useRouter();
   const panelId = useId();
   const wrap = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
-  const unread = list.data?.unread ?? 0;
+  // Client portal notices (payments to check, client messages) are hidden: that feature isn't in use yet
+  const shown = (list.data?.notifications ?? []).filter((n) => !isClientNotice(n.url));
+  const unread = shown.filter((n) => !n.read).length;
 
   // Close on a click outside, or Escape (focus goes back to the bell)
   useEffect(() => {
@@ -43,11 +46,6 @@ export function NotificationBell({ align = "right" }: { align?: "left" | "right"
     };
   }, [open]);
 
-  const go = (id: string, url: string, read: boolean) => {
-    if (!read) markRead.mutate([id]);
-    setOpen(false);
-    router.push(url);
-  };
 
   return (
     <div ref={wrap} className="relative">
@@ -73,45 +71,46 @@ export function NotificationBell({ align = "right" }: { align?: "left" | "right"
           id={panelId}
           role="dialog"
           aria-label="Notifications"
-          className={`absolute top-12 z-50 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-stone-200 bg-white text-left shadow-xl ${align === "right" ? "right-0" : "left-0"}`}
+          className={`fixed inset-x-3 top-17 z-50 flex max-h-[calc(100dvh-5.5rem)] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white text-left shadow-xl sm:absolute sm:inset-x-auto sm:top-12 sm:max-h-[70vh] sm:w-[24rem] ${align === "right" ? "sm:right-0" : "sm:left-0"}`}
         >
-          <div className="flex items-center justify-between border-b border-stone-100 px-4 py-3">
+          <div className="flex items-center justify-between gap-2 border-b border-stone-100 px-4 py-3">
             <p className="font-semibold">Notifications</p>
-            {unread > 0 && (
-              <button type="button" onClick={() => markRead.mutate(undefined)} className={`rounded text-xs font-semibold text-orange-700 hover:text-orange-800 ${focusRing}`}>
-                Mark all as read
+            <div className="flex items-center gap-1">
+              {unread > 0 && (
+                <button type="button" onClick={() => markRead.mutate(undefined)} className={`rounded px-1 text-xs font-semibold text-orange-700 hover:text-orange-800 ${focusRing}`}>
+                  Mark all read
+                </button>
+              )}
+              <button type="button" onClick={() => setOpen(false)} aria-label="Close notifications" className={`flex h-9 w-9 items-center justify-center rounded-lg text-stone-500 hover:bg-stone-100 sm:hidden ${focusRing}`}>
+                <FiX aria-hidden />
               </button>
-            )}
+            </div>
           </div>
-          <div className="max-h-[60vh] overflow-y-auto">
+
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {list.isPending ? (
               <p className="p-4 text-sm text-stone-500">Loading…</p>
             ) : list.isError ? (
               <p className="p-4 text-sm text-red-700">Couldn&apos;t load notifications.</p>
-            ) : list.data.notifications.length === 0 ? (
-              <p className="p-6 text-center text-sm text-stone-500">Nothing yet. Payment reminders and updates will show here.</p>
+            ) : shown.length === 0 ? (
+              <p className="p-6 text-center text-sm text-stone-500">Nothing yet. Site reports, deliveries that need a rate and cost alerts show here.</p>
             ) : (
               <ul className="divide-y divide-stone-100">
-                {list.data.notifications.map((n) => (
-                  <li key={n.id}>
-                    <button
-                      type="button"
-                      onClick={() => go(n.id, n.url, n.read)}
-                      className={`flex w-full gap-3 px-4 py-3 text-left text-sm hover:bg-stone-50 focus:outline-none focus-visible:bg-stone-50 ${n.read ? "" : "bg-orange-50/50"}`}
-                    >
-                      <span aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? "bg-transparent" : "bg-orange-600"}`} />
-                      <span className="min-w-0 flex-1">
-                        <span className={`block ${n.read ? "font-medium text-stone-700" : "font-semibold"}`}>{n.title}</span>
-                        <span className="block text-stone-600">{n.body}</span>
-                        <span className="mt-0.5 block text-xs text-stone-500">{ago(n.createdAt)}</span>
-                      </span>
-                      {!n.read && <span className="sr-only">Unread</span>}
-                    </button>
+                {shown.map((n) => (
+                  <li key={n.id} className={`flex gap-3 px-4 py-3 text-sm ${n.read ? "" : "bg-orange-50/50"}`}>
+                    <span aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.read ? "bg-transparent" : "bg-orange-600"}`} />
+                    <span className="min-w-0 flex-1">
+                      <span className={`block ${n.read ? "font-medium text-stone-700" : "font-semibold"}`}>{n.title}</span>
+                      <span className="block wrap-break-word text-stone-600">{n.body}</span>
+                      <span className="mt-0.5 block text-xs text-stone-500">{ago(n.createdAt)}</span>
+                    </span>
+                    {!n.read && <span className="sr-only">Unread</span>}
                   </li>
                 ))}
               </ul>
             )}
           </div>
+
           <div className="border-t border-stone-100 bg-stone-50 px-2 py-2">
             <p className="px-2.5 pb-1 text-xs font-semibold text-stone-600">Also get these on this phone or computer</p>
             <NotificationToggle />
