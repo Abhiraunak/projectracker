@@ -61,6 +61,17 @@ export interface Register {
   categories: Category[];
   projects: { id: string; title: string }[];
   items: RegisterItem[];
+  /** Archived items: counted nowhere; restore or delete for good (left out by older servers) */
+  archived?: ArchivedEquipment[];
+}
+
+/** An archived item, as the Archived list shows it */
+export interface ArchivedEquipment {
+  id: string;
+  number: string;
+  name: string;
+  unitCost: number | null;
+  archivedAt: string;
 }
 
 export interface HistoryEntry {
@@ -114,6 +125,8 @@ export interface SiteEquipment {
   categories: Category[];
   items: SiteItem[];
   earlier: { id: string; name: string; unit: string; category: CategoryKey; unitDays: number; hireSoFar: number; hireThisMonth: number }[];
+  /** Archived items that were at this site (left out by older servers) */
+  archived?: ArchivedEquipment[];
   totals: { items: number; hireSoFar: number; hireThisMonth: number; serviceDue: number };
 }
 
@@ -160,6 +173,8 @@ export const equipmentApi = {
   undo: (id: string, moveId: string) => request<{ ok: true }>(`/equipment/${enc(id)}/moves/${enc(moveId)}`, { method: "DELETE" }),
   addHireChange: (id: string, body: NewHireChange) => request<{ id: string }>(`/equipment/${enc(id)}/hire-changes`, { method: "POST", body: JSON.stringify(body) }),
   remove: (id: string) => request<{ ok: true }>(`/equipment/${enc(id)}`, { method: "DELETE" }),
+  /** Archive (true) or restore (false): archived items are hidden and counted nowhere */
+  archive: (id: string, archive: boolean) => request<{ ok: true }>(`/equipment/${enc(id)}/${archive ? "archive" : "restore"}`, { method: "POST" }),
   /** Attach the item's bill (a photo or PDF); a new one replaces the old */
   setBill: async (id: string, file: File) => {
     const form = new FormData();

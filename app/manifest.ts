@@ -14,7 +14,7 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "any",
-    background_color: "#111111", // the splash screen while the app opens: the logo's black tile
+    background_color: "#FFD25B", // the splash screen while the app opens: the logo's yellow
     theme_color: "#ffffff", // the phone's status bar: matches the app's white header
     categories: ["business", "productivity"],
     icons: [

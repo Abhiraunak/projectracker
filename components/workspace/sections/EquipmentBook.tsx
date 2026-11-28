@@ -1,14 +1,14 @@
 "use client";
 
 import { memo, useMemo, useState } from "react";
-import { FiAlertTriangle, FiArrowLeft, FiChevronRight, FiCornerDownLeft, FiEdit2, FiMinusCircle, FiPlus, FiPrinter, FiSearch, FiTrash2, FiTruck } from "react-icons/fi";
+import { FiAlertTriangle, FiArchive, FiArrowLeft, FiChevronRight, FiCornerDownLeft, FiEdit2, FiMinusCircle, FiPlus, FiPrinter, FiRotateCcw, FiSearch, FiTrash2, FiTruck } from "react-icons/fi";
 import { ConfirmDeleteDialog } from "@/components/utilites/Confirmdeletedialog";
 import { useCan } from "@/hooks/useProjectAccess";
-import { useDeleteEquipment, useEquipmentItem, useEquipmentRegister, useRemoveHireChange, useSiteEquipment, useUndoMove } from "@/hooks/useEquipment";
+import { useArchiveEquipment, useDeleteEquipment, useEquipmentItem, useEquipmentRegister, useRemoveHireChange, useSiteEquipment, useUndoMove } from "@/hooks/useEquipment";
 import { useProjectHub } from "@/hooks/useProjectHub";
 import { goTo, hrefFor, onPlaceClick, useWorkspaceItem } from "@/hooks/useWorkspacePlace";
 import { describeError } from "@/lib/api";
-import { CONDITION_LABEL, hireLabel, qty, type EquipmentDetail, type HistoryEntry, type MoveKind, type RegisterItem, type SiteItem } from "@/lib/equipment/api";
+import { CONDITION_LABEL, hireLabel, qty, type ArchivedEquipment, type EquipmentDetail, type HistoryEntry, type MoveKind, type RegisterItem, type SiteItem } from "@/lib/equipment/api";
 import { rupees } from "@/lib/projects/hub";
 import { EmptyState, SectionError, SectionSkeleton } from "../ui";
 import { EquipmentForm, type EditableItem } from "./equipment/EquipmentForm";
@@ -61,9 +61,9 @@ function DeleteEquipment({ item, onClose, onDeleted }: { item: { id: string; nam
     <ConfirmDeleteDialog
       open
       onClose={onClose}
-      title="Delete equipment?"
+      title="Delete for good?"
       itemName={item.name}
-      warning="Its moves and hire charges are deleted too. If it is worn out or sold, use Write off on its page instead to keep its history."
+      warning="Its moves, hire charges and bill are deleted too, and cannot be brought back."
       pending={remove.isPending}
       error={remove.error ? describeError(remove.error) : null}
       onConfirm={() =>
@@ -192,6 +192,8 @@ function SiteView({ projectId }: { projectId: string }) {
         </details>
       )}
 
+      {canManage && <ArchivedEquipmentList items={data.archived ?? []} onDelete={setDialog} />}
+
       <Dialogs projectId={projectId} dialog={dialog} onClose={() => setDialog(null)} />
       {printing && <PrintSite items={shown} site={siteName} onDone={() => setPrinting(false)} />}
     </div>
@@ -205,18 +207,74 @@ function costText(i: { ownership: "owned" | "hired"; unitCost: number | null; hi
   return null;
 }
 
-/** Edit and Delete, the same on every row */
+/** Edit and Archive, the same on every row (archived items can then be restored or deleted from Archived) */
 function RowActions({ item, onOpen, then }: { item: EditableItem; onOpen: (d: Dialog) => void; then?: () => void }) {
   const icon = "inline-flex h-11 w-11 items-center justify-center rounded-lg border border-stone-200 text-stone-600 hover:border-stone-400 hover:text-stone-900";
+  const archive = useArchiveEquipment();
   return (
     <>
       <button type="button" onClick={() => onOpen({ type: "edit", item })} aria-label={`Edit ${item.name}`} title="Edit" className={icon}>
         <FiEdit2 aria-hidden />
       </button>
-      <button type="button" onClick={() => onOpen({ type: "delete", item, then })} aria-label={`Delete ${item.name}`} title="Delete" className={`${icon} text-red-600 hover:border-red-300 hover:text-red-700`}>
-        <FiTrash2 aria-hidden />
+      <button
+        type="button"
+        onClick={() => archive.mutate({ id: item.id, archive: true }, { onSuccess: then })}
+        disabled={archive.isPending}
+        aria-label={`Archive ${item.name}`}
+        title="Archive"
+        className={`${icon} disabled:opacity-50`}
+      >
+        <FiArchive aria-hidden />
       </button>
     </>
+  );
+}
+
+/** Archive, on an item's own page: then back to the site */
+function ArchiveButton({ id, then }: { id: string; then: () => void }) {
+  const archive = useArchiveEquipment();
+  return (
+    <button type="button" onClick={() => archive.mutate({ id, archive: true }, { onSuccess: then })} disabled={archive.isPending} className={`${outlineBtn} disabled:opacity-50`}>
+      <FiArchive aria-hidden /> {archive.isPending ? "Archiving…" : "Archive"}
+    </button>
+  );
+}
+
+/** Archived items: hidden and counted nowhere. Restore puts one back; the bin deletes it for good (with a confirm). */
+function ArchivedEquipmentList({ items, onDelete }: { items: ArchivedEquipment[]; onDelete: (d: Dialog) => void }) {
+  const archive = useArchiveEquipment();
+  if (items.length === 0) return null;
+  return (
+    <details className="rounded-xl border border-stone-200">
+      <summary className="flex min-h-12 cursor-pointer items-center px-4 text-sm font-medium text-stone-700">Archived ({items.length})</summary>
+      <ul className="divide-y divide-stone-100 border-t border-stone-100 text-sm">
+        {items.map((a) => (
+          <li key={a.id} className="flex min-h-12 items-center gap-3 px-4 text-stone-500">
+            <span className="hidden w-20 shrink-0 font-mono text-xs sm:inline">{a.number}</span>
+            <span className="min-w-0 flex-1 truncate">{a.name}</span>
+            {a.unitCost !== null && <span className="tabular-nums">{rupees(a.unitCost)}</span>}
+            <button
+              type="button"
+              onClick={() => archive.mutate({ id: a.id, archive: false })}
+              disabled={archive.isPending}
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 font-medium text-stone-700 hover:bg-stone-100 disabled:opacity-50"
+            >
+              <FiRotateCcw aria-hidden /> Restore
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete({ type: "delete", item: { id: a.id, name: a.name } })}
+              aria-label={`Delete ${a.name} for good`}
+              title="Delete for good"
+              className="shrink-0 rounded-lg p-2 text-stone-400 hover:bg-red-50 hover:text-red-600"
+            >
+              <FiTrash2 aria-hidden />
+            </button>
+          </li>
+        ))}
+      </ul>
+      {archive.isError && <p role="alert" className="px-4 pb-3 text-sm text-red-700">{describeError(archive.error)}</p>}
+    </details>
   );
 }
 
@@ -338,6 +396,8 @@ function RegisterView({ projectId }: { projectId: string }) {
         </label>
       )}
 
+      {canManage && <ArchivedEquipmentList items={data.archived ?? []} onDelete={setDialog} />}
+
       <Dialogs projectId={projectId} dialog={dialog} onClose={() => setDialog(null)} />
       {printing && (
         <PrintRegister
@@ -425,9 +485,7 @@ function ItemView({ projectId, id }: { projectId: string; id: string }) {
             <button type="button" onClick={() => setDialog({ type: "edit", item: d })} className={outlineBtn}>
               <FiEdit2 aria-hidden /> Edit
             </button>
-            <button type="button" onClick={() => setDialog({ type: "delete", item: d, then: () => goTo(site) })} className={`${outlineBtn} text-red-700 hover:border-red-400`}>
-              <FiTrash2 aria-hidden /> Delete
-            </button>
+            <ArchiveButton id={d.id} then={() => goTo(site)} />
           </div>
         )}
       </header>

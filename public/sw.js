@@ -5,7 +5,7 @@
    It never stores pages or API answers (your projects, money, attendance): those always come fresh from the server. */
 
 // Change the version when this file's caching changes: old copies are then cleared automatically
-const CACHE = "projectracker-v3"; // v3: nothing stored on localhost
+const CACHE = "projectracker-v4"; // v4: the new logo icons (nothing stored on localhost)
 const PRECACHE = ["/offline.html", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/badge-72.png"];
 
 self.addEventListener("install", (event) => {

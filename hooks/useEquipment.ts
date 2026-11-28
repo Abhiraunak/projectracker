@@ -50,7 +50,12 @@ export function useEquipmentBill() {
     onSuccess: refresh,
   });
 }
-/** Remove an item added by mistake, with its moves and hire changes */
+/** Archive an item (hidden, counted nowhere) or restore it */
+export function useArchiveEquipment() {
+  const refresh = useRefresh();
+  return useMutation({ mutationFn: ({ id, archive }: { id: string; archive: boolean }) => equipmentApi.archive(id, archive), onSuccess: refresh });
+}
+/** Delete an archived item for good, with its moves and hire changes */
 export function useDeleteEquipment() {
   const refresh = useRefresh();
   return useMutation({ mutationFn: (id: string) => equipmentApi.remove(id), onSuccess: refresh });

@@ -12,9 +12,25 @@ const outfit = Outfit({
 })
 
 export const metadata: Metadata = {
+  // The live address: makes the link-preview picture a full link (WhatsApp and others need that)
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://projectracker.vercel.app"),
   title: "Project Tracker | Streamline Workflows & Track Progress",
   description: "Monitor project milestones, track team progress, and manage budgets in real time with our intuitive project tracking dashboard.",
   applicationName: "projecTracker", // the installed app's name
+  // The card shown when a link is pasted in WhatsApp, Telegram, Slack…: the picture is app/opengraph-image.png
+  openGraph: {
+    type: "website",
+    siteName: "Project Tracker",
+    title: "Project Tracker",
+    description: "Materials, labour, equipment and spending for every project, in one place.",
+    url: "/",
+    locale: "en_IN",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Project Tracker",
+    description: "Materials, labour, equipment and spending for every project, in one place.",
+  },
 };
 
 // The phone's status bar colour when the app is installed
