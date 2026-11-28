@@ -1,4 +1,4 @@
-import { request } from "@/lib/api";
+import { ApiError, apiUrl, request } from "@/lib/api";
 
 /* The simple Labour section: attendance by work (hours, OT), payments by person and dates, subcontract work, and
    rate comparison against subcontractor quotes. Adding and deleting payments use lib/projects/labour.ts. */
@@ -145,6 +145,9 @@ export interface Bill {
   to: string;
   amount: number;
   note: string;
+  /** The bill paper (a photo or PDF): a link to open it, or null when none was attached */
+  fileUrl?: string | null;
+  fileKind?: "image" | "pdf" | null;
 }
 export interface PersonDetail {
   days: { date: string; taskId: string | null; work: string; workers: number; hours: number; otHours: number; amount: number }[];
@@ -254,6 +257,15 @@ export const labourSimpleApi = {
   team: (p: string) => request<{ items: TeamRow[]; totals: { earned: number; billed: number; paid: number; toPay: number; ahead: number } }>(`${base(p)}/team`),
   addBill: (p: string, body: BillInput) => request<{ id: string }>(`${base(p)}/bills`, json("POST", body)),
   updateBill: (p: string, id: string, body: BillInput) => request<{ ok: true }>(`${base(p)}/bills/${enc(id)}`, json("PUT", body)),
+  /** Attach the bill paper (photo or PDF); a new one replaces the old */
+  setBillFile: async (p: string, id: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(apiUrl(`${base(p)}/bills/${enc(id)}/file`), { method: "PUT", body: form, credentials: "include", headers: { "X-Requested-With": "fetch" } });
+    const body = (await res.json().catch(() => null)) as { error?: string; details?: unknown } | null;
+    if (!res.ok) throw new ApiError(res.status, body?.error ?? "Couldn't attach the bill", body?.details);
+  },
+  removeBillFile: (p: string, id: string) => request<{ ok: true }>(`${base(p)}/bills/${enc(id)}/file`, { method: "DELETE" }),
   archiveBill: (p: string, id: string, archive: boolean) => request<{ ok: true }>(`${base(p)}/bills/${enc(id)}/${archive ? "archive" : "restore"}`, { method: "POST" }),
   addTeamPayment: (p: string, body: TeamPaymentInput) => request<{ id: string }>(`${base(p)}/team-payments`, json("POST", body)),
   updateTeamPayment: (p: string, id: string, body: TeamPaymentInput) => request<{ ok: true }>(`${base(p)}/team-payments/${enc(id)}`, json("PUT", body)),

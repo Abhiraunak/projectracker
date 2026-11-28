@@ -183,9 +183,13 @@ export function useArchiveSubcontractor(p: string) {
 export function useSaveBill(p: string) {
   const refresh = useLabourRefresh(p);
   return useMutation({
-    mutationFn: async ({ id, body }: { id?: string; body: BillInput }): Promise<void> => {
+    // The bill, then its paper: a new file is attached after saving, or removeFile takes the old one off
+    mutationFn: async ({ id, body, file, removeFile }: { id?: string; body: BillInput; file?: File | null; removeFile?: boolean }): Promise<void> => {
+      let billId = id;
       if (id) await api.updateBill(p, id, body);
-      else await api.addBill(p, body);
+      else billId = (await api.addBill(p, body)).id;
+      if (billId && file) await api.setBillFile(p, billId, file);
+      else if (billId && removeFile) await api.removeBillFile(p, billId);
     },
     onSuccess: refresh,
   });

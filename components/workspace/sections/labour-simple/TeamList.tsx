@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
-import { FiArchive, FiChevronDown, FiChevronUp, FiClipboard, FiCreditCard, FiEdit2, FiPlus, FiX } from "react-icons/fi";
+import { FiArchive, FiChevronDown, FiChevronUp, FiClipboard, FiCreditCard, FiEdit2, FiPaperclip, FiPlus, FiX } from "react-icons/fi";
 import { useArchiveBill, useArchivePayment, useArchivePerson, usePerson, useSaveBill, useSaveTeamPayment, useTeam } from "@/hooks/useLabourSimple";
 import { describeError } from "@/lib/api";
 import type { Bill, BillPay, PersonDetail, TeamRow } from "@/lib/labour/simple";
@@ -334,6 +334,11 @@ function BillsPanel({ projectId, p }: { projectId: string; p: TeamRow }) {
                                         <td className="px-4 py-2">
                                             {periodText(b.from, b.to)}
                                             {b.note && <span className="block text-xs text-[#8C8C8C]">{b.note}</span>}
+                                            {b.fileUrl && (
+                                                <a href={b.fileUrl} target="_blank" rel="noreferrer" className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-[#185FA5] underline underline-offset-2">
+                                                    <FiPaperclip aria-hidden /> View bill
+                                                </a>
+                                            )}
                                         </td>
                                         <td className="px-2 py-2 text-right font-semibold tabular-nums">{money(b.amount)}</td>
                                         <td className="w-20 whitespace-nowrap pr-2 text-right">
@@ -536,6 +541,9 @@ function BillForm({
     const [to, setTo] = useState(editing?.to ?? today);
     const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
     const [note, setNote] = useState(editing?.note ?? "");
+    const [file, setFile] = useState<File | null>(null); // the bill paper to attach
+    const [dropFile, setDropFile] = useState(false); // take the current paper off
+    const hasFile = !!editing?.fileUrl && !dropFile && !file;
     const [problem, setProblem] = useState<string | null>(null);
     // Worked out, not stored: the attendance marked for this person in From – To
     const marked = r2(days.filter((x) => x.date >= from && x.date <= to).reduce((s, x) => s + x.amount, 0));
@@ -555,12 +563,14 @@ function BillForm({
             return;
         }
         save.mutate(
-            { id: editing?.id, body: { name: person, from, to, amount: num(amount), note: note.trim() } },
+            { id: editing?.id, body: { name: person, from, to, amount: num(amount), note: note.trim() }, file, removeFile: dropFile },
             {
                 onSuccess: () => {
                     setAmount("");
                     setWho("");
                     setNote("");
+                    setFile(null);
+                    setDropFile(false);
                     setProblem(null);
                     onDone();
                 },
@@ -644,6 +654,35 @@ function BillForm({
                         </button>
                     )}
                 </span>
+            </div>
+            {/* The bill paper: a photo or PDF, optional */}
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[#444441]">
+                {hasFile ? (
+                    <>
+                        <a href={editing!.fileUrl!} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-1.5 font-medium text-[#185FA5] underline underline-offset-2">
+                            <FiPaperclip aria-hidden /> View bill
+                        </a>
+                        <label className="cursor-pointer text-[#666666] underline underline-offset-2">
+                            Replace
+                            <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+                        </label>
+                        <button type="button" onClick={() => setDropFile(true)} className="text-[#B3261E] underline underline-offset-2">
+                            Remove
+                        </button>
+                    </>
+                ) : (
+                    <label className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-[#D3D1C7] px-3 hover:bg-[#F7F7F5]">
+                        <FiPaperclip aria-hidden className="text-[#8C8C8C]" />
+                        <span className="max-w-56 truncate">{file ? file.name : "Attach bill · photo or PDF (optional)"}</span>
+                        <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+                    </label>
+                )}
+                {file && (
+                    <button type="button" onClick={() => setFile(null)} aria-label="Remove this file" className="rounded p-1 text-[#8C8C8C] hover:bg-[#F1F1EF]">
+                        <FiX aria-hidden />
+                    </button>
+                )}
+                {dropFile && !file && <span className="text-xs text-[#8C8C8C]">The bill paper will be removed when you save.</span>}
             </div>
             {!withName && (
                 <p className="mt-2 text-xs text-[#666666]">
