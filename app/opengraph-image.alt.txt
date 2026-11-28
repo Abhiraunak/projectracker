@@ -1,1 +1,1 @@
-Project Tracker: materials, labour, equipment and spending for every project
+projecTracker: materials, labour, equipment and spending for every project

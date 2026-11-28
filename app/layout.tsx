@@ -20,15 +20,15 @@ export const metadata: Metadata = {
   // The card shown when a link is pasted in WhatsApp, Telegram, Slack…: the picture is app/opengraph-image.png
   openGraph: {
     type: "website",
-    siteName: "Project Tracker",
-    title: "Project Tracker",
+    siteName: "projecTracker",
+    title: "projecTracker",
     description: "Materials, labour, equipment and spending for every project, in one place.",
     url: "/",
     locale: "en_IN",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Project Tracker",
+    title: "projecTracker",
     description: "Materials, labour, equipment and spending for every project, in one place.",
   },
 };
