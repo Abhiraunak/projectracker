@@ -38,11 +38,14 @@ export const viewport: Viewport = { themeColor: "#ffffff" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
+    // suppressHydrationWarning: browser extensions (Grammarly, password managers…) add attributes to <html> and
+    // <body> before React loads; this ignores only those two tags' own attributes, not anything inside the page
     <html
       lang="en"
       className={`${outfit.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {/* Catches the browser's install offer the moment it comes, before the app's code has loaded, so Install app
             in the account menu never misses it (lib/pwa/install.ts picks it up from here) */}
         <Script id="install-offer" strategy="beforeInteractive">

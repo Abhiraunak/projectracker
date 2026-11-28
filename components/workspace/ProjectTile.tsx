@@ -2,10 +2,11 @@
 
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FiEdit2 } from "react-icons/fi";
+import { FiDownload, FiEdit2 } from "react-icons/fi";
+import { BackupDialog } from "./BackupDialog";
 import { BsPinAngle, BsPinAngleFill } from "react-icons/bs";
 import { usePinProject } from "@/hooks/useLabourProjects";
-import { useCan } from "@/hooks/useProjectAccess";
+import { useAccess, useCan } from "@/hooks/useProjectAccess";
 import { hrefFor, onPlaceClick } from "@/hooks/useWorkspacePlace";
 import type { ProjectSummary } from "@/lib/api";
 import { plural, rupees } from "@/lib/projects/hub";
@@ -164,6 +165,8 @@ export const ProjectTile = memo(function ProjectTile({
 /** The ⋯ button: Pin to top (everyone, their own dashboard) and Edit details (people who may change the project) */
 function TileMenu({ project: p }: { project: ProjectSummary }) {
   const canEdit = useCan("project.manage");
+  const isAdmin = useAccess().isAdmin; // Download backup is for admins only
+  const [backingUp, setBackingUp] = useState(false);
   const pin = usePinProject();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -224,6 +227,18 @@ function TileMenu({ project: p }: { project: ProjectSummary }) {
             {p.pinned ? <BsPinAngleFill aria-hidden className="shrink-0 text-[#854F0B]" /> : <BsPinAngle aria-hidden className="shrink-0 text-[#666666]" />}
             {p.pinned ? "Unpin" : "Pin to top"}
           </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setBackingUp(true);
+              }}
+              className="flex min-h-11 w-full items-center gap-3 rounded-[10px] px-3 text-left text-sm text-[#111111] hover:bg-[#F7F7F5] focus:outline-none focus-visible:bg-[#F1F1EF]"
+            >
+              <FiDownload aria-hidden className="shrink-0 text-[#666666]" /> Download backup
+            </button>
+          )}
           {canEdit && (
             <button
               type="button"
@@ -239,6 +254,7 @@ function TileMenu({ project: p }: { project: ProjectSummary }) {
         </div>
       )}
       {editing && <EditDetailsDialog project={editable} onClose={() => setEditing(false)} />}
+      {backingUp && <BackupDialog project={{ id: p.id, title: p.title, number: p.number }} onClose={() => setBackingUp(false)} />}
     </div>
   );
 }

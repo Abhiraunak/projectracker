@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, Suspense, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { FiArrowLeft, FiEdit2, FiGrid } from "react-icons/fi";
+import { FiArrowLeft, FiDownload, FiEdit2, FiGrid } from "react-icons/fi";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAccess } from "@/hooks/useProjectAccess";
 import { useProjectHub } from "@/hooks/useProjectHub";
@@ -13,6 +13,7 @@ import type { SectionKey } from "@/lib/projects/place";
 import { SECTIONS, sectionByKey, type SectionDef } from "./sections";
 import { Overview } from "./Overview";
 import { EditDetailsDialog } from "./EditDetailsDialog";
+import { BackupDialog } from "./BackupDialog";
 import { SectionBoundary, SectionError, SectionSkeleton } from "./ui";
 
 /**
@@ -31,6 +32,8 @@ export function ProjectHub({ projectId }: { projectId: string }) {
   const fromList = useListedProject(projectId);
   const [editing, setEditing] = useState(false);
   const startEditing = useCallback(() => setEditing(true), []);
+  const [backingUp, setBackingUp] = useState(false);
+  const startBackup = useCallback(() => setBackingUp(true), []);
 
   // Pointing at or touching a tab or tile: download the section's code and start its one request
   const prefetchSection = usePrefetchSection();
@@ -69,6 +72,7 @@ export function ProjectHub({ projectId }: { projectId: string }) {
         number={number}
         canEdit={access.can("project.manage") && !!hub.data}
         onEdit={startEditing}
+        onBackup={access.isAdmin ? startBackup : undefined}
       />
       <SectionNav projectId={projectId} current={current} sections={allowed} onWarm={warm} />
 
@@ -93,6 +97,7 @@ export function ProjectHub({ projectId }: { projectId: string }) {
         })}
       </div>
 
+      {backingUp && <BackupDialog project={{ id: projectId, title, number }} onClose={() => setBackingUp(false)} />}
       {editing && hub.data && <EditDetailsDialog project={{ ...hub.data.project, projectCost: hub.data.money.budgetIsSet ? hub.data.money.budget : null }} onClose={() => setEditing(false)} />}
     </div>
   );
@@ -132,12 +137,15 @@ const HubHeader = memo(function HubHeader({
   number,
   canEdit,
   onEdit,
+  onBackup,
 }: {
   title: string;
   firm: string | null;
   number: string | null;
   canEdit: boolean;
   onEdit: () => void;
+  /** Admins only: Download backup */
+  onBackup?: () => void;
 }) {
   const back = useMemo(() => ({ projectId: null, section: "overview" as const }), []);
   return (
@@ -166,6 +174,18 @@ const HubHeader = memo(function HubHeader({
             >
               <FiEdit2 aria-hidden />
               <span className="hidden sm:inline">Edit</span>
+            </button>
+          )}
+          {onBackup && (
+            <button
+              type="button"
+              onClick={onBackup}
+              aria-label="Download backup of this project"
+              title="Download backup"
+              className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-[#666666] hover:bg-[#F1F1EF] hover:text-[#111111]"
+            >
+              <FiDownload aria-hidden />
+              <span className="hidden sm:inline">Backup</span>
             </button>
           )}
         </div>
