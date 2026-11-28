@@ -1,4 +1,4 @@
-import { request } from "@/lib/api";
+import { ApiError, apiUrl, request } from "@/lib/api";
 
 /* Phase 6: the equipment register. The same shapes the API sends. */
 
@@ -17,6 +17,9 @@ interface ItemDetails {
   serialNo: number;
   number: string;
   name: string;
+  /** The item's bill (a photo or PDF): a link to open it, or null when there is none */
+  billUrl?: string | null;
+  billKind?: "image" | "pdf" | null;
   category: CategoryKey;
   unit: string;
   code: string | null;
@@ -157,6 +160,16 @@ export const equipmentApi = {
   undo: (id: string, moveId: string) => request<{ ok: true }>(`/equipment/${enc(id)}/moves/${enc(moveId)}`, { method: "DELETE" }),
   addHireChange: (id: string, body: NewHireChange) => request<{ id: string }>(`/equipment/${enc(id)}/hire-changes`, { method: "POST", body: JSON.stringify(body) }),
   remove: (id: string) => request<{ ok: true }>(`/equipment/${enc(id)}`, { method: "DELETE" }),
+  /** Attach the item's bill (a photo or PDF); a new one replaces the old */
+  setBill: async (id: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(apiUrl(`/equipment/${enc(id)}/bill`), { method: "PUT", body: form, credentials: "include", headers: { "X-Requested-With": "fetch" } });
+    const body = (await res.json().catch(() => null)) as { billUrl?: string | null; error?: string; details?: unknown } | null;
+    if (!res.ok) throw new ApiError(res.status, body?.error ?? "Couldn't attach the bill", body?.details);
+    return body;
+  },
+  removeBill: (id: string) => request<{ ok: true }>(`/equipment/${enc(id)}/bill`, { method: "DELETE" }),
   removeHireChange: (id: string, changeId: string) => request<{ ok: true }>(`/equipment/${enc(id)}/hire-changes/${enc(changeId)}`, { method: "DELETE" }),
 };
 

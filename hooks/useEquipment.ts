@@ -39,6 +39,17 @@ export function useUpdateEquipment() {
   const refresh = useRefresh();
   return useMutation({ mutationFn: ({ id, body }: { id: string; body: EquipmentChanges }) => equipmentApi.update(id, body), onSuccess: refresh });
 }
+/** Attach (a file) or take off (null) an item's bill */
+export function useEquipmentBill() {
+  const refresh = useRefresh();
+  return useMutation({
+    mutationFn: async ({ id, file }: { id: string; file: File | null }): Promise<void> => {
+      if (file) await equipmentApi.setBill(id, file);
+      else await equipmentApi.removeBill(id);
+    },
+    onSuccess: refresh,
+  });
+}
 /** Remove an item added by mistake, with its moves and hire changes */
 export function useDeleteEquipment() {
   const refresh = useRefresh();

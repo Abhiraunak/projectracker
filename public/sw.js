@@ -5,7 +5,7 @@
    It never stores pages or API answers (your projects, money, attendance): those always come fresh from the server. */
 
 // Change the version when this file's caching changes: old copies are then cleared automatically
-const CACHE = "projectracker-v2"; // v2: the new logo icons
+const CACHE = "projectracker-v3"; // v3: nothing stored on localhost
 const PRECACHE = ["/offline.html", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/badge-72.png"];
 
 self.addEventListener("install", (event) => {
@@ -29,7 +29,11 @@ self.addEventListener("activate", (event) => {
 });
 
 /** The app's own files that never change once built (their names carry a fingerprint), plus icons and fonts */
+// On this computer (localhost) nothing is stored, so testing never shows old code
+const LOCAL = ["localhost", "127.0.0.1"].includes(self.location.hostname);
+
 function isStaticAsset(url) {
+    if (LOCAL) return false;
     return url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/icons/") || /\.(?:woff2?|ttf|otf)$/.test(url.pathname);
 }
 
@@ -107,7 +111,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
     event.notification.close();
-    const target = (event.notification.data && event.notification.data.url) || safeUrl("/dashboard");
+    const target = safeUrl("/dashboard"); // tapping a notification just opens the app (its home page)
 
     event.waitUntil(
         (async () => {

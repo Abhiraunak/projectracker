@@ -244,6 +244,7 @@ const SiteRow = memo(function SiteRow({
         )}
         {i.notes && <span className="mt-0.5 block truncate text-xs text-stone-500">{i.notes}</span>}
       </a>
+
       <span className="text-sm text-stone-600">
         <span className="text-stone-500 sm:hidden">Purchased </span>
         {i.purchasedOn ? longDate(i.purchasedOn) : "—"}
@@ -251,6 +252,11 @@ const SiteRow = memo(function SiteRow({
       <span className="text-sm tabular-nums text-stone-900 sm:text-right">
         <span className="text-stone-500 sm:hidden">Cost </span>
         {cost ?? "—"}
+        {i.billUrl && (
+          <a href={i.billUrl} target="_blank" rel="noreferrer" className="ml-2 text-xs font-medium text-[#185FA5] underline underline-offset-2 sm:ml-0 sm:block">
+            View bill
+          </a>
+        )}
       </span>
       {canManage ? (
         <div className="flex gap-1.5 sm:justify-end">
