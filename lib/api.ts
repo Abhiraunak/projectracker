@@ -35,6 +35,11 @@ export interface ProjectSummary {
   title: string;
   /** The firm or client name on the project tile (optional: older API versions don't send it) */
   firmName?: string | null;
+  /** The project number: PT-001, or the admin's own number (left out by older servers) */
+  number?: string;
+  customNumber?: boolean;
+  /** Pinned to the top of this person's dashboard */
+  pinned?: boolean;
   status: ProjectStatus;
   taskCount: number;
   attendanceCount: number;
@@ -143,6 +148,8 @@ export async function request<T>(path: string, init: RequestInit = {}, isRetry =
 const json = (data: unknown) => JSON.stringify(data);
 
 export const projectsApi = {
+  /** Pin a project to the top of your own dashboard (true), or take the pin off (false) */
+  pin: (projectId: string, on: boolean) => request<{ ok: true; pinned: boolean }>(`/projects/${encodeURIComponent(projectId)}/pin`, { method: on ? "POST" : "DELETE" }),
   list: (status?: ProjectStatus) =>
     request<{ projects: ProjectSummary[] }>(`/projects${status ? `?status=${status}` : ""}`).then((r) => r.projects),
   get: (id: string) => request<{ project: ApiProject }>(`/projects/${id}`).then((r) => r.project),

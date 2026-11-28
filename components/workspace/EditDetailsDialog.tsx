@@ -6,6 +6,7 @@ import { MoneyInput } from "@/components/utilites/MoneyInput";
 import { useSetProjectDetails } from "@/hooks/useProjectHub";
 import { describeError } from "@/lib/api";
 import { DatePick } from "./sections/labour-simple/DatePick";
+import { useAccess } from "@/hooks/useProjectAccess";
 
 /** Always "YYYY-MM-DD" for the server (a date that came with a time keeps only its day); "" stays empty */
 const ymd = (v: string | null | undefined) => (v ? v.slice(0, 10) : "");
@@ -14,6 +15,9 @@ export interface EditableProject {
   id: string;
   title: string;
   firmName?: string | null;
+  /** PT-001, or the admin's own number */
+  number?: string;
+  customNumber?: boolean;
   /** What the whole job should cost; null = not set yet */
   projectCost: number | null;
   /** The project's own start and finish ("2026-11-21"); null = worked out from the work items */
@@ -23,6 +27,8 @@ export interface EditableProject {
 
 /** Change the project's name, the firm or client shown above it, the project cost, and its start and finish dates */
 export function EditDetailsDialog({ project, onClose }: { project: EditableProject; onClose: () => void }) {
+  const isAdmin = useAccess().isAdmin; // only an admin may change the project number
+  const [number, setNumber] = useState(project.number ?? "");
   const [title, setTitle] = useState(project.title);
   const [firm, setFirm] = useState(project.firmName ?? "");
   const [cost, setCost] = useState<number | "">(project.projectCost ?? "");
@@ -35,7 +41,15 @@ export function EditDetailsDialog({ project, onClose }: { project: EditableProje
     event.preventDefault();
     if (!title.trim() || badDates) return;
     save.mutate(
-      { title: title.trim(), firmName: firm.trim() || null, projectCost: cost === "" ? null : Number(cost), startDate: ymd(start) || null, endDate: ymd(end) || null },
+      {
+        // The number goes only when an admin changed it (others can't, and the server would refuse)
+        ...(isAdmin && number.trim().toUpperCase() !== (project.number ?? "").toUpperCase() ? { number: number.trim() || null } : {}),
+        title: title.trim(),
+        firmName: firm.trim() || null,
+        projectCost: cost === "" ? null : Number(cost),
+        startDate: ymd(start) || null,
+        endDate: ymd(end) || null,
+      },
       { onSuccess: onClose }
     );
   };
@@ -46,6 +60,27 @@ export function EditDetailsDialog({ project, onClose }: { project: EditableProje
     <ModalDialog open onClose={onClose} label="Edit project" locked={save.isPending}>
       <form onSubmit={submit} className="space-y-4 p-5">
         <h2 className="text-lg font-semibold">Edit project</h2>
+        <label className="block text-sm">
+          <span className="font-medium text-stone-700">Project number</span>
+          {isAdmin ? (
+            <>
+              <span className="block text-xs text-stone-500">Given in order (PT-001, PT-002…). You can set your own, like the firm&apos;s job number; leave empty to go back to the automatic one.</span>
+              <input
+                value={number}
+                onChange={(e) => setNumber(e.target.value.toUpperCase())}
+                maxLength={30}
+                pattern="[A-Za-z0-9\-/ ]*"
+                placeholder="PT-001"
+                className={`${field} font-mono uppercase tracking-wide`}
+              />
+            </>
+          ) : (
+            <span className="mt-1 flex min-h-11 items-center rounded-lg border border-stone-200 bg-stone-50 px-3 font-mono tracking-wide text-stone-600">
+              {project.number ?? "—"}
+              <span className="ml-auto font-sans text-xs text-stone-500">Only an admin can change it</span>
+            </span>
+          )}
+        </label>
         <label className="block text-sm">
           <span className="font-medium text-stone-700">Project name</span>
           <input value={title} onChange={(e) => setTitle(e.target.value)} required maxLength={120} className={field} />

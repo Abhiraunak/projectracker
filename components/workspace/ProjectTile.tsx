@@ -3,14 +3,16 @@
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FiEdit2 } from "react-icons/fi";
+import { BsPinAngle, BsPinAngleFill } from "react-icons/bs";
+import { usePinProject } from "@/hooks/useLabourProjects";
 import { useCan } from "@/hooks/useProjectAccess";
 import { hrefFor, onPlaceClick } from "@/hooks/useWorkspacePlace";
 import type { ProjectSummary } from "@/lib/api";
-import { plural, rupees, rupeesShort } from "@/lib/projects/hub";
+import { plural, rupees } from "@/lib/projects/hub";
 import { EditDetailsDialog } from "./EditDetailsDialog";
 
 /** Full amounts while they fit in half the tile; ₹1.29 Cr beyond ₹10 L */
-const fit = (v: number) => (Math.abs(v) >= 1_000_000 ? rupeesShort(v) : rupees(v));
+const fit = (v: number) => rupees(v); // full figures, e.g. ₹60,00,000
 
 /* ------------------------------------------- time left ------------------------------------------- */
 
@@ -95,9 +97,19 @@ export const ProjectTile = memo(function ProjectTile({
     <li className="[content-visibility:auto] [contain-intrinsic-size:auto_260px]">
       <article className="group relative flex h-full flex-col gap-4.5 rounded-[22px] border border-[#E8E8E6] bg-white px-5 pb-5.5 pt-5 shadow-[0_1px_2px_rgba(17,17,17,0.04)] transition-[border-color,box-shadow] duration-180 ease-[cubic-bezier(.2,0,0,1)] hover:border-[#CFCFCC] hover:shadow-[0_1px_2px_rgba(17,17,17,0.04),0_6px_16px_-8px_rgba(17,17,17,0.12)] focus-within:border-[#CFCFCC] motion-reduce:transition-none">
         <div className="flex items-center justify-between gap-3">
-          <span className={`inline-flex h-6.5 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-xs font-medium ${tone.pill}`}>
-            <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
-            {time.label}
+          {/* The project number, a pin when pinned, then the time left */}
+          <span className="flex min-w-0 flex-wrap items-center gap-1.5">
+            {p.number && <span className="inline-flex h-5.5 shrink-0 items-center rounded-md bg-[#F1F1EF] px-1.5 font-mono text-[11px] font-medium tracking-wide text-[#666666]">{p.number}</span>}
+            {p.pinned && (
+              <span title="Pinned to the top" className="text-[#854F0B]">
+                <BsPinAngleFill aria-hidden className="text-sm" />
+                <span className="sr-only">Pinned</span>
+              </span>
+            )}
+            <span className={`inline-flex h-6.5 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-xs font-medium ${tone.pill}`}>
+              <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
+              {time.label}
+            </span>
           </span>
           <TileMenu project={p} />
         </div>
@@ -149,9 +161,10 @@ export const ProjectTile = memo(function ProjectTile({
 
 /* ------------------------------------------- the ⋯ menu ------------------------------------------- */
 
-/** The ⋯ button: one option, Edit details (project title, firm name, project cost). Only for people who may change them. */
+/** The ⋯ button: Pin to top (everyone, their own dashboard) and Edit details (people who may change the project) */
 function TileMenu({ project: p }: { project: ProjectSummary }) {
   const canEdit = useCan("project.manage");
+  const pin = usePinProject();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
@@ -178,9 +191,8 @@ function TileMenu({ project: p }: { project: ProjectSummary }) {
     };
   }, [open]);
 
-  if (!canEdit) return null;
   // firmName is optional on ProjectSummary (older APIs leave it out), so undefined becomes null
-  const editable = { id: p.id, title: p.title, firmName: p.firmName ?? null, projectCost: p.projectCost, startDate: p.ownStartDate ?? null, endDate: p.ownEndDate ?? null };
+  const editable = { id: p.id, title: p.title, firmName: p.firmName ?? null, number: p.number, customNumber: p.customNumber, projectCost: p.projectCost, startDate: p.ownStartDate ?? null, endDate: p.ownEndDate ?? null };
 
   return (
     <div ref={wrap} className="relative z-1 -my-1.5 -mr-1.5">
@@ -205,12 +217,25 @@ function TileMenu({ project: p }: { project: ProjectSummary }) {
             type="button"
             onClick={() => {
               setOpen(false);
-              setEditing(true);
+              pin.mutate({ id: p.id, on: !p.pinned });
             }}
             className="flex min-h-11 w-full items-center gap-3 rounded-[10px] px-3 text-left text-sm text-[#111111] hover:bg-[#F7F7F5] focus:outline-none focus-visible:bg-[#F1F1EF]"
           >
-            <FiEdit2 aria-hidden className="shrink-0 text-[#666666]" /> Edit details
+            {p.pinned ? <BsPinAngleFill aria-hidden className="shrink-0 text-[#854F0B]" /> : <BsPinAngle aria-hidden className="shrink-0 text-[#666666]" />}
+            {p.pinned ? "Unpin" : "Pin to top"}
           </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setEditing(true);
+              }}
+              className="flex min-h-11 w-full items-center gap-3 rounded-[10px] px-3 text-left text-sm text-[#111111] hover:bg-[#F7F7F5] focus:outline-none focus-visible:bg-[#F1F1EF]"
+            >
+              <FiEdit2 aria-hidden className="shrink-0 text-[#666666]" /> Edit details
+            </button>
+          )}
         </div>
       )}
       {editing && <EditDetailsDialog project={editable} onClose={() => setEditing(false)} />}

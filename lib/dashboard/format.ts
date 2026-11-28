@@ -1,11 +1,8 @@
-/** How the admin dashboard writes numbers: short Indian amounts (₹18.6 L, ₹1.42 Cr) and "3 h ago" */
+/** How the admin dashboard writes numbers: full Indian amounts (₹18,60,000, never "18.6 L") and "3 h ago" */
 
 export function inrShort(value: number): string {
   const sign = value < 0 ? "−" : "";
-  const n = Math.abs(value);
-  if (n >= 1e7) return `${sign}₹${(n / 1e7).toFixed(2)} Cr`;
-  if (n >= 1e5) return `${sign}₹${(n / 1e5).toFixed(1)} L`;
-  return `${sign}₹${Math.round(n).toLocaleString("en-IN")}`;
+  return `${sign}₹${Math.round(Math.abs(value)).toLocaleString("en-IN")}`;
 }
 
 export const pct = (value: number) => `${Math.round(value)}%`;

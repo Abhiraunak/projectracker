@@ -6,6 +6,9 @@ export interface ProjectHub {
     id: string;
     title: string;
     firmName: string | null;
+    /** PT-001, or the admin's own number (left out by older servers) */
+    number?: string;
+    customNumber?: boolean;
     status: "ONGOING" | "COMPLETED" | "ARCHIVED";
     updatedAt: string;
     /** Set on Edit project; null = worked out from the work items (left out by older servers) */
@@ -48,6 +51,8 @@ export const spendKey = (projectId: string) => ["attendance", "spend", projectId
 export interface ProjectDetails {
   title?: string;
   firmName?: string | null;
+  /** Admins only: the project number; null or "" goes back to the automatic PT-00N */
+  number?: string | null;
   projectCost?: number | null;
   startDate?: string | null;
   endDate?: string | null;
@@ -65,15 +70,14 @@ export const hubApi = {
 const inr = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const day = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
 
-/** ₹1.48 Cr, ₹12.4 L, ₹48,500: short enough for a tile */
+/**
+ * Amounts as full figures everywhere: ₹60,00,000, ₹12,19,000, ₹48,500 (never "60 L" or "1.4 Cr").
+ * Kept under its old name so every screen that used the short form now shows the full figure.
+ */
 export function rupeesShort(value: number): string {
-  const v = Math.abs(value);
   const sign = value < 0 ? "−" : "";
-  if (v >= 1e7) return `${sign}₹${trim(v / 1e7)} Cr`;
-  if (v >= 1e5) return `${sign}₹${trim(v / 1e5)} L`;
-  return `${sign}₹${inr.format(v)}`;
+  return `${sign}₹${inr.format(Math.round(Math.abs(value)))}`;
 }
-const trim = (n: number) => (n >= 100 ? Math.round(n).toString() : n.toFixed(2).replace(/\.?0+$/, ""));
 
 export const rupees = (value: number) => `₹${inr.format(Math.round(value))}`;
 export const shortDate = (ymd: string) => day.format(new Date(`${ymd}T00:00:00Z`));

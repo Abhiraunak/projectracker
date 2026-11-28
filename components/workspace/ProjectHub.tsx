@@ -59,13 +59,14 @@ export function ProjectHub({ projectId }: { projectId: string }) {
 
   const title = hub.data?.project.title ?? fromList?.title ?? "";
   const firm = hub.data?.project.firmName ?? fromList?.firmName ?? null;
+  const number = hub.data?.project.number ?? fromList?.number ?? null;
 
   return (
     <div className="min-w-0">
       <HubHeader
-        projectId={projectId}
         title={title}
         firm={firm}
+        number={number}
         canEdit={access.can("project.manage") && !!hub.data}
         onEdit={startEditing}
       />
@@ -112,7 +113,7 @@ const KeptSection = memo(function KeptSection({ def, projectId }: { def: Section
 });
 
 /** The project's card from the list already loaded, if any: lets the header show before the hub arrives */
-function useListedProject(projectId: string): Pick<ProjectSummary, "title" | "firmName"> | undefined {
+function useListedProject(projectId: string): Pick<ProjectSummary, "title" | "firmName" | "number"> | undefined {
   const qc = useQueryClient();
   return useMemo(() => {
     for (const [, data] of qc.getQueriesData<ProjectSummary[] | Hub>({ queryKey: ["projects"] })) {
@@ -126,15 +127,15 @@ function useListedProject(projectId: string): Pick<ProjectSummary, "title" | "fi
 }
 
 const HubHeader = memo(function HubHeader({
-  projectId,
   title,
   firm,
+  number,
   canEdit,
   onEdit,
 }: {
-  projectId: string;
   title: string;
   firm: string | null;
+  number: string | null;
   canEdit: boolean;
   onEdit: () => void;
 }) {
@@ -168,7 +169,12 @@ const HubHeader = memo(function HubHeader({
             </button>
           )}
         </div>
-        {firm && <p className="truncate text-sm text-[#666666]">{firm}</p>}
+        {(number || firm) && (
+          <p className="flex min-w-0 items-center gap-2 text-sm text-[#666666]">
+            {number && <span className="inline-flex h-5.5 shrink-0 items-center rounded-md bg-[#F1F1EF] px-1.5 font-mono text-[11px] font-medium tracking-wide text-[#666666]">{number}</span>}
+            {firm && <span className="truncate">{firm}</span>}
+          </p>
+        )}
       </div>
     </div>
   );

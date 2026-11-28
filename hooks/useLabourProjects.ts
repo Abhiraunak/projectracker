@@ -5,6 +5,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ProjectData } from "@/components/labour/LabourManagementForm";
 import { projectsApi, toPayload, type ApiProject, type ProjectStatus, type TaskPatch } from "@/lib/api";
 
+/** Pin a project to the top of your own dashboard, or take the pin off */
+export const usePinProject = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, on }: { id: string; on: boolean }) => projectsApi.pin(id, on),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
+  });
+};
+
 export const keys = {
   list: (status?: ProjectStatus) => ["projects", status ?? "all"] as const,
   one: (id: string) => ["project", id] as const,

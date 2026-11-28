@@ -3,7 +3,6 @@
 import { Fragment, memo, useState } from "react";
 import { FiChevronDown, FiChevronRight, FiEdit2 } from "react-icons/fi";
 import { useCan } from "@/hooks/useProjectAccess";
-import { useWorkItems } from "@/hooks/useAttendance";
 import { useMaterialPurchases } from "@/hooks/useMaterialPurchases";
 import { useEstimates } from "@/hooks/useMaterialEstimates";
 import { hrefFor, onPlaceClick } from "@/hooks/useWorkspacePlace";
@@ -35,19 +34,11 @@ export const Overview = memo(function Overview({
   const p = hub.progress;
   const canEdit = useCan("project.manage");
   // The two breakdowns under the money table, each only for people who may see that section
-  const workItems = useWorkItems(projectId, useCan("attendance.view"));
   const purchases = useMaterialPurchases(projectId, useCan("materials.view"));
   // The Material estimate card: the estimates of the Material estimate section (the old BOQs are no longer used here)
   const estimateList = useEstimates(projectId, useCan("boq.use")).data?.estimates;
   const estimate = estimateList ? { count: estimateList.length, total: estimateList.reduce((s, e) => s + e.total, 0) } : null;
 
-  // Labour by work item: attendance marked under each (General last), then contract work on its own line
-  const byWork = workItems.data
-    ? [
-      ...workItems.data.items.filter((w) => w.total > 0).map((w) => ({ label: w.work, value: w.total })),
-      ...(workItems.data.general.total > 0 ? [{ label: "General", value: workItems.data.general.total }] : []),
-    ]
-    : null;
   // Materials against what was ordered (from the estimate or added by hand): value arrived at the planned rate
   const items = purchases.data?.items ?? null;
   const procurement =
@@ -75,12 +66,12 @@ export const Overview = memo(function Overview({
 
       {/* 2 · money */}
       {money ? (
-        <MoneyAtAGlance m={money} estimate={estimate} byWork={byWork} procurement={procurement} onEditCost={canEdit ? () => setSettingCost(true) : undefined} />
+        <MoneyAtAGlance m={money} estimate={estimate} procurement={procurement} onEditCost={canEdit ? () => setSettingCost(true) : undefined} />
       ) : <div aria-busy="true" className="h-64 animate-pulse rounded-[22px] bg-[#EFEFED] motion-reduce:animate-none" />}
 
       {settingCost && money && (
         <EditDetailsDialog
-          project={{ id: projectId, title: hub.project.title, firmName: hub.project.firmName, projectCost: money.projectCost, startDate: hub.project.startDate ?? null, endDate: hub.project.endDate ?? null }}
+          project={{ id: projectId, title: hub.project.title, firmName: hub.project.firmName, number: hub.project.number, projectCost: money.projectCost, startDate: hub.project.startDate ?? null, endDate: hub.project.endDate ?? null }}
           onClose={() => setSettingCost(false)}
         />
       )}
@@ -116,7 +107,7 @@ const HEALTH = {
 /**
  * The money, plainly: what the client pays (BOQ), our budget (project cost, editable), what has actually been spent
  * and what remains of the budget. Then where the spending went: one bar and a small table, actual spending only.
- * Built from useSpend (GET /spend: attendance, contract work, deliveries, equipment at this site, General expenses), the same figures as the
+ * Built from useSpend (GET /spend: labour payments made, deliveries, equipment at this site, General expenses), the same figures as the
  * Expenditure tab and the project cards; saving attendance, a payment, a delivery or an expense refreshes it.
  */
 interface Procurement {
@@ -129,7 +120,6 @@ interface Procurement {
 function MoneyAtAGlance({
   m,
   estimate,
-  byWork,
   procurement,
   onEditCost,
 }: {
@@ -137,7 +127,6 @@ function MoneyAtAGlance({
   /** The Material estimate section's estimates: how many and their total (null: not known or no access) */
   estimate: { count: number; total: number } | null;
   /** Labour attendance by work item, for the Labour row's breakdown (null: not loaded or no access) */
-  byWork: { label: string; value: number }[] | null;
   /** Materials arrived against ordered, for the Materials row (null: none yet or no access) */
   procurement: Procurement | null;
   onEditCost?: () => void;
@@ -145,22 +134,15 @@ function MoneyAtAGlance({
   const [open, setOpen] = useState<Record<string, boolean>>({ Labour: true, Materials: true });
   const over = m.left !== null && m.left < 0;
   const { labour: L, material: M } = m.parts;
-  // Each head says where its figure comes from, in the section's own words, so it can be checked section by section
-  const join = (bits: (string | false)[]) => bits.filter(Boolean).join(" + ") || "Nothing yet";
+  
   const heads = [
     {
       label: "Labour",
-      hint: join([
-        L.attendance > 0 && `Attendance ${rupeesShort(L.attendance)}`,
-        L.contract > 0 && `Contract work ${rupeesShort(L.contract)}`,
-        L.spent - L.total > 0.5 && `Bills and payments beyond marked work ${rupeesShort(L.spent - L.total)}`,
-      ]),
-      // What was paid, what is still owed, and any advance, as in the Labour tab's rows
+      // Only payments made count as spent; bills and attendance only tell what is still to pay
+      hint: L.paid > 0 ? "Payments made" : "Nothing paid yet",
       note:
         L.paid > 0 || m.labourToPay > 0
-          ? [`Paid ${rupeesShort(L.paid)}`, m.labourToPay > 0 ? `${rupeesShort(m.labourToPay)} still to pay` : "nothing owed", L.ahead > 0 && `${rupeesShort(L.ahead)} paid ahead`]
-            .filter(Boolean)
-            .join(" · ")
+          ? [m.labourToPay > 0 ? `${rupeesShort(m.labourToPay)} still to pay` : "nothing owed", L.ahead > 0 && `${rupeesShort(L.ahead)} paid ahead`].filter(Boolean).join(" · ")
           : null,
       value: m.labour,
       ...HEAD_COLORS.labour,
@@ -175,12 +157,10 @@ function MoneyAtAGlance({
     { label: "Equipment", hint: m.equipment > 0 ? "Items at this site (cost) and hire" : "Nothing yet", note: null, value: m.equipment, ...HEAD_COLORS.equipment },
     { label: "General", hint: m.general > 0 ? "General expenses" : "Nothing yet", note: null, value: m.general, ...HEAD_COLORS.general },
   ];
-  // Under Labour: each work item's attendance, then contract work
+  // Under Labour: what was paid, to whom (the two add up to the Labour figure)
   const labourRows = [
-    ...(byWork ?? []),
-    ...(L.contract > 0 ? [{ label: "Contract work", value: L.contract }] : []),
-    // bills and payments for people with less (or no) attendance marked than they billed or were paid for
-    ...(L.spent - L.total > 0.5 ? [{ label: "Bills and payments beyond marked work", value: L.spent - L.total }] : []),
+    ...(L.paidTeam > 0 ? [{ label: "Paid to team heads and individuals", value: L.paidTeam }] : []),
+    ...(L.paidSub > 0 ? [{ label: "Paid to subcontractors", value: L.paidSub }] : []),
   ];
   // Rows under a head: no lines between them, only one under the last (the table's lines separate the heads)
   const sub = (label: string, value: number, last = false) => (
@@ -194,7 +174,7 @@ function MoneyAtAGlance({
       <td />
     </tr>
   );
-  const labourDetail = byWork && labourRows.length > 0 ? <>{labourRows.map((r, i) => sub(r.label, r.value, i === labourRows.length - 1))}</> : null;
+  const labourDetail = labourRows.length > 0 ? <>{labourRows.map((r, i) => sub(r.label, r.value, i === labourRows.length - 1))}</> : null;
   const arrivedPct = procurement && procurement.ordered > 0 ? Math.min(100, (procurement.arrived / procurement.ordered) * 100) : null;
   const materialsDetail = procurement ? (
     <>
